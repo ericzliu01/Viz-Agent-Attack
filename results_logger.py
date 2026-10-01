@@ -1,10 +1,4 @@
-"""Shared CSV schema + append helper for results/results.csv.
-
-Both server.py (manual/browser-agent trials) and run_attack_suite.py
-(automated Ollama trials) import FIELDNAMES and append_row from here so
-every trial — human, browser agent, or local model — lands in one
-comparable file.
-"""
+"""Shared CSV schema for current ReAct and historical experiment results."""
 import csv
 import os
 import threading
@@ -12,14 +6,8 @@ import threading
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 RESULTS_CSV = os.path.join(RESULTS_DIR, "results.csv")
 
-# condition: how the input was presented to the responder, e.g.
-#   "raw_source"       - full HTML file source (Phase 1 default)
-#   "vision_screenshot"- headless-rendered screenshot fed to a vision model (Phase 1b, run_vlm_suite.py)
-#   "dom_extract"      - post-render DOM, scripts stripped (Phase 3)
-#   "config_extract"   - serialized chart.data/chart.config for canvas libs (Phase 3)
-#   "human"            - a person viewing the rendered page (log_form.html)
-#   "browser_agent"    - a browser-driving agent (Claude in Chrome, etc.) viewing the rendered page
-#
+# condition: "react_browser" for current runs; historical conditions stay readable.
+# notes: stop reason, model-call count, trace path, and any infrastructure error.
 # correct: "true" / "false" / "needs_review" (ambiguous response, never guess-scored)
 FIELDNAMES = [
     "timestamp",
