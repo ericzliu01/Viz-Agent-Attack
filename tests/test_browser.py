@@ -139,9 +139,13 @@ class RunnerTests(unittest.TestCase):
         args = Namespace(models=["test-model"], dry_run=False, headed=False,
                          trace_dir=str(Path(self.temp.name) / "traces"),
                          base_url="http://localhost:11434", timeout=10, max_steps=3,
-                         num_ctx=32768, temperature=0, seed=0, trials=1)
+                         num_ctx=32768, temperature=0, seed=0, trials=1, tools=None)
         calls = []
         def post(url, *, json, timeout):
+            if url.endswith("/api/show"):
+                response = Mock()
+                response.json.return_value = {"capabilities": ["vision", "tools"]}
+                return response
             calls.append(json)
             self.assertNotIn("ground_truth", str(json))
             self.assertNotIn("grading-only", str(json))
@@ -176,6 +180,8 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(trace_config["seed"], 0)
             self.assertEqual(trace_config["trial"], 0)
             self.assertTrue(all(r["trial"] == "0" for r in rows))
+            self.assertIn("screenshot", trace_config["tools"])
+            self.assertTrue(all("enabled_tools=" not in r["notes"] for r in rows))
 
     def test_multiple_trials_run_and_resume_independently(self):
         attack = {"library": "d3", "attack_id": "attack", "html_path": str(self.html),
@@ -183,9 +189,13 @@ class RunnerTests(unittest.TestCase):
         args = Namespace(models=["test-model"], dry_run=False, headed=False,
                          trace_dir=str(Path(self.temp.name) / "traces"),
                          base_url="http://localhost:11434", timeout=10, max_steps=3,
-                         num_ctx=32768, temperature=0.5, seed=10, trials=2)
+                         num_ctx=32768, temperature=0.5, seed=10, trials=2, tools=None)
         seeds_seen = []
         def post(url, *, json, timeout):
+            if url.endswith("/api/show"):
+                response = Mock()
+                response.json.return_value = {"capabilities": ["vision", "tools"]}
+                return response
             seeds_seen.append(json["options"]["seed"])
             response = Mock()
             response.json.return_value = {"message": {"role": "assistant", "content": "310"},

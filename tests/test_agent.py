@@ -1,3 +1,4 @@
+import argparse
 import base64
 from copy import deepcopy
 import json
@@ -9,8 +10,10 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from browser_agent import BrowserTools, TEXT_LIMIT, run_agent, save_trace
-from run_attack_suite import already_done_keys, attack_trials, grade, PAGES_DIR
+from browser_agent import (BrowserTools, TEXT_LIMIT, TOOLS, check_model_capabilities,
+                           filter_tools, run_agent, save_trace)
+from run_attack_suite import (add_agent_arguments, already_done_keys, attack_trials,
+                              grade, validate_arguments, PAGES_DIR)
 from run_capability_suite import discover_tasks, grade_task
 from summarize_results import build_asr_table
 
@@ -122,6 +125,46 @@ class AgentTests(unittest.TestCase):
         page.evaluate.return_value = "a" * (TEXT_LIMIT + 1)
         self.assertIn("[truncated", tools.execute("evaluate", {"script": "longText"})[0])
 
+    def test_filter_tools_subset_and_unknown_name(self):
+        subset = filter_tools(["screenshot", "dom"])
+        self.assertEqual([t["function"]["name"] for t in subset], ["screenshot", "dom"])
+        with self.assertRaises(ValueError):
+            filter_tools(["screenshot", "not_a_tool"])
+
+    def test_disabled_tool_is_rejected_at_execution(self):
+        page = Mock()
+        tools = BrowserTools(page, [], enabled_tools={"screenshot"})
+        page.screenshot.return_value = PNG
+        tools.execute("screenshot", {})
+        with self.assertRaises(ValueError):
+            tools.execute("dom", {})
+
+    def test_run_agent_sends_only_enabled_tools(self):
+        subset = filter_tools(["screenshot", "evaluate"])
+        with patch("browser_agent.requests.post") as post:
+            post.return_value.json.return_value = {"message": {"role": "assistant", "content": "310"}}
+            run_agent(Mock(), "Q", "M", tools=subset)
+            sent_tools = post.call_args.kwargs["json"]["tools"]
+            self.assertEqual([t["function"]["name"] for t in sent_tools], ["screenshot", "evaluate"])
+
+    def test_check_model_capabilities_present_missing_and_absent(self):
+        for capabilities, should_raise in [(["vision", "tools"], False),
+                                           (["vision"], True),
+                                           (None, False)]:
+            with self.subTest(capabilities=capabilities):
+                with patch("browser_agent.requests.post") as post:
+                    data = {} if capabilities is None else {"capabilities": capabilities}
+                    post.return_value.json.return_value = data
+                    if should_raise:
+                        with self.assertRaises(SystemExit):
+                            check_model_capabilities("M")
+                    else:
+                        check_model_capabilities("M")
+
+    def test_check_model_capabilities_handles_request_errors(self):
+        with patch("browser_agent.requests.post", side_effect=requests.Timeout("timed out")):
+            check_model_capabilities("M")
+
     def test_trace_stores_png_without_mutating_model_history(self):
         result, _, _ = self.run_script([assistant(calls=[call("screenshot")]), assistant("310")])
         original = deepcopy(result.messages)
@@ -149,6 +192,30 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(grade_task(choice, choice["ground_truth"])[0], "true")
         self.assertEqual(grade_task(choice, "This is a chart")[0], "needs_review")
         self.assertEqual(grade("cannot determine", "310")[0], "needs_review")
+
+    def test_validate_arguments_accepts_known_tools_and_rejects_unknown(self):
+        parser = argparse.ArgumentParser()
+        add_agent_arguments(parser)
+        parser.add_argument("--limit", type=int)
+        args = parser.parse_args(["--models", "m", "--tools", "screenshot,dom"])
+        validate_arguments(parser, args)
+        self.assertEqual(args.tools, ["screenshot", "dom"])
+
+        parser2 = argparse.ArgumentParser()
+        add_agent_arguments(parser2)
+        parser2.add_argument("--limit", type=int)
+        args2 = parser2.parse_args(["--models", "m", "--tools", "screenshot,not_a_tool"])
+        with self.assertRaises(SystemExit):
+            validate_arguments(parser2, args2)
+
+    def test_task_ids_filters_capability_tasks(self):
+        from run_capability_suite import discover_tasks
+        tasks = discover_tasks(["d3"])
+        task_ids = {t["task_id"] for t in tasks}
+        self.assertIn("retrieve_value", task_ids)
+        filtered = [t for t in tasks if t["task_id"] == "retrieve_value"]
+        self.assertTrue(filtered)
+        self.assertTrue(all(t["task_id"] == "retrieve_value" for t in filtered))
 
     def test_resume_is_condition_specific_and_retries_infrastructure_errors(self):
         base = {"library": "d3", "question": "Q", "model": "M", "condition": "react_browser"}

@@ -56,11 +56,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     add_agent_arguments(parser)
     parser.add_argument("--limit", type=int, help="Maximum capability questions per library")
+    parser.add_argument("--task-ids", help="Comma-separated subset of task_id values to run (default: all)")
     args = parser.parse_args()
     validate_arguments(parser, args)
+    task_ids = {t.strip() for t in args.task_ids.split(",") if t.strip()} if args.task_ids else None
     tasks = []
     for library in args.libraries:
         discovered = discover_tasks([library])
+        if task_ids is not None:
+            discovered = [t for t in discovered if t["task_id"] in task_ids]
         tasks.extend(discovered[:args.limit] if args.limit else discovered)
     run_trials(tasks, args)
 

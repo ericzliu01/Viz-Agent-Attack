@@ -45,10 +45,37 @@ python summarize_capability.py
 Both runners accept `--models` (comma-separated tags), `--libraries`,
 `--base-url` (Ollama root, default `http://localhost:11434`), `--headed`,
 `--timeout` (seconds per model request, default 180), `--max-steps`
-(model calls per trial, default 15), and `--trace-dir` (default
-`results/traces`). `--limit` caps attacks per library in the attack runner,
-and questions per library in the capability runner. An attack's clean
-baseline does not count toward that limit.
+(model calls per trial, default 15), `--num-ctx` (Ollama context window,
+default 32768), `--temperature` (default 0), `--seed` (default 0),
+`--trials` (repeated trials per cell, default 1), `--tools`
+(comma-separated subset of tool names exposed to the model, default all),
+and `--trace-dir` (default `results/traces`). `--limit` caps attacks per
+library in the attack runner, and questions per library in the capability
+runner. An attack's clean baseline does not count toward that limit.
+`run_capability_suite.py` additionally accepts `--task-ids`
+(comma-separated subset of task_id values, e.g. `retrieve_value`).
+
+Before launching the browser, both runners call Ollama's `/api/show` for
+each model and fail fast unless its `capabilities` list includes both
+`vision` and `tools`; older Ollama servers that omit that field only print
+a warning, since absence doesn't prove the model lacks the capability.
+
+### Vision sanity check
+
+Before trusting attack results for a model, confirm it actually reads
+screenshots rather than guessing blind. Restrict the capability runner to
+the easy Retrieve Value tasks and force it to rely on the screenshot tool
+alone:
+
+```sh
+python run_capability_suite.py --models YOUR_MODEL --task-ids retrieve_value --tools screenshot
+python summarize_capability.py
+```
+
+Retrieve Value is tier 1 (70-100% accuracy band); accuracy well above
+chance here is a precondition for trusting that model's attack trials.
+Accuracy near chance suggests the model isn't actually receiving or using
+the screenshot image — inspect a trace (see below) before proceeding.
 
 ## Browser tools and agent behavior
 

@@ -148,6 +148,7 @@ def add_agent_arguments(parser):
     parser.add_argument("--temperature", type=float, default=0, help="Sampling temperature")
     parser.add_argument("--seed", type=int, default=0, help="Base sampling seed")
     parser.add_argument("--trials", type=int, default=1, help="Repeated trials per (library, attack, model) cell")
+    parser.add_argument("--tools", help="Comma-separated subset of tool names to expose to the model (default: all)")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -168,21 +169,34 @@ def validate_arguments(parser, args):
         parser.error("--trials must be positive")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
+    if args.tools is not None:
+        from browser_agent import TOOL_NAMES
+        names = [t.strip() for t in args.tools.split(",") if t.strip()]
+        unknown = sorted(set(names) - set(TOOL_NAMES))
+        if unknown:
+            parser.error(f"Unknown tool name(s) in --tools: {', '.join(unknown)}")
+        args.tools = names
 
 
 def run_trials(trials, args):
-    from browser_agent import SYSTEM_PROMPT, TOOLS
+    from browser_agent import SYSTEM_PROMPT, TOOLS, TOOL_NAMES, filter_tools
+    agent_tools = filter_tools(args.tools) if args.tools else TOOLS
+    enabled_tool_names = [t["function"]["name"] for t in agent_tools]
     if args.dry_run:
         print(SYSTEM_PROMPT)
-        print("Tools:", ", ".join(t["function"]["name"] for t in TOOLS))
+        print("Tools:", ", ".join(enabled_tool_names))
         for model in args.models:
             for trial in trials:
                 print(f"{trial['library']}/{trial['attack_id']} x {model}: {trial['question']}")
         return
 
     from playwright.sync_api import sync_playwright
-    from browser_agent import AgentResult, VIEWPORT, capture_console, run_agent, save_trace
+    from browser_agent import (AgentResult, VIEWPORT, capture_console, check_model_capabilities,
+                               run_agent, save_trace)
     from browser_environment import serve_chart
+
+    for model in args.models:
+        check_model_capabilities(model, args.base_url)
 
     done_keys = already_done_keys()
     with sync_playwright() as pw:
@@ -210,7 +224,7 @@ def run_trials(trials, args):
                                 result = run_agent(page, trial["question"], model, args.base_url,
                                                    args.timeout, args.max_steps, logs,
                                                    num_ctx=args.num_ctx, temperature=args.temperature,
-                                                   seed=args.seed + trial_index)
+                                                   seed=args.seed + trial_index, tools=agent_tools)
                             finally:
                                 context.close()
                     except Exception as exc:
@@ -221,12 +235,14 @@ def run_trials(trials, args):
                         "model": model, "base_url": args.base_url, "timeout": args.timeout,
                         "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
                         "temperature": args.temperature, "seed": args.seed + trial_index,
-                        "trial": trial_index,
+                        "trial": trial_index, "tools": enabled_tool_names,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
                     if result.ctx_overflow_risk:
                         notes += "; ctx_overflow_risk=1"
+                    if args.tools:
+                        notes += f"; enabled_tools={','.join(enabled_tool_names)}"
                     if result.error:
                         notes += f"; error={result.error}"
                     correct, extracted = (grade(result.answer, trial["ground_truth"],

@@ -74,12 +74,54 @@ def capture_console(page):
     return logs
 
 
+TOOL_NAMES = [t["function"]["name"] for t in TOOLS]
+
+
+def filter_tools(names):
+    """Return the TOOLS subset matching names (preserving TOOLS order).
+
+    Raises ValueError listing any name not in TOOL_NAMES.
+    """
+    unknown = sorted(set(names) - set(TOOL_NAMES))
+    if unknown:
+        raise ValueError(f"Unknown tool name(s): {', '.join(unknown)}")
+    wanted = set(names)
+    return [t for t in TOOLS if t["function"]["name"] in wanted]
+
+
+def check_model_capabilities(model, base_url="http://localhost:11434", timeout=10):
+    """Query Ollama's /api/show and fail fast unless vision+tools are both supported.
+
+    Older Ollama servers omit the "capabilities" field entirely; that case
+    only warns, since absence doesn't mean the model lacks the capability.
+    """
+    try:
+        response = requests.post(base_url.rstrip("/") + "/api/show", json={"model": model}, timeout=timeout)
+        response.raise_for_status()
+        data = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        print(f"[warn] could not verify capabilities for {model}: {exc}")
+        return
+    capabilities = data.get("capabilities") if isinstance(data, dict) else None
+    if capabilities is None:
+        print(f"[warn] Ollama did not report capabilities for {model}; "
+              "cannot verify vision+tools support locally")
+        return
+    missing = sorted({"vision", "tools"} - set(capabilities))
+    if missing:
+        raise SystemExit(f"Model {model} is missing required capabilities: {missing}. "
+                         "Pull a model that supports both vision and native tool calling.")
+
+
 class BrowserTools:
-    def __init__(self, page, console_logs):
+    def __init__(self, page, console_logs, enabled_tools=None):
         self.page = page
         self.console_logs = console_logs
+        self.enabled_tools = enabled_tools
 
     def execute(self, name, arguments):
+        if self.enabled_tools is not None and name not in self.enabled_tools:
+            raise ValueError(f"Tool not enabled for this run: {name}")
         schema = next((t["function"]["parameters"] for t in TOOLS
                        if t["function"]["name"] == name), None)
         if schema is None:
@@ -147,7 +189,7 @@ class BrowserTools:
 
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
-              options=None):
+              options=None, tools=None):
     """Run native tool calls; screenshots stay in role=tool messages with images."""
     if max_steps < 1 or timeout <= 0:
         raise ValueError("max_steps and timeout must be positive")
@@ -155,13 +197,16 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": question}]
     result = AgentResult(messages=messages)
-    browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page))
+    agent_tools = tools if tools is not None else TOOLS
+    enabled_names = {t["function"]["name"] for t in agent_tools}
+    browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page),
+                                 enabled_tools=enabled_names)
     request_options = {"num_ctx": num_ctx, "temperature": temperature, "seed": seed, **(options or {})}
     for step in range(1, max_steps + 1):
         result.steps = step
         try:
             response = requests.post(base_url.rstrip("/") + "/api/chat", json={
-                "model": model, "messages": messages, "tools": TOOLS, "stream": False,
+                "model": model, "messages": messages, "tools": agent_tools, "stream": False,
                 "options": request_options,
             }, timeout=timeout)
             response.raise_for_status()
