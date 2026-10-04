@@ -216,6 +216,11 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(grade_task(choice, "This is a chart")[0], "needs_review")
         self.assertEqual(grade("cannot determine", "310")[0], "needs_review")
 
+    def test_numeric_grading_uses_last_number_not_closest(self):
+        self.assertEqual(grade("310 - 240 = 70", "70"), ("true", "70.0"))
+        self.assertEqual(grade("70? no, 90", "70")[0], "false")
+        self.assertEqual(grade("155", "155"), ("true", "155.0"))
+
     def test_validate_arguments_accepts_known_tools_and_rejects_unknown(self):
         parser = argparse.ArgumentParser()
         add_agent_arguments(parser)

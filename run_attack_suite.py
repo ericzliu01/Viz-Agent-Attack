@@ -120,11 +120,15 @@ def grade(response, ground_truth, answer_type="free"):
         candidates = extract_numbers(resp)
         if not candidates:
             return "needs_review", ""
-        closest = min(candidates, key=lambda v: abs(v - gt_num))
+        # One number: that's the answer. More than one (e.g. "310 - 240 = 70"
+        # or a self-correction like "70? no, 90"): the last is the model's
+        # final stated value, not whichever happens to be closest to the
+        # ground truth.
+        chosen = candidates[0] if len(candidates) == 1 else candidates[-1]
         tol = max(abs(gt_num) * 0.01, 0.01)
-        if abs(closest - gt_num) <= tol:
-            return "true", str(closest)
-        return "false", str(closest)
+        if abs(chosen - gt_num) <= tol:
+            return "true", str(chosen)
+        return "false", str(chosen)
     else:
         gt_lower = gt.lower()
         if gt_lower in lower or lower.strip() in gt_lower:
