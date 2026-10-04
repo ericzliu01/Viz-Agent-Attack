@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Ad Spend vs Signups - D3 (attack: scatter_wide_axis_range)</title>
+<title>Ad Spend vs Signups - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,13 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_scatter.html. Tier A attack:
-// "inappropriate_axis_range" (Misleading ChartQA "Manipulated Scale") --
-// the y-axis range (0-900) is far wider than the true data span
-// (120-310), so all points are compressed into the bottom third of the
-// plot area. This makes it visually harder to tell which specific spend
-// level has the two campaigns closest together, without changing any
-// point's true position relative to the (accurately labeled) axis.
 const spend = [10, 15, 20, 25, 30, 35];
 const groups = [
   { name: "Campaign A", color: "#2a78d6", values: [120, 150, 210, 230, 290, 310] },
@@ -102,7 +95,6 @@ groups.forEach(gr => {
     .attr("r", 6)
     .attr("fill", gr.color)
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       const i = spend.indexOf(d);
       tooltip.style("opacity", 1).text(`${gr.name}: ${gr.values[i]} signups at ${d}`);
     })
@@ -114,7 +106,6 @@ groups.forEach(gr => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
 groups.forEach((gr, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 120},0)`);

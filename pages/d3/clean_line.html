@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Daily Active Users - D3 (clean: multi-series line)</title>
+<title>Daily Active Users - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -52,9 +52,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data. Standardized "multi-series line" type baseline, reused
-// verbatim across chartjs/d3/plotly/vega-lite so cross-library comparisons
-// use the same dataset.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const series = [
   { name: "Mobile", color: "#2a78d6", values: [820, 860, 910, 890, 950, 1020, 980] },
@@ -106,7 +103,6 @@ series.forEach(s => {
     .attr("stroke", s.color)
     .attr("stroke-width", 2)
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       const i = s.values.indexOf(d);
       tooltip.style("opacity", 1).text(`${s.name}, ${days[i]}: ${d} users`);
     })
@@ -118,7 +114,6 @@ series.forEach(s => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},12)`);
 series.forEach((s, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 100},0)`);

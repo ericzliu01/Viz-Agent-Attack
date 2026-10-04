@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Ad Spend vs Signups - Chart.js (clean: scatter)</title>
+<title>Ad Spend vs Signups - Chart.js</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -40,10 +40,6 @@
   <canvas id="chart" width="560" height="320"></canvas>
 </div>
 <script>
-// Ground truth data. Standardized "scatter" type baseline, reused verbatim
-// across chartjs/d3/plotly/vega-lite so cross-library comparisons use the
-// same dataset. Campaign A trends up (positive correlation with spend);
-// Campaign B trends down (negative correlation with spend).
 const spend = [10, 15, 20, 25, 30, 35];
 const campaignA = [120, 150, 210, 230, 290, 310];
 const campaignB = [300, 280, 260, 255, 230, 210];
@@ -88,7 +84,6 @@ new Chart(document.getElementById("chart"), {
         titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
         bodyFont: { family: "system-ui, sans-serif", size: 12 },
         callbacks: {
-          // Tooltip label matches the raw dataset point exactly (no deception).
           label: function (ctx) {
             return `${ctx.dataset.label}: ${ctx.raw.y} signups at ${ctx.raw.x}`;
           },

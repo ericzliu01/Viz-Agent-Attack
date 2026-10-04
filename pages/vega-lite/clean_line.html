@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Daily Active Users - Vega-Lite (clean: multi-series line)</title>
+<title>Daily Active Users - Vega-Lite</title>
 <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
@@ -39,9 +39,6 @@
   <div id="chart"></div>
 </div>
 <script>
-// Ground truth data. Standardized "multi-series line" type baseline, reused
-// verbatim across chartjs/d3/plotly/vega-lite so cross-library comparisons
-// use the same dataset.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const mobile = [820, 860, 910, 890, 950, 1020, 980];
 const desktop = [640, 655, 630, 670, 690, 705, 715];
@@ -68,7 +65,6 @@ const spec = {
       scale: { domain: ["Mobile", "Desktop"], range: ["#2a78d6", "#d97a3c"] },
       legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
     },
-    // Tooltip shows the true users field directly (no deception here).
     tooltip: [
       { field: "platform", type: "nominal", title: "Platform" },
       { field: "day", type: "nominal", title: "Day" },

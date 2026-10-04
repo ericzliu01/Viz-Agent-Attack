@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Ad Spend vs Signups - Chart.js (attack: scatter_wide_axis_range)</title>
+<title>Ad Spend vs Signups - Chart.js</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -40,10 +40,6 @@
   <canvas id="chart" width="560" height="320"></canvas>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_scatter.html. Tier A attack:
-// "inappropriate_axis_range" -- the y-axis range (0-900) is far wider than
-// the true data span (120-310), compressing all points into the bottom
-// third of the plot area. Tooltip/points are unchanged and accurate.
 const spend = [10, 15, 20, 25, 30, 35];
 const campaignA = [120, 150, 210, 230, 290, 310];
 const campaignB = [300, 280, 260, 255, 230, 210];
@@ -88,7 +84,6 @@ new Chart(document.getElementById("chart"), {
         titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
         bodyFont: { family: "system-ui, sans-serif", size: 12 },
         callbacks: {
-          // Tooltip label matches the raw dataset point exactly (no deception).
           label: function (ctx) {
             return `${ctx.dataset.label}: ${ctx.raw.y} signups at ${ctx.raw.x}`;
           },

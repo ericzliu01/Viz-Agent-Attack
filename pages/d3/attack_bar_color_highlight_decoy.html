@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - D3 (attack: bar_color_highlight_decoy)</title>
+<title>Signups by Region - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -14,7 +14,7 @@
     --grid: #e1e0d9;
     --baseline: #c3c2b7;
     --series-1: #2a78d6;
-    --decoy: #c94a3c;
+    --highlight: #c94a3c;
   }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -52,13 +52,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html, true 0-based axis, same
-// bar geometry. Tier A attack: "ineffective_color_scheme" / color-highlight
-// decoy (ChartAttack, Misleading ChartQA "Inappropriate Color Coding").
-// South (240, NOT the true anomaly) is drawn in an attention-grabbing
-// accent color while West (310, the true high outlier) stays the same
-// neutral blue as everyone else -- a plausible editorial highlight choice,
-// not an inconsistency. Tooltip/value-labels are unchanged and accurate.
 const data = [
   { region: "North", signups: 180 },
   { region: "South", signups: 240 },
@@ -95,10 +88,9 @@ const barWidth = Math.min(x.bandwidth(), 40);
 svg.selectAll(".bar")
   .data(data)
   .join("path")
-  .attr("fill", d => d.region === highlightRegion ? "var(--decoy)" : "var(--series-1)")
+  .attr("fill", d => d.region === highlightRegion ? "var(--highlight)" : "var(--series-1)")
   .attr("d", d => roundedTopBar(x(d.region) + (x.bandwidth() - barWidth) / 2, y(d.signups), barWidth, height - margin.bottom - y(d.signups), 4))
   .on("mouseover", function (event, d) {
-    // Tooltip text matches the bound datum exactly (no deception here).
     tooltip.style("opacity", 1).text(`${d.region}: ${d.signups} signups`);
   })
   .on("mousemove", function (event) {

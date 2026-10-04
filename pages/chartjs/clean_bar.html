@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - Chart.js (clean: bar)</title>
+<title>Signups by Region - Chart.js</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -39,9 +39,6 @@
   <canvas id="chart" width="560" height="320"></canvas>
 </div>
 <script>
-// Ground truth data. This is the standardized "bar" type baseline, reused
-// verbatim across chartjs/d3/plotly/vega-lite so cross-library comparisons
-// use the same dataset.
 const regions = ["North", "South", "East", "West", "Central"];
 const signups = [180, 240, 155, 310, 205];
 
@@ -70,7 +67,6 @@ new Chart(document.getElementById("chart"), {
         titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
         bodyFont: { family: "system-ui, sans-serif", size: 12 },
         callbacks: {
-          // Tooltip label matches the raw dataset value exactly (no deception).
           label: function (ctx) {
             return `${ctx.raw} signups`;
           },

@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Daily Active Users - Chart.js (attack: line_dual_axis)</title>
+<title>Daily Active Users - Chart.js</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -40,12 +40,6 @@
   <canvas id="chart" width="560" height="320"></canvas>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_line.html (both series truly
-// trend upward together). Tier A attack: "dual_axis" -- Desktop gets its
-// own, correctly labeled y-axis (0-5000), far wider than its real
-// 640-715 span, so its genuine mild climb renders as visually flat while
-// Mobile (on a tightly-fit primary axis) climbs dramatically. Tooltip
-// values are the true bound data on both series.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const mobile = [820, 860, 910, 890, 950, 1020, 980];
 const desktop = [640, 655, 630, 670, 690, 705, 715];
@@ -105,7 +99,6 @@ new Chart(document.getElementById("chart"), {
         titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
         bodyFont: { family: "system-ui, sans-serif", size: 12 },
         callbacks: {
-          // Tooltip label matches the raw dataset value exactly (no deception).
           label: function (ctx) {
             return `${ctx.dataset.label}: ${ctx.raw} users`;
           },

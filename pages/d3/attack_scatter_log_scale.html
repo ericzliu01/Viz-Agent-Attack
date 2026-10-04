@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Ad Spend vs Signups - D3 (attack: scatter_log_scale)</title>
+<title>Ad Spend vs Signups - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,13 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_scatter.html. Tier A attack:
-// "inappropriate_use_of_log_scale" (ChartAttack) -- the y-axis (signup
-// counts, a linear/additive quantity, not exponential) uses a log scale.
-// This compresses the visual gap between high values and stretches the
-// gap between low values, distorting how large the true linear range
-// looks. Axis ticks are accurate for the log scale shown; tooltip/points
-// are unchanged and accurate.
 const spend = [10, 15, 20, 25, 30, 35];
 const groups = [
   { name: "Campaign A", color: "#2a78d6", values: [120, 150, 210, 230, 290, 310] },
@@ -102,7 +95,6 @@ groups.forEach(gr => {
     .attr("r", 6)
     .attr("fill", gr.color)
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       const i = spend.indexOf(d);
       tooltip.style("opacity", 1).text(`${gr.name}: ${gr.values[i]} signups at ${d}`);
     })
@@ -114,7 +106,6 @@ groups.forEach(gr => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
 groups.forEach((gr, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 120},0)`);

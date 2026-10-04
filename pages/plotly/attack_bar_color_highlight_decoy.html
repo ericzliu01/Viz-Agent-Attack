@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - Plotly (attack: bar_color_highlight_decoy)</title>
+<title>Signups by Region - Plotly</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root {
@@ -37,23 +37,17 @@
   <div id="chart" style="width:560px;height:340px;"></div>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html, true 0-based axis.
-// Tier A attack: "ineffective_color_scheme" / color-highlight decoy.
-// South (240, NOT the true anomaly) is drawn in an attention-grabbing
-// accent color while West (310, the true high outlier) stays the same
-// neutral blue as everyone else. Tooltip is unchanged and accurate.
 const regions = ["North", "South", "East", "West", "Central"];
 const signups = [180, 240, 155, 310, 205];
 const highlightRegion = "South";
 
-const series1 = "#2a78d6", decoy = "#c94a3c";
+const series1 = "#2a78d6", highlightColor = "#c94a3c";
 
 const trace = {
   x: regions,
   y: signups,
   type: "bar",
-  marker: { color: regions.map(r => r === highlightRegion ? decoy : series1) },
-  // Hover text matches y exactly (no deception here).
+  marker: { color: regions.map(r => r === highlightRegion ? highlightColor : series1) },
   hovertemplate: "<b>%{x}</b><br>%{y} signups<extra></extra>",
 };
 

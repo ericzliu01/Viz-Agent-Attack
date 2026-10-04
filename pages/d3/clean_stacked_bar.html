@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quarterly Revenue by Product Line - D3 (clean: stacked bar)</title>
+<title>Quarterly Revenue by Product Line - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,9 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data. Standardized "stacked bar" type baseline, reused
-// verbatim across chartjs/d3/plotly/vega-lite so cross-library comparisons
-// use the same dataset.
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 const data = [
   { quarter: "Q1", Hardware: 120, Software: 80, Services: 40 },
@@ -103,7 +100,6 @@ stacked.forEach(series => {
     .attr("height", d => y(d[0]) - y(d[1]))
     .attr("fill", colors[series.key])
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       tooltip.style("opacity", 1).text(`${series.key}, ${d.data.quarter}: $${d.data[series.key]}k`);
     })
     .on("mousemove", function (event) {
@@ -114,7 +110,6 @@ stacked.forEach(series => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
 keys.forEach((k, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 110},0)`);

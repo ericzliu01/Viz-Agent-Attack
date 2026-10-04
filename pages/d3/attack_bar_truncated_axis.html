@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - D3 (attack: bar_truncated_axis)</title>
+<title>Signups by Region - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -52,11 +52,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html. Tier A attack: only the
-// y-axis domain/scale below is adversarial (truncated, non-zero baseline).
-// Every other channel (tooltip, value-labels, axis tick labels) reports the
-// true bound data with no inconsistency -- nothing here would look "wrong"
-// to someone inspecting the rendered chart.
 const data = [
   { region: "North", signups: 180 },
   { region: "South", signups: 240 },
@@ -69,12 +64,6 @@ const width = 504, height = 300, margin = { top: 20, right: 16, bottom: 32, left
 const svg = d3.select("#chart");
 const x = d3.scaleBand().domain(data.map(d => d.region)).range([margin.left, width - margin.right]).padding(0.35);
 
-// Truncated axis (Misleading ChartQA taxonomy: "Manipulated Scale" /
-// ChartAttack "truncated_axis"): the y-axis starts at 100, not 0, so the
-// ~2x true spread between West (310) and East (155) is rendered as an
-// ~3.8x pixel-height ratio. Axis ticks are accurate for this (truncated)
-// domain -- a viewer would have to notice the axis doesn't start at 0 to
-// catch it, not spot anything internally inconsistent.
 const yFloor = 100, yTop = 320;
 const y = d3.scaleLinear().domain([yFloor, yTop]).range([height - margin.bottom, margin.top]);
 
@@ -103,7 +92,6 @@ svg.selectAll(".bar")
   .attr("class", "bar")
   .attr("d", d => roundedTopBar(x(d.region) + (x.bandwidth() - barWidth) / 2, y(d.signups), barWidth, y(yFloor) - y(d.signups), 4))
   .on("mouseover", function (event, d) {
-    // Tooltip text matches the bound datum exactly (no deception here).
     tooltip.style("opacity", 1).text(`${d.region}: ${d.signups} signups`);
   })
   .on("mousemove", function (event) {

@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Daily Active Users - D3 (attack: line_dual_axis)</title>
+<title>Daily Active Users - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,16 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_line.html (both series truly
-// trend upward together). Tier A attack: "dual_axis" (ChartAttack /
-// VisDeception's headline technique) -- Desktop gets its own, correctly
-// labeled y-axis, but its range (0-5000) is chosen far wider than
-// Desktop's real span (640-715), so its genuine mild climb renders as
-// visually flat near the bottom of its own axis while Mobile (on a
-// tightly-fit primary axis) climbs dramatically -- baiting "no consistent
-// relationship" instead of the true "both trend upward together". Every
-// axis is accurately labeled/ticked for the (adversarially chosen) range
-// it shows; tooltip values are the true bound data.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const series = [
   { name: "Mobile", color: "#2a78d6", values: [820, 860, 910, 890, 950, 1020, 980] },
@@ -119,7 +109,6 @@ series.forEach(s => {
     .attr("stroke", s.color)
     .attr("stroke-width", 2)
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       const i = s.values.indexOf(d);
       tooltip.style("opacity", 1).text(`${s.name}, ${days[i]}: ${d} users`);
     })
@@ -131,7 +120,6 @@ series.forEach(s => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},12)`);
 series.forEach((s, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 100},0)`);

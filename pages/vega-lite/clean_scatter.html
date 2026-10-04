@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Ad Spend vs Signups - Vega-Lite (clean: scatter)</title>
+<title>Ad Spend vs Signups - Vega-Lite</title>
 <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
@@ -39,10 +39,6 @@
   <div id="chart"></div>
 </div>
 <script>
-// Ground truth data. Standardized "scatter" type baseline, reused verbatim
-// across chartjs/d3/plotly/vega-lite so cross-library comparisons use the
-// same dataset. Campaign A trends up (positive correlation with spend);
-// Campaign B trends down (negative correlation with spend).
 const spend = [10, 15, 20, 25, 30, 35];
 const campaignA = [120, 150, 210, 230, 290, 310];
 const campaignB = [300, 280, 260, 255, 230, 210];
@@ -72,7 +68,6 @@ const spec = {
       scale: { domain: ["Campaign A", "Campaign B"], range: ["#2a78d6", "#d97a3c"] },
       legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
     },
-    // Tooltip shows the true signups field directly (no deception here).
     tooltip: [
       { field: "campaign", type: "nominal", title: "Campaign" },
       { field: "spend", type: "quantitative", title: "Spend" },

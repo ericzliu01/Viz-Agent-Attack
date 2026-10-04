@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quarterly Revenue by Product Line - D3 (attack: stacked_bar_wide_axis_range)</title>
+<title>Quarterly Revenue by Product Line - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,18 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_stacked_bar.html, true 0-based
-// stack. Tier A attack: "inappropriate_axis_range" (Misleading ChartQA
-// "Manipulated Scale" -- wide y-axis range) -- the axis top is set to 600,
-// far past the true max stack total (~310), compressing all four bars'
-// true 70/240 (~29%) range into the bottom half of the plot, making
-// quarter-to-quarter differences look smaller than they are. (Truncating
-// the floor above 0 instead was considered and rejected: with a 3-way
-// stack, any segment whose cumulative boundary falls below a raised floor
-// renders off the visible axis -- Hardware and part of Software sit below
-// 200 in every quarter here, so that version would clip visibly broken,
-// not subtly misleading.) Axis ticks are accurate for this (widened)
-// range; tooltip/segment heights are unchanged and accurate.
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 const data = [
   { quarter: "Q1", Hardware: 120, Software: 80, Services: 40 },
@@ -111,7 +99,6 @@ stacked.forEach(series => {
     .attr("height", d => y(d[0]) - y(d[1]))
     .attr("fill", colors[series.key])
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       tooltip.style("opacity", 1).text(`${series.key}, ${d.data.quarter}: $${d.data[series.key]}k`);
     })
     .on("mousemove", function (event) {
@@ -122,7 +109,6 @@ stacked.forEach(series => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
 keys.forEach((k, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 110},0)`);

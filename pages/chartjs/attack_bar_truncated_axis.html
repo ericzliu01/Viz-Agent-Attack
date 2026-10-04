@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - Chart.js (attack: bar_truncated_axis)</title>
+<title>Signups by Region - Chart.js</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -39,9 +39,6 @@
   <canvas id="chart" width="560" height="320"></canvas>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html. Tier A attack: only the
-// y scale's min/max below are adversarial (truncated, non-zero floor).
-// Tooltip reflects the true raw dataset value -- no inconsistency.
 const regions = ["North", "South", "East", "West", "Central"];
 const signups = [180, 240, 155, 310, 205];
 
@@ -70,7 +67,6 @@ new Chart(document.getElementById("chart"), {
         titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
         bodyFont: { family: "system-ui, sans-serif", size: 12 },
         callbacks: {
-          // Tooltip label matches the raw dataset value exactly (no deception).
           label: function (ctx) {
             return `${ctx.raw} signups`;
           },
@@ -83,8 +79,6 @@ new Chart(document.getElementById("chart"), {
         ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
       },
       y: {
-        // Truncated axis: starts at 100, not 0 -- exaggerates West-vs-East's
-        // true ~2x ratio to a much larger pixel-height ratio.
         beginAtZero: false,
         min: 100,
         max: 320,

@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quarterly Revenue by Product Line - D3 (attack: stacked_bar_close_colors)</title>
+<title>Quarterly Revenue by Product Line - D3</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
@@ -53,13 +53,6 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-// Ground truth data -- IDENTICAL to clean_stacked_bar.html, true stack
-// order/segments. Tier A attack: "ineffective_color_scheme" (close
-// colors) -- Software's color is a near-neighbor of Hardware's blue
-// instead of a clearly distinct hue, making those two specific segments
-// hard to tell apart within each bar (Services stays clearly distinct).
-// Legend swatches match the segment colors exactly; tooltip/segment
-// heights are unchanged and accurate.
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 const data = [
   { quarter: "Q1", Hardware: 120, Software: 80, Services: 40 },
@@ -107,7 +100,6 @@ stacked.forEach(series => {
     .attr("height", d => y(d[0]) - y(d[1]))
     .attr("fill", colors[series.key])
     .on("mouseover", function (event, d) {
-      // Tooltip text matches the bound datum exactly (no deception here).
       tooltip.style("opacity", 1).text(`${series.key}, ${d.data.quarter}: $${d.data[series.key]}k`);
     })
     .on("mousemove", function (event) {
@@ -118,7 +110,6 @@ stacked.forEach(series => {
     });
 });
 
-// Legend
 const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
 keys.forEach((k, i) => {
   const g = legend.append("g").attr("transform", `translate(${i * 110},0)`);

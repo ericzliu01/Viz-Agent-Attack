@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - Vega-Lite (attack: bar_truncated_axis)</title>
+<title>Signups by Region - Vega-Lite</title>
 <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
@@ -39,9 +39,6 @@
   <div id="chart"></div>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html. Tier A attack: only the
-// y-axis scale.domain below is adversarial (truncated, non-zero floor).
-// Tooltip reflects the true signups field directly -- no inconsistency.
 const values = [
   { region: "North", signups: 180 },
   { region: "South", signups: 240 },
@@ -61,8 +58,6 @@ const spec = {
     x: { field: "region", type: "nominal", title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
     y: {
       field: "signups", type: "quantitative", title: "Signups",
-      // Truncated axis: starts at 100, not 0 -- exaggerates West-vs-East's
-      // true ~2x ratio to a much larger pixel-height ratio.
       scale: { domain: [100, 320], zero: false },
       axis: { gridColor: "#e1e0d9", domain: false, tickCount: 4, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
     },

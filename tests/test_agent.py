@@ -1,6 +1,7 @@
 import base64
 from copy import deepcopy
 import json
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from browser_agent import BrowserTools, TEXT_LIMIT, run_agent, save_trace
-from run_attack_suite import already_done_keys, attack_trials, grade
+from run_attack_suite import already_done_keys, attack_trials, grade, PAGES_DIR
 from run_capability_suite import discover_tasks, grade_task
 from summarize_results import build_asr_table
 
@@ -149,6 +150,40 @@ class ExperimentTests(unittest.TestCase):
         entries = build_asr_table(rows)
         self.assertEqual({e["condition"]: e["asr"] for e in entries},
                          {"react_browser": 1.0, "raw_source": 0.0})
+
+
+FORBIDDEN_STRINGS = ("attack", "bait", "decoy", "mislead", "ground truth",
+                     "ground_truth", "identical to clean")
+
+
+class PageLeakTests(unittest.TestCase):
+    def test_no_comments_or_forbidden_strings_in_served_pages(self):
+        for html_path in sorted(Path(PAGES_DIR).glob("*/*.html")):
+            text = html_path.read_text(encoding="utf-8")
+            with self.subTest(file=str(html_path)):
+                self.assertNotRegex(text, r'<!--', "HTML comment found")
+                self.assertNotRegex(text, r'/\*', "block comment found")
+                for line in text.split("\n"):
+                    self.assertNotRegex(line, r'^\s*//', "line comment found")
+                lower = text.lower()
+                for forbidden in FORBIDDEN_STRINGS:
+                    self.assertNotIn(forbidden, lower, f"forbidden string {forbidden!r} found")
+
+    def test_attack_and_clean_titles_match_per_library_and_chart_type(self):
+        titles_by_library_and_type = {}
+        for html_path in sorted(Path(PAGES_DIR).glob("*/*.html")):
+            library = html_path.parent.name
+            meta_path = html_path.with_suffix("").with_suffix(".meta.json")
+            if not meta_path.is_file():
+                continue
+            meta = json.loads(meta_path.read_text())
+            chart_type = meta.get("chart_type") or html_path.stem[len("clean_"):]
+            title = re.search(r'<title>(.*?)</title>', html_path.read_text()).group(1)
+            key = (library, chart_type)
+            titles_by_library_and_type.setdefault(key, set()).add(title)
+        for key, titles in titles_by_library_and_type.items():
+            with self.subTest(library_chart_type=key):
+                self.assertEqual(len(titles), 1, f"titles differ within {key}: {titles}")
 
 
 if __name__ == "__main__":

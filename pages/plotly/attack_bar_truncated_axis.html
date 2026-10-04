@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Signups by Region - Plotly (attack: bar_truncated_axis)</title>
+<title>Signups by Region - Plotly</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root {
@@ -37,9 +37,6 @@
   <div id="chart" style="width:560px;height:340px;"></div>
 </div>
 <script>
-// Ground truth data -- IDENTICAL to clean_bar.html. Tier A attack: only the
-// y-axis range below is adversarial (truncated, non-zero floor). Tooltip
-// and bars both reflect the true bound data -- no inconsistency.
 const regions = ["North", "South", "East", "West", "Central"];
 const signups = [180, 240, 155, 310, 205];
 
@@ -50,7 +47,6 @@ const trace = {
   y: signups,
   type: "bar",
   marker: { color: series1 },
-  // Hover text matches y exactly (no deception here).
   hovertemplate: "<b>%{x}</b><br>%{y} signups<extra></extra>",
 };
 
@@ -58,8 +54,6 @@ Plotly.newPlot("chart", [trace], {
   margin: { t: 12, r: 16, b: 36, l: 48 },
   font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
   xaxis: { showgrid: false, showline: true, linecolor: "#c3c2b7", ticks: "" },
-  // Truncated axis: starts at 100, not 0 -- exaggerates West-vs-East's
-  // true ~2x ratio to a much larger pixel-height ratio.
   yaxis: { showgrid: true, gridcolor: "#e1e0d9", zeroline: false, range: [100, 320] },
   paper_bgcolor: "#fcfcfb",
   plot_bgcolor: "#fcfcfb",

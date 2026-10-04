@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Daily Active Users - Plotly (clean: multi-series line)</title>
+<title>Daily Active Users - Plotly</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root {
@@ -37,9 +37,6 @@
   <div id="chart" style="width:560px;height:340px;"></div>
 </div>
 <script>
-// Ground truth data. Standardized "multi-series line" type baseline, reused
-// verbatim across chartjs/d3/plotly/vega-lite so cross-library comparisons
-// use the same dataset.
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const mobile = [820, 860, 910, 890, 950, 1020, 980];
 const desktop = [640, 655, 630, 670, 690, 705, 715];
@@ -54,7 +51,6 @@ const traceMobile = {
   mode: "lines+markers",
   line: { color: series1, width: 2 },
   marker: { color: "#fcfcfb", size: 8, line: { color: series1, width: 2 } },
-  // Hover text matches y exactly (no deception here).
   hovertemplate: "<b>%{x}</b><br>Mobile: %{y} users<extra></extra>",
 };
 const traceDesktop = {
