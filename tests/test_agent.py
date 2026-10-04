@@ -160,6 +160,29 @@ class ExperimentTests(unittest.TestCase):
         with patch("run_attack_suite.read_rows", return_value=rows):
             self.assertEqual({k[1] for k in already_done_keys()}, {"done", "limited"})
 
+    def test_resume_key_is_trial_specific(self):
+        base = {"library": "d3", "attack_id": "attack", "question": "Q", "model": "M",
+               "condition": "react_browser", "notes": "stop=final"}
+        rows = [dict(base, trial="0"), dict(base, trial="1")]
+        with patch("run_attack_suite.read_rows", return_value=rows):
+            self.assertEqual(already_done_keys(),
+                             {("d3", "attack", "Q", "M", "0"), ("d3", "attack", "Q", "M", "1")})
+
+    def test_asr_wilson_interval_pools_across_trials(self):
+        rows = []
+        for trial, correct in [("0", "false"), ("1", "false"), ("2", "true")]:
+            rows.append({"condition": "react_browser", "library": "d3", "model": "M",
+                        "attack_id": "attack", "correct": correct, "trial": trial})
+            rows.append({"condition": "react_browser", "library": "d3", "model": "M",
+                        "attack_id": "attack__clean_baseline", "correct": "true", "trial": trial})
+        entries = build_asr_table(rows)
+        entry = entries[0]
+        self.assertEqual(entry["n_attack"], 3)
+        self.assertAlmostEqual(entry["attack_wrong_rate"], 2 / 3)
+        lo, hi = entry["attack_ci"]
+        self.assertLess(lo, entry["attack_wrong_rate"])
+        self.assertGreater(hi, entry["attack_wrong_rate"])
+
     def test_asr_keeps_historical_conditions_separate(self):
         rows = []
         for condition, correct in [("react_browser", "false"), ("raw_source", "true")]:

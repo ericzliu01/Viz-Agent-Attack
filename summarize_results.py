@@ -14,6 +14,7 @@ to results/summary.md.
 
 Usage: python summarize_results.py
 """
+import math
 import os
 from collections import defaultdict
 
@@ -33,6 +34,17 @@ def wrong_rate(rows):
         return None, 0, len(needs_review)
     wrong = sum(1 for r in scored if r["correct"] == "false")
     return wrong / len(scored), len(scored), len(needs_review)
+
+
+def wilson_interval(wrong, n, z=1.96):
+    """95% Wilson score interval for a wrong rate over n Bernoulli trials."""
+    if n == 0:
+        return None, None
+    p = wrong / n
+    denom = 1 + z * z / n
+    center = p + z * z / (2 * n)
+    spread = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return ((center - spread) / denom, (center + spread) / denom)
 
 
 def build_asr_table(rows):
@@ -61,6 +73,8 @@ def build_asr_table(rows):
             asr = None
         else:
             asr = a_rate - b_rate
+        a_ci = wilson_interval(round(a_rate * n_a), n_a) if a_rate is not None else (None, None)
+        b_ci = wilson_interval(round(b_rate * n_b), n_b) if b_rate is not None else (None, None)
         out.append({
             "condition": condition,
             "library": library,
@@ -70,6 +84,10 @@ def build_asr_table(rows):
             "n_attack": n_a,
             "n_baseline": n_b,
             "needs_review": nr_a + nr_b,
+            "attack_wrong_rate": a_rate,
+            "attack_ci": a_ci,
+            "baseline_wrong_rate": b_rate,
+            "baseline_ci": b_ci,
         })
     return out
 
@@ -83,6 +101,15 @@ def aggregate(entries, group_key):
     result = [(k, sum(v) / len(v), len(v)) for k, v in buckets.items()]
     result.sort(key=lambda t: t[1], reverse=True)
     return result
+
+
+def fmt_rate_ci(rate, ci):
+    if rate is None:
+        return "n/a"
+    lo, hi = ci
+    if lo is None:
+        return f"{rate:.1%}"
+    return f"{rate:.1%} [{lo:.1%}, {hi:.1%}]"
 
 
 def fmt_table(headers, rows):
@@ -122,8 +149,22 @@ def main():
 
     sections = []
 
-    headers1 = ["condition", "library", "attack_id", "mean ASR", "n models"]
-    rows1 = [(k[0], k[1], k[2], f"{asr:+.2%}", n) for k, asr, n in by_attack]
+    headers1 = ["condition", "library", "attack_id", "mean ASR", "n models",
+                "attack wrong% [95% CI]", "n attack", "baseline wrong% [95% CI]", "n baseline"]
+    rows1 = []
+    for k, asr, n in by_attack:
+        matching = [e for e in entries if (e["condition"], e["library"], e["attack_id"]) == k]
+        n_attack_total = sum(e["n_attack"] for e in matching)
+        n_baseline_total = sum(e["n_baseline"] for e in matching)
+        wrong_attack_total = sum(round(e["attack_wrong_rate"] * e["n_attack"])
+                                  for e in matching if e["attack_wrong_rate"] is not None)
+        wrong_baseline_total = sum(round(e["baseline_wrong_rate"] * e["n_baseline"])
+                                    for e in matching if e["baseline_wrong_rate"] is not None)
+        a_rate_pooled = wrong_attack_total / n_attack_total if n_attack_total else None
+        b_rate_pooled = wrong_baseline_total / n_baseline_total if n_baseline_total else None
+        a_cell = fmt_rate_ci(a_rate_pooled, wilson_interval(wrong_attack_total, n_attack_total))
+        b_cell = fmt_rate_ci(b_rate_pooled, wilson_interval(wrong_baseline_total, n_baseline_total))
+        rows1.append((k[0], k[1], k[2], f"{asr:+.2%}", n, a_cell, n_attack_total, b_cell, n_baseline_total))
     print("\n== ASR by attack (descending) ==")
     print(fmt_table(headers1, rows1))
     sections.append("## ASR by attack\n\n" + md_table(headers1, rows1))

@@ -132,7 +132,7 @@ def grade(response, ground_truth, answer_type="free"):
 
 
 def already_done_keys(condition=CONDITION):
-    return {(r["library"], r["attack_id"], r["question"], r["model"])
+    return {(r["library"], r["attack_id"], r["question"], r["model"], r.get("trial", "0"))
             for r in read_rows() if r.get("condition") == condition
             and not any(error in r.get("notes", "") for error in RETRYABLE)}
 
@@ -145,6 +145,9 @@ def add_agent_arguments(parser):
     parser.add_argument("--timeout", type=float, default=180, help="Per-model-request timeout in seconds")
     parser.add_argument("--max-steps", type=int, default=15, help="Maximum model calls per trial")
     parser.add_argument("--num-ctx", type=int, default=32768, help="Ollama context window size (tokens)")
+    parser.add_argument("--temperature", type=float, default=0, help="Sampling temperature")
+    parser.add_argument("--seed", type=int, default=0, help="Base sampling seed")
+    parser.add_argument("--trials", type=int, default=1, help="Repeated trials per (library, attack, model) cell")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -161,6 +164,8 @@ def validate_arguments(parser, args):
         parser.error("--timeout and --max-steps must be positive")
     if args.num_ctx < 1:
         parser.error("--num-ctx must be positive")
+    if args.trials < 1:
+        parser.error("--trials must be positive")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
 
@@ -185,8 +190,9 @@ def run_trials(trials, args):
         try:
             for model in args.models:
                 for trial in trials:
-                    key = (trial["library"], trial["attack_id"], trial["question"], model)
-                    label = f"{trial['library']}/{trial['attack_id']} x {model}"
+                  for trial_index in range(args.trials):
+                    key = (trial["library"], trial["attack_id"], trial["question"], model, str(trial_index))
+                    label = f"{trial['library']}/{trial['attack_id']} x {model} (trial {trial_index})"
                     if key in done_keys:
                         print(f"[skip] {label}")
                         continue
@@ -203,7 +209,8 @@ def run_trials(trials, args):
                                 page.wait_for_timeout(700)
                                 result = run_agent(page, trial["question"], model, args.base_url,
                                                    args.timeout, args.max_steps, logs,
-                                                   num_ctx=args.num_ctx)
+                                                   num_ctx=args.num_ctx, temperature=args.temperature,
+                                                   seed=args.seed + trial_index)
                             finally:
                                 context.close()
                     except Exception as exc:
@@ -213,6 +220,8 @@ def run_trials(trials, args):
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "base_url": args.base_url, "timeout": args.timeout,
                         "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
+                        "temperature": args.temperature, "seed": args.seed + trial_index,
+                        "trial": trial_index,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -230,6 +239,7 @@ def run_trials(trials, args):
                         "ground_truth": trial["ground_truth"], "response": result.answer,
                         "extracted_answer": extracted, "correct": correct,
                         "latency_ms": result.latency_ms, "notes": notes,
+                        "trial": trial_index,
                     })
                     if result.stop_reason not in RETRYABLE:
                         done_keys.add(key)

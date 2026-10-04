@@ -139,7 +139,7 @@ class RunnerTests(unittest.TestCase):
         args = Namespace(models=["test-model"], dry_run=False, headed=False,
                          trace_dir=str(Path(self.temp.name) / "traces"),
                          base_url="http://localhost:11434", timeout=10, max_steps=3,
-                         num_ctx=32768)
+                         num_ctx=32768, temperature=0, seed=0, trials=1)
         calls = []
         def post(url, *, json, timeout):
             calls.append(json)
@@ -172,6 +172,37 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(all(list(p.parent.glob("*.png")) for p in traces))
             trace_config = json.loads(traces[0].read_text())["config"]
             self.assertEqual(trace_config["num_ctx"], 32768)
+            self.assertEqual(trace_config["temperature"], 0)
+            self.assertEqual(trace_config["seed"], 0)
+            self.assertEqual(trace_config["trial"], 0)
+            self.assertTrue(all(r["trial"] == "0" for r in rows))
+
+    def test_multiple_trials_run_and_resume_independently(self):
+        attack = {"library": "d3", "attack_id": "attack", "html_path": str(self.html),
+                  "question": "Read the tooltip", "ground_truth": "310", "answer_type": "free"}
+        args = Namespace(models=["test-model"], dry_run=False, headed=False,
+                         trace_dir=str(Path(self.temp.name) / "traces"),
+                         base_url="http://localhost:11434", timeout=10, max_steps=3,
+                         num_ctx=32768, temperature=0.5, seed=10, trials=2)
+        seeds_seen = []
+        def post(url, *, json, timeout):
+            seeds_seen.append(json["options"]["seed"])
+            response = Mock()
+            response.json.return_value = {"message": {"role": "assistant", "content": "310"},
+                                          "prompt_eval_count": 123}
+            return response
+        csv_path = str(Path(self.temp.name) / "results.csv")
+        with patch.object(results_logger, "RESULTS_DIR", self.temp.name), \
+             patch.object(results_logger, "RESULTS_CSV", csv_path), \
+             patch("browser_agent.requests.post", side_effect=post), redirect_stdout(io.StringIO()):
+            run_trials([attack], args)
+            rows = results_logger.read_rows()
+            self.assertEqual(len(rows), 2)
+            self.assertEqual({r["trial"] for r in rows}, {"0", "1"})
+            self.assertEqual(sorted(seeds_seen), [10, 11])
+            # Re-running should skip both already-recorded trials.
+            run_trials([attack], args)
+            self.assertEqual(len(results_logger.read_rows()), 2)
 
 
 

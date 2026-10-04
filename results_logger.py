@@ -22,6 +22,7 @@ FIELDNAMES = [
     "correct",
     "latency_ms",
     "notes",
+    "trial",
 ]
 
 _lock = threading.Lock()
@@ -44,6 +45,11 @@ def append_row(row: dict):
 
 
 def read_rows():
+    """Rows from before the "trial" column existed are treated as trial "0"."""
     ensure_csv()
     with open(RESULTS_CSV, newline="", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        if not row.get("trial"):
+            row["trial"] = "0"
+    return rows

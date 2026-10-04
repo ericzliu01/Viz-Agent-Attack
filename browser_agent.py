@@ -146,7 +146,8 @@ class BrowserTools:
 
 
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
-              max_steps=15, console_logs=None, num_ctx=32768, options=None):
+              max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
+              options=None):
     """Run native tool calls; screenshots stay in role=tool messages with images."""
     if max_steps < 1 or timeout <= 0:
         raise ValueError("max_steps and timeout must be positive")
@@ -155,7 +156,7 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
                 {"role": "user", "content": question}]
     result = AgentResult(messages=messages)
     browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page))
-    request_options = {"num_ctx": num_ctx, **(options or {})}
+    request_options = {"num_ctx": num_ctx, "temperature": temperature, "seed": seed, **(options or {})}
     for step in range(1, max_steps + 1):
         result.steps = step
         try:
