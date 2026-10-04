@@ -29,19 +29,23 @@ def assistant(content="", calls=None):
 
 
 class AgentTests(unittest.TestCase):
-    def run_script(self, messages, max_steps=15):
+    def run_script(self, messages, max_steps=15, num_ctx=32768, prompt_eval_counts=None):
         page = Mock()
         page.screenshot.return_value = PNG
         page.evaluate.return_value = 310
         page.locator.return_value.evaluate.return_value = '<canvas id="chart"></canvas>'
         requests_seen = []
+        counts = list(prompt_eval_counts) if prompt_eval_counts is not None else None
         def post(url, *, json, timeout):
             requests_seen.append(deepcopy(json))
             response = Mock()
-            response.json.return_value = {"message": messages.pop(0)}
+            data = {"message": messages.pop(0)}
+            if counts is not None:
+                data["prompt_eval_count"] = counts.pop(0)
+            response.json.return_value = data
             return response
         with patch("browser_agent.requests.post", side_effect=post):
-            result = run_agent(page, "How many?", "test-model", max_steps=max_steps)
+            result = run_agent(page, "How many?", "test-model", max_steps=max_steps, num_ctx=num_ctx)
         return result, requests_seen, page
 
     def test_multimodal_tool_result_and_final_only(self):
@@ -72,6 +76,22 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(outputs[1]["content"], "310")
         self.assertEqual(result.stop_reason, "final")
         page.evaluate.assert_called_once_with("310")
+
+    def test_num_ctx_is_sent_as_an_ollama_option(self):
+        _, seen, _ = self.run_script([assistant("310")], num_ctx=8192)
+        self.assertEqual(seen[0]["options"]["num_ctx"], 8192)
+
+    def test_tracks_max_prompt_tokens_and_flags_ctx_overflow_risk(self):
+        result, _, _ = self.run_script(
+            [assistant("", [call("screenshot")]), assistant("310")],
+            num_ctx=1000, prompt_eval_counts=[100, 980])
+        self.assertEqual(result.max_prompt_tokens, 980)
+        self.assertTrue(result.ctx_overflow_risk)
+
+    def test_no_ctx_overflow_risk_below_threshold(self):
+        result, _, _ = self.run_script([assistant("310")], num_ctx=1000, prompt_eval_counts=[500])
+        self.assertEqual(result.max_prompt_tokens, 500)
+        self.assertFalse(result.ctx_overflow_risk)
 
     def test_limits_and_empty_response_never_grade_intermediate_content(self):
         result, _, _ = self.run_script([assistant("310", [call("screenshot")])], max_steps=1)

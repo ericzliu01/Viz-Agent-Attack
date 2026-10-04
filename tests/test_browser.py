@@ -138,12 +138,14 @@ class RunnerTests(unittest.TestCase):
         capability = dict(attack, attack_id="clean_bar")
         args = Namespace(models=["test-model"], dry_run=False, headed=False,
                          trace_dir=str(Path(self.temp.name) / "traces"),
-                         base_url="http://localhost:11434", timeout=10, max_steps=3)
+                         base_url="http://localhost:11434", timeout=10, max_steps=3,
+                         num_ctx=32768)
         calls = []
         def post(url, *, json, timeout):
             calls.append(json)
             self.assertNotIn("ground_truth", str(json))
             self.assertNotIn("grading-only", str(json))
+            self.assertEqual(json["options"]["num_ctx"], 32768)
             if len(json["messages"]) == 2:
                 content = {"role": "assistant", "tool_calls": [{"function": {
                     "name": "screenshot", "arguments": {}}}]}
@@ -152,7 +154,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertTrue(json["messages"][-1]["images"])
                 content = {"role": "assistant", "content": "310"}
             response = Mock()
-            response.json.return_value = {"message": content}
+            response.json.return_value = {"message": content, "prompt_eval_count": 123}
             return response
         csv_path = str(Path(self.temp.name) / "results.csv")
         with patch.object(results_logger, "RESULTS_DIR", self.temp.name), \
@@ -164,9 +166,12 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(len(rows), 3)
             self.assertEqual(len(calls), 6)
             self.assertTrue(all(r["correct"] == "true" and r["condition"] == "react_browser" for r in rows))
+            self.assertTrue(all("max_prompt_tokens=123" in r["notes"] for r in rows))
             traces = list(Path(args.trace_dir).glob("*/trace.json"))
             self.assertEqual(len(traces), 3)
             self.assertTrue(all(list(p.parent.glob("*.png")) for p in traces))
+            trace_config = json.loads(traces[0].read_text())["config"]
+            self.assertEqual(trace_config["num_ctx"], 32768)
 
 
 

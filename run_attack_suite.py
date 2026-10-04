@@ -144,6 +144,7 @@ def add_agent_arguments(parser):
     parser.add_argument("--libraries", default=",".join(DEFAULT_LIBRARIES))
     parser.add_argument("--timeout", type=float, default=180, help="Per-model-request timeout in seconds")
     parser.add_argument("--max-steps", type=int, default=15, help="Maximum model calls per trial")
+    parser.add_argument("--num-ctx", type=int, default=32768, help="Ollama context window size (tokens)")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -158,6 +159,8 @@ def validate_arguments(parser, args):
         parser.error("Unknown library in --libraries")
     if args.timeout <= 0 or args.max_steps < 1:
         parser.error("--timeout and --max-steps must be positive")
+    if args.num_ctx < 1:
+        parser.error("--num-ctx must be positive")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
 
@@ -199,7 +202,8 @@ def run_trials(trials, args):
                                 page.goto(url, wait_until="networkidle")
                                 page.wait_for_timeout(700)
                                 result = run_agent(page, trial["question"], model, args.base_url,
-                                                   args.timeout, args.max_steps, logs)
+                                                   args.timeout, args.max_steps, logs,
+                                                   num_ctx=args.num_ctx)
                             finally:
                                 context.close()
                     except Exception as exc:
@@ -208,9 +212,12 @@ def run_trials(trials, args):
                     result.latency_ms = int((time.monotonic() - start) * 1000)
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "base_url": args.base_url, "timeout": args.timeout,
-                        "max_steps": args.max_steps, "viewport": VIEWPORT,
+                        "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
+                    notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
+                    if result.ctx_overflow_risk:
+                        notes += "; ctx_overflow_risk=1"
                     if result.error:
                         notes += f"; error={result.error}"
                     correct, extracted = (grade(result.answer, trial["ground_truth"],
