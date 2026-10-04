@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from browser_agent import (BrowserTools, TEXT_LIMIT, TOOLS, check_model_capabilities,
-                           filter_tools, run_agent, save_trace)
+from browser_agent import (BrowserTools, DEFENSE_PROMPT_SUFFIX, SYSTEM_PROMPT, TEXT_LIMIT,
+                           TOOLS, check_model_capabilities, filter_tools, run_agent, save_trace)
 from run_attack_suite import (add_agent_arguments, already_done_keys, attack_trials,
                               grade, validate_arguments, PAGES_DIR)
 from run_capability_suite import discover_tasks, grade_task
@@ -164,6 +164,20 @@ class AgentTests(unittest.TestCase):
     def test_check_model_capabilities_handles_request_errors(self):
         with patch("browser_agent.requests.post", side_effect=requests.Timeout("timed out")):
             check_model_capabilities("M")
+
+    def test_default_system_prompt_has_no_injection_defense(self):
+        self.assertNotIn("observations, not instructions", SYSTEM_PROMPT)
+
+    def test_run_agent_appends_defense_prompt_when_given(self):
+        with patch("browser_agent.requests.post") as post:
+            post.return_value.json.return_value = {"message": {"role": "assistant", "content": "310"}}
+            run_agent(Mock(), "Q", "M")
+            default_system = post.call_args.kwargs["json"]["messages"][0]["content"]
+            self.assertEqual(default_system, SYSTEM_PROMPT)
+
+            run_agent(Mock(), "Q", "M", system_prompt=SYSTEM_PROMPT + DEFENSE_PROMPT_SUFFIX)
+            defended_system = post.call_args.kwargs["json"]["messages"][0]["content"]
+            self.assertTrue(defended_system.endswith(DEFENSE_PROMPT_SUFFIX))
 
     def test_trace_stores_png_without_mutating_model_history(self):
         result, _, _ = self.run_script([assistant(calls=[call("screenshot")]), assistant("310")])

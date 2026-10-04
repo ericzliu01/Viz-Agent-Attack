@@ -49,6 +49,9 @@ Both runners accept `--models` (comma-separated tags), `--libraries`,
 default 32768), `--temperature` (default 0), `--seed` (default 0),
 `--trials` (repeated trials per cell, default 1), `--tools`
 (comma-separated subset of tool names exposed to the model, default all),
+`--defense-prompt` (flag; appends a prompt-injection defense sentence to
+the system prompt and switches `condition` to `react_browser_defended`
+so results and resume keys stay separate from the undefended default),
 and `--trace-dir` (default `results/traces`). `--limit` caps attacks per
 library in the attack runner, and questions per library in the capability
 runner. An attack's clean baseline does not count toward that limit.

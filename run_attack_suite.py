@@ -13,6 +13,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PAGES_DIR = os.path.join(BASE_DIR, "pages")
 DEFAULT_LIBRARIES = ["d3", "plotly", "chartjs", "vega-lite"]
 CONDITION = "react_browser"
+CONDITION_DEFENDED = "react_browser_defended"
 RETRYABLE = ("request_error", "browser_error")
 HEDGE_PATTERNS = [
     "cannot determine", "can't determine", "not enough information",
@@ -149,6 +150,8 @@ def add_agent_arguments(parser):
     parser.add_argument("--seed", type=int, default=0, help="Base sampling seed")
     parser.add_argument("--trials", type=int, default=1, help="Repeated trials per (library, attack, model) cell")
     parser.add_argument("--tools", help="Comma-separated subset of tool names to expose to the model (default: all)")
+    parser.add_argument("--defense-prompt", action="store_true",
+                        help="Append a prompt-injection defense sentence to the system prompt")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -179,11 +182,13 @@ def validate_arguments(parser, args):
 
 
 def run_trials(trials, args):
-    from browser_agent import SYSTEM_PROMPT, TOOLS, TOOL_NAMES, filter_tools
+    from browser_agent import SYSTEM_PROMPT, DEFENSE_PROMPT_SUFFIX, TOOLS, TOOL_NAMES, filter_tools
     agent_tools = filter_tools(args.tools) if args.tools else TOOLS
     enabled_tool_names = [t["function"]["name"] for t in agent_tools]
+    system_prompt = SYSTEM_PROMPT + (DEFENSE_PROMPT_SUFFIX if args.defense_prompt else "")
+    condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
     if args.dry_run:
-        print(SYSTEM_PROMPT)
+        print(system_prompt)
         print("Tools:", ", ".join(enabled_tool_names))
         for model in args.models:
             for trial in trials:
@@ -198,7 +203,7 @@ def run_trials(trials, args):
     for model in args.models:
         check_model_capabilities(model, args.base_url)
 
-    done_keys = already_done_keys()
+    done_keys = already_done_keys(condition)
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=not args.headed)
         try:
@@ -224,7 +229,8 @@ def run_trials(trials, args):
                                 result = run_agent(page, trial["question"], model, args.base_url,
                                                    args.timeout, args.max_steps, logs,
                                                    num_ctx=args.num_ctx, temperature=args.temperature,
-                                                   seed=args.seed + trial_index, tools=agent_tools)
+                                                   seed=args.seed + trial_index, tools=agent_tools,
+                                                   system_prompt=system_prompt)
                             finally:
                                 context.close()
                     except Exception as exc:
@@ -236,6 +242,7 @@ def run_trials(trials, args):
                         "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
                         "temperature": args.temperature, "seed": args.seed + trial_index,
                         "trial": trial_index, "tools": enabled_tool_names,
+                        "system_prompt": system_prompt,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -251,7 +258,7 @@ def run_trials(trials, args):
                     append_row({
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
                         "library": trial["library"], "attack_id": trial["attack_id"],
-                        "condition": CONDITION, "model": model, "question": trial["question"],
+                        "condition": condition, "model": model, "question": trial["question"],
                         "ground_truth": trial["ground_truth"], "response": result.answer,
                         "extracted_answer": extracted, "correct": correct,
                         "latency_ms": result.latency_ms, "notes": notes,
