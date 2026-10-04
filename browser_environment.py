@@ -1,9 +1,27 @@
-"""Serve only the active trial HTML, never the adjacent grading sidecars."""
+"""Serve only the active trial HTML and vendored libraries, never the
+adjacent grading sidecars."""
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
+
+VENDOR_DIR = (Path(__file__).parent / "vendor").resolve()
+
+
+def _resolve_vendor_file(url_path):
+    """Return the vendor file Path for "/vendor/<name>", or None if it is a
+    sidecar, a traversal attempt, or escapes VENDOR_DIR entirely.
+    """
+    if not url_path.startswith("/vendor/"):
+        return None
+    name = unquote(url_path[len("/vendor/"):])
+    if not name or "/" in name or name.endswith(".json"):
+        return None
+    candidate = (VENDOR_DIR / name).resolve()
+    if candidate.parent != VENDOR_DIR or not candidate.is_file():
+        return None
+    return candidate
 
 
 @contextmanager
@@ -12,15 +30,23 @@ def serve_chart(html_path):
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if urlsplit(self.path).path != "/chart.html":
-                self.send_error(404)
+            url_path = urlsplit(self.path).path
+            if url_path == "/chart.html":
+                self._respond(html, "text/html; charset=utf-8")
                 return
+            vendor_file = _resolve_vendor_file(url_path)
+            if vendor_file is not None:
+                self._respond(vendor_file.read_bytes(), "application/javascript")
+                return
+            self.send_error(404)
+
+        def _respond(self, body, content_type):
             self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(html)))
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(html)
+            self.wfile.write(body)
 
         def log_message(self, *args):
             pass

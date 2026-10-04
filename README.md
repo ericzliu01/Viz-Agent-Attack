@@ -19,9 +19,10 @@ calling**, including images in tool results. Pass its installed tag with
 model lists are not assumed to support this protocol. No text-action parser
 or user-message image fallback is used.
 
-Chart pages load JavaScript libraries from public CDNs, so Chromium needs
-network access to render the corpus. Playwright >= 1.49 provides the ARIA
-snapshot API used by the accessibility tool.
+Chart pages load D3, Plotly, Chart.js, and Vega-Lite from `vendor/` (exact
+versions checked into the repo, not fetched from a CDN at run time), so
+Chromium does not need network access to render the corpus. Playwright
+>= 1.49 provides the ARIA snapshot API used by the accessibility tool.
 
 ## Run
 
@@ -108,12 +109,20 @@ preserved when Ollama supplies one. No additional user message carries the
 image. The assistant's final non-tool response alone is graded; intermediate
 messages and reasoning are never graded.
 
-Each trial's HTTP server exposes only `/chart.html`, backed by that trial's
-HTML. It cannot serve directory listings, grading sidecars, or other trial
-pages. The model is allowed to inspect data embedded in the chart itself:
-this experiment measures an agent with developer tools, not visual-only
-chart reading. The browser runs trusted repository chart code; this setup
-is not a sandbox for arbitrary hostile JavaScript.
+Each trial's HTTP server exposes only `/chart.html` and the vendored library
+files under `/vendor/<file>` (no subdirectories, no `.json` sidecars, no
+path traversal). It cannot serve directory listings, grading sidecars, or
+other trial pages. The model is allowed to inspect data embedded in the
+chart itself: this experiment measures an agent with developer tools, not
+visual-only chart reading. The browser runs trusted repository chart code;
+this setup is not a sandbox for arbitrary hostile JavaScript.
+
+After navigation and the 700ms render wait, the runner checks that the page
+actually drew something (a non-blank `<canvas>` or an `<svg>` with marks
+beyond its axes) before handing the trial to the model. A page that fails
+this check never reaches the agent; the trial is logged as `needs_review`
+with `stop=render_error` and is retried on the next run, the same as a
+request or browser error.
 
 ## Results and migration
 
@@ -148,7 +157,8 @@ variable. Existing CSVs need no migration.
 ## Implementation and tests
 
 - `browser_agent.py`: Ollama chat loop, tool definitions and execution, traces.
-- `browser_environment.py`: one-chart HTTP server.
+- `browser_environment.py`: one-chart HTTP server, plus `/vendor/<file>`.
+- `vendor/`: exact-version chart library files, checked in (no CDN at run time).
 - `run_attack_suite.py`: shared trial execution, attack pairing, and grading.
 - `run_capability_suite.py`: clean-chart task discovery.
 

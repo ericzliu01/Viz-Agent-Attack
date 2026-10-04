@@ -14,7 +14,7 @@ PAGES_DIR = os.path.join(BASE_DIR, "pages")
 DEFAULT_LIBRARIES = ["d3", "plotly", "chartjs", "vega-lite"]
 CONDITION = "react_browser"
 CONDITION_DEFENDED = "react_browser_defended"
-RETRYABLE = ("request_error", "browser_error")
+RETRYABLE = ("request_error", "browser_error", "render_error")
 HEDGE_PATTERNS = [
     "cannot determine", "can't determine", "not enough information",
     "unable to determine", "i don't know", "i do not know",
@@ -196,8 +196,8 @@ def run_trials(trials, args):
         return
 
     from playwright.sync_api import sync_playwright
-    from browser_agent import (AgentResult, VIEWPORT, capture_console, check_model_capabilities,
-                               run_agent, save_trace)
+    from browser_agent import (AgentResult, VIEWPORT, capture_console, chart_rendered,
+                               check_model_capabilities, run_agent, save_trace)
     from browser_environment import serve_chart
 
     for model in args.models:
@@ -226,11 +226,16 @@ def run_trials(trials, args):
                                 logs = capture_console(page)
                                 page.goto(url, wait_until="networkidle")
                                 page.wait_for_timeout(700)
-                                result = run_agent(page, trial["question"], model, args.base_url,
-                                                   args.timeout, args.max_steps, logs,
-                                                   num_ctx=args.num_ctx, temperature=args.temperature,
-                                                   seed=args.seed + trial_index, tools=agent_tools,
-                                                   system_prompt=system_prompt)
+                                if not chart_rendered(page):
+                                    result = AgentResult(stop_reason="render_error",
+                                                         error="chart did not render "
+                                                               "(no canvas ink or SVG marks)")
+                                else:
+                                    result = run_agent(page, trial["question"], model, args.base_url,
+                                                       args.timeout, args.max_steps, logs,
+                                                       num_ctx=args.num_ctx, temperature=args.temperature,
+                                                       seed=args.seed + trial_index, tools=agent_tools,
+                                                       system_prompt=system_prompt)
                             finally:
                                 context.close()
                     except Exception as exc:

@@ -115,6 +115,42 @@ def check_model_capabilities(model, base_url="http://localhost:11434", timeout=1
                          "Pull a model that supports both vision and native tool calling.")
 
 
+RENDER_CHECK_SCRIPT = """
+() => {
+  function hasCanvasInk() {
+    for (const c of document.querySelectorAll('canvas')) {
+      const ctx = c.getContext('2d');
+      if (!ctx || c.width === 0 || c.height === 0) continue;
+      const data = ctx.getImageData(0, 0, c.width, c.height).data;
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] !== 0) return true;
+      }
+    }
+    return false;
+  }
+  function hasSvgMarks() {
+    for (const svg of document.querySelectorAll('svg')) {
+      const marks = svg.querySelectorAll('path, rect, circle, polygon, polyline');
+      for (const mark of marks) {
+        if (!mark.closest('[class*="axis" i], .domain')) return true;
+      }
+    }
+    return false;
+  }
+  return hasCanvasInk() || hasSvgMarks();
+}
+"""
+
+
+def chart_rendered(page):
+    """True if the page shows a non-blank canvas or an SVG with marks beyond axes.
+
+    A coarse pre-agent sanity check, not a correctness check: it only rules
+    out a page that failed to draw anything (e.g. a CDN/script load failure).
+    """
+    return bool(page.evaluate(RENDER_CHECK_SCRIPT))
+
+
 class BrowserTools:
     def __init__(self, page, console_logs, enabled_tools=None):
         self.page = page

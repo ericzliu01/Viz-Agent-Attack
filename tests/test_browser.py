@@ -18,8 +18,14 @@ FIXTURE = '''<!doctype html><html><body style="height:2000px">
 <h1>Test chart</h1><label>Label <input id="entry"></label>
 <button id="mark" onclick="this.textContent='clicked'"
  onmouseenter="document.querySelector('#tip').textContent='West: 310'">Mark</button>
-<div id="tip"></div><script>console.log('loaded'); window.chartData = [180,310];
+<div id="tip"></div>
+<svg width="100" height="100"><rect x="10" y="10" width="20" height="20" fill="steelblue"></rect></svg>
+<script>console.log('loaded'); window.chartData = [180,310];
 setTimeout(() => { throw new Error('fixture error'); }, 0);</script></body></html>'''
+
+BLANK_FIXTURE = '''<!doctype html><html><body>
+<svg width="100" height="100"><g class="axis"><line x1="0" y1="0" x2="100" y2="0"></line></g></svg>
+</body></html>'''
 
 
 @unittest.skipUnless(os.environ.get("RUN_BROWSER_TESTS") == "1", "Set RUN_BROWSER_TESTS=1")
@@ -74,6 +80,36 @@ class BrowserTests(unittest.TestCase):
                 self.tools.execute("evaluate", {"script": "() => {throw Error('bad JS')}"})
             self.assertEqual(self.tools.execute("evaluate", {"script": "1+1"})[0], "2")
 
+    def test_vendor_files_served_sidecars_and_traversal_blocked(self):
+        import urllib.error
+        import urllib.request
+        with serve_chart(self.html) as url:
+            vendor_dir = Path(__file__).resolve().parent.parent / "vendor"
+            existing = next(vendor_dir.glob("*.js")).name
+            base = url.rsplit("/chart.html", 1)[0]
+
+            def status(path):
+                try:
+                    return urllib.request.urlopen(base + path, timeout=5).status
+                except urllib.error.HTTPError as exc:
+                    return exc.code
+
+            self.assertEqual(status("/vendor/" + existing), 200)
+            for path in ["/vendor/does-not-exist.js", "/vendor/../chart.html",
+                         "/vendor/%2e%2e/chart.html", "/vendor/fake.json"]:
+                self.assertEqual(status(path), 404)
+
+    def test_chart_rendered_detects_blank_vs_drawn(self):
+        from browser_agent import chart_rendered
+        with serve_chart(self.html) as url:
+            self.page.goto(url)
+            self.assertTrue(chart_rendered(self.page))
+        blank_html = Path(self.temp.name) / "blank.html"
+        blank_html.write_text(BLANK_FIXTURE)
+        with serve_chart(blank_html) as url:
+            self.page.goto(url)
+            self.assertFalse(chart_rendered(self.page))
+
     def test_interactions_and_context_isolation(self):
         with serve_chart(self.html) as url:
             self.page.goto(url)
@@ -99,7 +135,7 @@ class BrowserTests(unittest.TestCase):
                 self.assertIsNone(page.evaluate("localStorage.getItem('test')"))
                 self.assertEqual(page.locator("#mark").inner_text(), "Mark")
 
-    @unittest.skipUnless(os.environ.get("RUN_CORPUS_TESTS") == "1", "Set RUN_CORPUS_TESTS=1 (uses CDNs)")
+    @unittest.skipUnless(os.environ.get("RUN_CORPUS_TESTS") == "1", "Set RUN_CORPUS_TESTS=1 (slow: renders the full page corpus)")
     def test_four_libraries_render_clean_and_attack_pages(self):
         for trial in attack_trials(["d3", "plotly", "chartjs", "vega-lite"], limit=1):
             with self.subTest(library=trial["library"], attack=trial["attack_id"]):
@@ -118,6 +154,19 @@ class BrowserTests(unittest.TestCase):
                     self.assertTrue(images)
                     self.assertTrue(self.tools.execute("dom", {})[0])
                     self.assertTrue(self.tools.execute("accessibility", {})[0])
+
+    @unittest.skipUnless(os.environ.get("RUN_CORPUS_TESTS") == "1", "Set RUN_CORPUS_TESTS=1 (slow: renders the full page corpus)")
+    def test_render_check_passes_for_every_corpus_page(self):
+        from browser_agent import chart_rendered
+        from run_attack_suite import PAGES_DIR
+        html_files = sorted(Path(PAGES_DIR).glob("*/*.html"))
+        self.assertEqual(len(html_files), 48)
+        for html_file in html_files:
+            with self.subTest(page=str(html_file.relative_to(PAGES_DIR))):
+                with serve_chart(html_file) as url:
+                    self.page.goto(url, wait_until="networkidle", timeout=30000)
+                    self.page.wait_for_timeout(700)
+                    self.assertTrue(chart_rendered(self.page))
 
 
 @unittest.skipUnless(os.environ.get("RUN_BROWSER_TESTS") == "1", "Set RUN_BROWSER_TESTS=1")
@@ -245,6 +294,39 @@ class RunnerTests(unittest.TestCase):
             run_trials([attack], args)
             self.assertEqual(len(results_logger.read_rows()), 2)
 
+    def test_render_error_skips_agent_and_is_retryable(self):
+        blank_html = Path(self.temp.name) / "blank.html"
+        blank_html.write_text(BLANK_FIXTURE)
+        attack = {"library": "d3", "attack_id": "attack", "html_path": str(blank_html),
+                  "question": "Read the tooltip", "ground_truth": "310", "answer_type": "free"}
+        args = Namespace(models=["test-model"], dry_run=False, headed=False,
+                         trace_dir=str(Path(self.temp.name) / "traces"),
+                         base_url="http://localhost:11434", timeout=10, max_steps=3,
+                         num_ctx=32768, temperature=0, seed=0, trials=1, tools=None,
+                         defense_prompt=False)
+        calls = []
+        def post(url, *, json, timeout):
+            if url.endswith("/api/show"):
+                response = Mock()
+                response.json.return_value = {"capabilities": ["vision", "tools"]}
+                return response
+            calls.append(json)
+            response = Mock()
+            response.json.return_value = {"message": {"role": "assistant", "content": "310"}}
+            return response
+        csv_path = str(Path(self.temp.name) / "results.csv")
+        with patch.object(results_logger, "RESULTS_DIR", self.temp.name), \
+             patch.object(results_logger, "RESULTS_CSV", csv_path), \
+             patch("browser_agent.requests.post", side_effect=post), redirect_stdout(io.StringIO()):
+            run_trials([attack], args)
+            self.assertEqual(calls, [])
+            rows = results_logger.read_rows()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["correct"], "needs_review")
+            self.assertIn("stop=render_error", rows[0]["notes"])
+            # render_error is retryable, so a rerun does not skip it.
+            run_trials([attack], args)
+            self.assertEqual(len(results_logger.read_rows()), 2)
 
 
 if __name__ == "__main__":
