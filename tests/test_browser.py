@@ -183,6 +183,7 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(all(r["trial"] == "0" for r in rows))
             self.assertIn("screenshot", trace_config["tools"])
             self.assertTrue(all("enabled_tools=" not in r["notes"] for r in rows))
+            self.assertTrue(all("tools=screenshot" in r["notes"] for r in rows))
 
     def test_defense_prompt_uses_separate_condition_and_appears_in_trace(self):
         attack = {"library": "d3", "attack_id": "attack", "html_path": str(self.html),

@@ -62,6 +62,7 @@ class AgentResult:
     messages: list = field(default_factory=list)
     max_prompt_tokens: int = 0
     ctx_overflow_risk: bool = False
+    tools_used: list = field(default_factory=list)
 
 
 def capture_console(page):
@@ -245,6 +246,8 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
                 observation["content"] = content
                 if images:
                     observation["images"] = images
+                if name not in result.tools_used:
+                    result.tools_used.append(name)
             except Exception as exc:
                 observation["content"] = json.dumps({"error": str(exc)})
             messages.append(observation)

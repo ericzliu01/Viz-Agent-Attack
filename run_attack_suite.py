@@ -250,6 +250,7 @@ def run_trials(trials, args):
                         notes += "; ctx_overflow_risk=1"
                     if args.tools:
                         notes += f"; enabled_tools={','.join(enabled_tool_names)}"
+                    notes += f"; tools={','.join(result.tools_used)}"
                     if result.error:
                         notes += f"; error={result.error}"
                     correct, extracted = (grade(result.answer, trial["ground_truth"],

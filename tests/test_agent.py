@@ -15,7 +15,7 @@ from browser_agent import (BrowserTools, DEFENSE_PROMPT_SUFFIX, SYSTEM_PROMPT, T
 from run_attack_suite import (add_agent_arguments, already_done_keys, attack_trials,
                               grade, validate_arguments, PAGES_DIR)
 from run_capability_suite import discover_tasks, grade_task
-from summarize_results import build_asr_table
+from summarize_results import build_asr_table, build_tool_usage_breakdown, tool_flags
 
 PNG = b'\x89PNG\r\n\x1a\nexample'
 
@@ -79,6 +79,15 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(outputs[1]["content"], "310")
         self.assertEqual(result.stop_reason, "final")
         page.evaluate.assert_called_once_with("310")
+        self.assertEqual(result.tools_used, ["evaluate", "dom"])
+
+    def test_tools_used_is_ordered_unique_first_use(self):
+        result, _, _ = self.run_script([
+            assistant(calls=[call("screenshot"), call("evaluate", {"script": "1"}),
+                             call("screenshot")]),
+            assistant("310"),
+        ])
+        self.assertEqual(result.tools_used, ["screenshot", "evaluate"])
 
     def test_num_ctx_is_sent_as_an_ollama_option(self):
         _, seen, _ = self.run_script([assistant("310")], num_ctx=8192)
@@ -274,6 +283,34 @@ class ExperimentTests(unittest.TestCase):
         entries = build_asr_table(rows)
         self.assertEqual({e["condition"]: e["asr"] for e in entries},
                          {"react_browser": 1.0, "raw_source": 0.0})
+
+    def test_tool_flags_parses_notes(self):
+        self.assertEqual(tool_flags("stop=final; tools=dom,screenshot"), (True, True))
+        self.assertEqual(tool_flags("stop=final; tools=screenshot"), (False, True))
+        self.assertEqual(tool_flags("stop=final; tools=evaluate"), (True, False))
+        self.assertEqual(tool_flags("stop=final; tools="), (False, False))
+        self.assertEqual(tool_flags(""), (False, False))
+
+    def test_tool_usage_breakdown_computes_asr_per_bucket(self):
+        rows = [
+            {"condition": "react_browser", "attack_id": "attack", "correct": "false",
+             "notes": "tools=dom,screenshot"},
+            {"condition": "react_browser", "attack_id": "attack__clean_baseline", "correct": "true",
+             "notes": "tools=dom,screenshot"},
+            {"condition": "react_browser", "attack_id": "attack", "correct": "false",
+             "notes": "tools=screenshot"},
+            {"condition": "react_browser", "attack_id": "attack__clean_baseline", "correct": "false",
+             "notes": "tools=screenshot"},
+        ]
+        entries = build_tool_usage_breakdown(rows)
+        by_key = {(e["dimension"], e["group"]): e for e in entries}
+        read_source_entry = by_key[("read_source", "read_source")]
+        self.assertEqual(read_source_entry["n_attack"], 1)
+        self.assertAlmostEqual(read_source_entry["asr"], 1.0)
+        no_read_source_entry = by_key[("read_source", "no_read_source")]
+        self.assertAlmostEqual(no_read_source_entry["asr"], 0.0)
+        screenshot_entry = by_key[("screenshot", "screenshot")]
+        self.assertEqual(screenshot_entry["n_attack"], 2)
 
 
 FORBIDDEN_STRINGS = ("attack", "bait", "decoy", "mislead", "ground truth",

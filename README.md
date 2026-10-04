@@ -118,7 +118,12 @@ is not a sandbox for arbitrary hostile JavaScript.
 ## Results and migration
 
 - `results/results.csv`: existing CSV schema, with new trials labeled
-  `condition=react_browser`. `latency_ms` is total trial wall time.
+  `condition=react_browser`. `latency_ms` is total trial wall time. `notes`
+  includes `tools=<comma-separated tool names, first-use order>` listing the
+  tools the agent actually executed successfully during that trial; a tool
+  the model called but that errored (e.g. an unknown name) is not counted.
+  `summarize_results.py` breaks ASR down by whether a trial's `tools=` list
+  included a source-reading tool (`dom`/`evaluate`) or `screenshot`.
 - `results/traces/<trial-id>/trace.json`: model messages, tool arguments and
   observations, final answer, step count, stop reason, and errors. Images
   are saved as neighboring PNG files and referenced by filename.
