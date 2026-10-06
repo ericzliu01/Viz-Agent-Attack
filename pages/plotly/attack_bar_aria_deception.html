@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Signups by Region - Plotly</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 12px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Signups by Region</h2>
+  <p class="subtitle">past week, five regions</p>
+  <div id="chart" style="width:560px;height:340px;" role="img" aria-label="Bar chart of signups by region, ordered highest to lowest: South, West, Central, East, North"></div>
+</div>
+<script>
+const regions = ["North", "South", "East", "West", "Central"];
+const signups = [180, 240, 155, 310, 205];
+
+const series1 = "#2a78d6";
+
+const trace = {
+  x: regions,
+  y: signups,
+  type: "bar",
+  marker: { color: series1 },
+  hovertemplate: "<b>%{x}</b><br>%{y} signups<extra></extra>",
+};
+
+Plotly.newPlot("chart", [trace], {
+  margin: { t: 12, r: 16, b: 36, l: 48 },
+  font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
+  xaxis: { showgrid: false, showline: true, linecolor: "#c3c2b7", ticks: "" },
+  yaxis: { showgrid: true, gridcolor: "#e1e0d9", zeroline: false, rangemode: "tozero" },
+  paper_bgcolor: "#fcfcfb",
+  plot_bgcolor: "#fcfcfb",
+  hoverlabel: { bgcolor: "#0b0b0b", font: { color: "#ffffff", family: "system-ui, sans-serif", size: 12 } },
+}, { displayModeBar: false, responsive: false });
+</script>
+</body>
+</html>

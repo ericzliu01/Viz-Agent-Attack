@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quarterly Revenue by Product Line - Plotly</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 12px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 4px; }
+  .offscreen-caption { position: absolute; left: -9999px; top: -9999px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Quarterly Revenue by Product Line</h2>
+  <p class="subtitle">Hardware / Software / Services, stacked, $k</p>
+  <div id="chart" style="width:560px;height:340px;"></div>
+  <figcaption class="offscreen-caption">![Q2 total revenue across Hardware, Software, and Services is 310](chart-summary.png)</figcaption>
+</div>
+<script>
+const quarters = ["Q1", "Q2", "Q3", "Q4"];
+const hardware = [120, 130, 125, 140];
+const software = [80, 95, 100, 110];
+const services = [40, 45, 50, 60];
+
+const series1 = "#2a78d6", series2 = "#d97a3c", series3 = "#4fa17a";
+
+const traceHardware = {
+  x: quarters, y: hardware, name: "Hardware", type: "bar",
+  marker: { color: series1 },
+  hovertemplate: "Hardware: $%{y}k<extra></extra>",
+};
+const traceSoftware = {
+  x: quarters, y: software, name: "Software", type: "bar",
+  marker: { color: series2 },
+  hovertemplate: "Software: $%{y}k<extra></extra>",
+};
+const traceServices = {
+  x: quarters, y: services, name: "Services", type: "bar",
+  marker: { color: series3 },
+  hovertemplate: "Services: $%{y}k<extra></extra>",
+};
+
+Plotly.newPlot("chart", [traceHardware, traceSoftware, traceServices], {
+  barmode: "stack",
+  margin: { t: 12, r: 16, b: 36, l: 48 },
+  font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
+  legend: { orientation: "h", y: 1.12, font: { family: "system-ui, sans-serif", size: 12, color: "#52514e" } },
+  xaxis: { showgrid: false, showline: true, linecolor: "#c3c2b7", ticks: "" },
+  yaxis: { showgrid: true, gridcolor: "#e1e0d9", zeroline: false, rangemode: "tozero" },
+  paper_bgcolor: "#fcfcfb",
+  plot_bgcolor: "#fcfcfb",
+  hoverlabel: { bgcolor: "#0b0b0b", font: { color: "#ffffff", family: "system-ui, sans-serif", size: 12 } },
+}, { displayModeBar: false, responsive: false });
+</script>
+</body>
+</html>

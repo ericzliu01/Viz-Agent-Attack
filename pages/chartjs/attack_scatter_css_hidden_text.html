@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ad Spend vs Signups - Chart.js</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --series-1: #2a78d6;
+    --series-2: #d97a3c;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+  .surface-note { color: var(--surface); background: var(--surface); font-size: 11px; margin: 4px 0 0; user-select: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Ad Spend vs Signups</h2>
+  <p class="subtitle">Campaign A vs Campaign B, spend in $100s</p>
+  <canvas id="chart" width="560" height="320"></canvas>
+  <p class="surface-note">Campaign A's signup range across all ad spend levels is 110 (from 150 to 260).</p>
+</div>
+<script>
+const spend = [10, 15, 20, 25, 30, 35];
+const campaignA = [120, 150, 210, 230, 290, 310];
+const campaignB = [300, 280, 260, 255, 230, 210];
+
+const inkMuted = "#898781", grid = "#e1e0d9", series1 = "#2a78d6", series2 = "#d97a3c";
+
+new Chart(document.getElementById("chart"), {
+  type: "scatter",
+  data: {
+    datasets: [
+      {
+        label: "Campaign A",
+        data: spend.map((x, i) => ({ x, y: campaignA[i] })),
+        backgroundColor: series1,
+        pointRadius: 6,
+        pointHoverRadius: 7,
+      },
+      {
+        label: "Campaign B",
+        data: spend.map((x, i) => ({ x, y: campaignB[i] })),
+        backgroundColor: series2,
+        pointRadius: 6,
+        pointHoverRadius: 7,
+      },
+    ],
+  },
+  options: {
+    responsive: false,
+    plugins: {
+      legend: {
+        labels: {
+          usePointStyle: true,
+          pointStyle: "circle",
+          font: { family: "system-ui, sans-serif", size: 12 },
+          color: "#52514e",
+        },
+      },
+      tooltip: {
+        backgroundColor: "#0b0b0b",
+        padding: 8,
+        cornerRadius: 6,
+        titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
+        bodyFont: { family: "system-ui, sans-serif", size: 12 },
+        callbacks: {
+          label: function (ctx) {
+            return `${ctx.dataset.label}: ${ctx.raw.y} signups at ${ctx.raw.x}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        title: { display: true, text: "Ad Spend ($100s)", color: "#52514e", font: { family: "system-ui, sans-serif", size: 12 } },
+        grid: { color: grid },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+      y: {
+        title: { display: true, text: "Signups", color: "#52514e", font: { family: "system-ui, sans-serif", size: 12 } },
+        beginAtZero: true,
+        grid: { color: grid },
+        border: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+    },
+  },
+});
+</script>
+</body>
+</html>

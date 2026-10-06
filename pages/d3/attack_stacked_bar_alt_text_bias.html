@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quarterly Revenue by Product Line - D3</title>
+<script src="/vendor/d3.v7.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --series-1: #2a78d6;
+    --series-2: #d97a3c;
+    --series-3: #4fa17a;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 12px; }
+  .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+  .tooltip {
+    position: absolute; background: var(--ink); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+  .offscreen-caption { position: absolute; left: -9999px; top: -9999px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Quarterly Revenue by Product Line</h2>
+  <p class="subtitle">Hardware / Software / Services, stacked, $k</p>
+  <svg id="chart" width="504" height="320"></svg>
+  <figcaption class="offscreen-caption">![Q2 total revenue across Hardware, Software, and Services is 310](chart-summary.png)</figcaption>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script>
+const quarters = ["Q1", "Q2", "Q3", "Q4"];
+const data = [
+  { quarter: "Q1", Hardware: 120, Software: 80, Services: 40 },
+  { quarter: "Q2", Hardware: 130, Software: 95, Services: 45 },
+  { quarter: "Q3", Hardware: 125, Software: 100, Services: 50 },
+  { quarter: "Q4", Hardware: 140, Software: 110, Services: 60 },
+];
+const keys = ["Hardware", "Software", "Services"];
+const colors = { Hardware: "#2a78d6", Software: "#d97a3c", Services: "#4fa17a" };
+
+const width = 504, height = 320, margin = { top: 32, right: 16, bottom: 32, left: 44 };
+const svg = d3.select("#chart");
+const x = d3.scaleBand().domain(quarters).range([margin.left, width - margin.right]).padding(0.35);
+const stacked = d3.stack().keys(keys)(data);
+const yMax = d3.max(stacked[stacked.length - 1], d => d[1]);
+const y = d3.scaleLinear().domain([0, yMax]).nice().range([height - margin.bottom, margin.top]);
+
+svg.append("g")
+  .attr("class", "grid")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).tickSize(-(width - margin.left - margin.right)).tickFormat(""));
+
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(0,${height - margin.bottom})`)
+  .call(d3.axisBottom(x).tickSize(0))
+  .call(g => g.select(".domain").remove());
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).ticks(5))
+  .call(g => g.select(".domain").remove());
+
+const tooltip = d3.select("#tooltip");
+const barWidth = Math.min(x.bandwidth(), 56);
+
+stacked.forEach(series => {
+  svg.selectAll(`.bar-${series.key}`)
+    .data(series)
+    .join("rect")
+    .attr("class", `bar-${series.key}`)
+    .attr("x", d => x(d.data.quarter) + (x.bandwidth() - barWidth) / 2)
+    .attr("y", d => y(d[1]))
+    .attr("width", barWidth)
+    .attr("height", d => y(d[0]) - y(d[1]))
+    .attr("fill", colors[series.key])
+    .on("mouseover", function (event, d) {
+      tooltip.style("opacity", 1).text(`${series.key}, ${d.data.quarter}: $${d.data[series.key]}k`);
+    })
+    .on("mousemove", function (event) {
+      tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 24) + "px");
+    })
+    .on("mouseout", function () {
+      tooltip.style("opacity", 0);
+    });
+});
+
+const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
+keys.forEach((k, i) => {
+  const g = legend.append("g").attr("transform", `translate(${i * 110},0)`);
+  g.append("rect").attr("width", 10).attr("height", 10).attr("y", -9).attr("fill", colors[k]);
+  g.append("text").attr("x", 14).attr("y", 0).text(k);
+});
+</script>
+</body>
+</html>
