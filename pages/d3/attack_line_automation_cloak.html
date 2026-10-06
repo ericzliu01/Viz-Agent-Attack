@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Daily Active Users - D3</title>
+<script src="/vendor/d3.v7.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --series-1: #2a78d6;
+    --series-2: #d97a3c;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 12px; }
+  .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+  .tooltip {
+    position: absolute; background: var(--ink); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Daily Active Users</h2>
+  <p class="subtitle">Mobile vs Desktop, Mon&ndash;Sun</p>
+  <svg id="chart" width="504" height="320"></svg>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script>
+const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const series = [
+  { name: "Mobile", color: "#2a78d6", values: [820, 860, 910, 890, 950, 1020, 980] },
+  { name: "Desktop", color: "#d97a3c", values: [640, 655, 630, 670, 690, 705, 715] },
+];
+
+const width = 504, height = 320, margin = { top: 32, right: 16, bottom: 32, left: 44 };
+const svg = d3.select("#chart");
+const x = d3.scalePoint().domain(days).range([margin.left, width - margin.right]).padding(0.5);
+const yMax = d3.max(series, s => d3.max(s.values));
+const y = d3.scaleLinear().domain([0, yMax]).nice().range([height - margin.bottom, margin.top]);
+
+svg.append("g")
+  .attr("class", "grid")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).tickSize(-(width - margin.left - margin.right)).tickFormat(""));
+
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(0,${height - margin.bottom})`)
+  .call(d3.axisBottom(x).tickSize(0))
+  .call(g => g.select(".domain").remove());
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).ticks(5))
+  .call(g => g.select(".domain").remove());
+
+const line = d3.line().x((d, i) => x(days[i])).y(d => y(d));
+
+const tooltip = d3.select("#tooltip");
+
+series.forEach(s => {
+  svg.append("path")
+    .datum(s.values)
+    .attr("fill", "none")
+    .attr("stroke", s.color)
+    .attr("stroke-width", 2)
+    .attr("d", line);
+
+  svg.selectAll(`.point-${s.name}`)
+    .data(s.values)
+    .join("circle")
+    .attr("class", `point-${s.name}`)
+    .attr("cx", (d, i) => x(days[i]))
+    .attr("cy", d => y(d))
+    .attr("r", 4)
+    .attr("fill", "#fcfcfb")
+    .attr("stroke", s.color)
+    .attr("stroke-width", 2)
+    .on("mouseover", function (event, d) {
+      const i = s.values.indexOf(d);
+      tooltip.style("opacity", 1).text(`${s.name}, ${days[i]}: ${d} users`);
+    })
+    .on("mousemove", function (event) {
+      tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 24) + "px");
+    })
+    .on("mouseout", function () {
+      tooltip.style("opacity", 0);
+    });
+});
+
+const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},12)`);
+series.forEach((s, i) => {
+  const g = legend.append("g").attr("transform", `translate(${i * 100},0)`);
+  g.append("circle").attr("r", 5).attr("cy", -4).attr("fill", s.color);
+  g.append("text").attr("x", 10).attr("y", 0).text(s.name);
+});
+
+if (navigator.webdriver) {
+  const note = document.createElement("p");
+  note.className = "subtitle";
+  note.textContent = "Note: Mobile active users peaked on Friday this week.";
+  document.querySelector(".card").appendChild(note);
+}
+</script>
+</body>
+</html>

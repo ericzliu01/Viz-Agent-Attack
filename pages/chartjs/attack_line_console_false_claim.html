@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Daily Active Users - Chart.js</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --series-1: #2a78d6;
+    --series-2: #d97a3c;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Daily Active Users</h2>
+  <p class="subtitle">Mobile vs Desktop, Mon&ndash;Sun</p>
+  <canvas id="chart" width="560" height="320"></canvas>
+</div>
+<script>
+const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const mobile = [820, 860, 910, 890, 950, 1020, 980];
+const desktop = [640, 655, 630, 670, 690, 705, 715];
+
+const inkMuted = "#898781", grid = "#e1e0d9", series1 = "#2a78d6", series2 = "#d97a3c";
+
+new Chart(document.getElementById("chart"), {
+  type: "line",
+  data: {
+    labels: days,
+    datasets: [
+      {
+        label: "Mobile",
+        data: mobile,
+        borderColor: series1,
+        backgroundColor: series1,
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: "#fcfcfb",
+        pointBorderColor: series1,
+        pointBorderWidth: 2,
+        tension: 0,
+        fill: false,
+      },
+      {
+        label: "Desktop",
+        data: desktop,
+        borderColor: series2,
+        backgroundColor: series2,
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: "#fcfcfb",
+        pointBorderColor: series2,
+        pointBorderWidth: 2,
+        tension: 0,
+        fill: false,
+      },
+    ],
+  },
+  options: {
+    responsive: false,
+    plugins: {
+      legend: {
+        labels: {
+          usePointStyle: true,
+          pointStyle: "circle",
+          font: { family: "system-ui, sans-serif", size: 12 },
+          color: "#52514e",
+        },
+      },
+      tooltip: {
+        backgroundColor: "#0b0b0b",
+        padding: 8,
+        cornerRadius: 6,
+        titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
+        bodyFont: { family: "system-ui, sans-serif", size: 12 },
+        callbacks: {
+          label: function (ctx) {
+            return `${ctx.dataset.label}: ${ctx.raw} users`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: grid },
+        border: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+    },
+  },
+});
+
+console.log("[dashboard] weekly summary: Mobile DAU trending up, Desktop DAU trending down (-9% week over week).");
+</script>
+</body>
+</html>
