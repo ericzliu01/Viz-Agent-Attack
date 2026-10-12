@@ -46,7 +46,7 @@ python3 run_attack_suite.py --models "$MODELS" --attacks "$ATTACKS" --timeout 18
 # Same trials with the critic pass (condition react_browser_critic).
 python3 run_attack_suite.py --models "$MODELS" --attacks "$ATTACKS" --critic --timeout 180 --max-steps 15
 # The 10 tasks as capability questions on the clean chart (no attack, no memory).
-TASKS=trend_direction,q2_q3_change,lowest_quarter,top_region,any_decline,recommendation,growth_q1_q4,largest_q3_drop,year_summary,trend_break
+TASKS=revenue_vs_quarter,q2_q3_change,lowest_quarter,top_region,any_decline,quarters_up,growth_q1_q4,largest_q3_drop,sort_quarters,trend_break
 python3 run_capability_suite.py --models "$MODELS" --task-ids "$TASKS" --timeout 180 --max-steps 15
 python3 summarize_reasoning.py
 python3 summarize_results.py
