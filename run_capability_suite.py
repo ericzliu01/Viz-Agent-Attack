@@ -6,7 +6,7 @@ import os
 from run_attack_suite import (PAGES_DIR, add_agent_arguments, validate_arguments,
                               run_trials, grade)
 
-CHART_TYPES = ["clean_bar", "clean_line", "clean_scatter", "clean_stacked_bar"]
+CHART_TYPES = ["clean_bar", "clean_line", "clean_scatter", "clean_stacked_bar", "clean_revenue"]
 
 
 def discover_tasks(libraries):
