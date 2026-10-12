@@ -4,6 +4,27 @@ How each part of the corpus on the `testing` branch (chart pages, MT and TM atta
 
 MT = misleading to a human viewing the chart (design attacks, "Tier A" in the repo files). TM = truthful to a human, misleading to the agent (hidden content, "Tier B" in the repo files).
 
+## Terms
+
+- **Misleader:** a chart design choice that makes a reader draw a wrong conclusion from true data, for example a truncated axis. Lo et al. (2022) catalogue them.
+- **Truncated axis / inverted axis / dual axis / inappropriate axis range / inappropriate log scale / inappropriate stacked / 3D:** misleaders that, respectively, start the axis above zero, flip the axis direction, plot two series against separate y-axes, stretch the axis far past the data, use a log scale for linear data, stack values that shouldn't be summed, and add 3D perspective.
+- **Ineffective color scheme:** colors that make series hard to tell apart.
+- **Chart QA:** benchmarks that ask a model questions about a chart image.
+- **ReAct agent:** a model that answers by alternating reasoning with tool calls; here it browses the live chart page.
+- **DOM / accessibility / console / evaluate tools:** agent tools to read the page HTML, read the screen-reader view of the page, read the browser's developer log, and run JavaScript on the page.
+- **Clean baseline / paired benchmark:** each attacked chart has an unattacked twin with the same data and question, so errors caused by the attack can be separated from ordinary errors.
+- **ASR (attack success rate):** how much more often the model answers wrong on the attacked chart than on its clean twin.
+- **Deception rate:** the share of questions where the model goes from the correct answer to the attacker's intended wrong answer (ChartAttack's metric).
+- **Deception Score (DS):** VisDeception's measure of how much a misleader increases errors relative to the faithful chart; higher is more damaging, negative means the model did better on the misleading chart.
+- **pp (percentage points):** absolute difference between two percentages.
+- **In-domain / cross-domain:** tested on the same kind of charts a method was built on, or on different ones.
+- **Held / fooled:** the model answered correctly on the attacked chart / the model was correct on the clean chart but wrong on the attacked one.
+- **Table-based QA:** answering from the chart's underlying data table instead of its image.
+- **Content Injection Traps / indirect prompt injection:** hiding instructions or false claims in content an AI agent reads, rather than in the user's prompt.
+- **Low-level tasks (Amar, Eagan & Stasko):** Retrieve Value, Filter, Compute Derived Value, Find Extremum, Sort, Determine Range, Characterize Distribution, Find Anomalies, Cluster and Correlate.
+- **Difficulty tiers / accuracy bands:** grouping tasks by how accurately LLMs perform them (Xu & Wall); separate from the Tier A/B attack labels.
+- **Bait:** the wrong answer an attack plants.
+
 ## Summary
 
 - The task bank follows its cited sources closely: Amar, Eagan & Stasko's 10 low-level tasks, with difficulty bands from Xu & Wall.
