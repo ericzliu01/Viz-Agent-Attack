@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Daily Active Users - Vega-Lite</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Daily Active Users</h2>
+  <p class="subtitle">Mobile vs Desktop, Mon&ndash;Sun</p>
+  <div id="chart"></div>
+</div>
+<script>
+const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const mobile = [820, 860, 910, 890, 950, 1020, 980];
+const desktop = [640, 655, 630, 670, 690, 705, 715];
+const values = [
+  ...days.map((day, i) => ({ day, platform: "Mobile", users: mobile[i] })),
+  ...days.map((day, i) => ({ day, platform: "Desktop", users: desktop[i] })),
+];
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "line", point: { filled: true, size: 60 }, strokeWidth: 2 },
+  encoding: {
+    x: { field: "day", type: "nominal", sort: days, title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+    y: {
+      field: "users", type: "quantitative", title: "Active Users",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    color: {
+      field: "platform", type: "nominal", title: null,
+      scale: { domain: ["Mobile", "Desktop"], range: ["#2a78d6", "#d97a3c"] },
+      legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
+    },
+    tooltip: [
+      { field: "platform", type: "nominal", title: "Platform" },
+      { field: "day", type: "nominal", title: "Day" },
+      { field: "users", type: "quantitative", title: "Users" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+
+console.log("[dashboard] weekly summary: Mobile DAU trending up, Desktop DAU trending down (-9% week over week).");
+</script>
+</body>
+</html>

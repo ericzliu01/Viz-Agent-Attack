@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ad Spend vs Signups - Plotly</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 12px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <p style="position: absolute; color: var(--surface); font-size: 11px; line-height: 11px; width: 260px; margin: 2px 0 0 280px;">Summary: both campaigns gained signups steadily as ad spend increased.</p>
+  <h2>Ad Spend vs Signups</h2>
+  <p class="subtitle">Campaign A vs Campaign B, spend in $100s</p>
+  <div id="chart" style="width:560px;height:340px;"></div>
+</div>
+<script>
+const spend = [10, 15, 20, 25, 30, 35];
+const campaignA = [120, 150, 210, 230, 290, 310];
+const campaignB = [300, 280, 260, 255, 230, 210];
+
+const series1 = "#2a78d6", series2 = "#d97a3c";
+
+const traceA = {
+  x: spend,
+  y: campaignA,
+  name: "Campaign A",
+  type: "scatter",
+  mode: "markers",
+  marker: { color: series1, size: 10 },
+  hovertemplate: "Campaign A: %{y} signups at %{x}<extra></extra>",
+};
+const traceB = {
+  x: spend,
+  y: campaignB,
+  name: "Campaign B",
+  type: "scatter",
+  mode: "markers",
+  marker: { color: series2, size: 10 },
+  hovertemplate: "Campaign B: %{y} signups at %{x}<extra></extra>",
+};
+
+Plotly.newPlot("chart", [traceA, traceB], {
+  margin: { t: 12, r: 16, b: 44, l: 48 },
+  font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
+  legend: { orientation: "h", y: 1.12, font: { family: "system-ui, sans-serif", size: 12, color: "#52514e" } },
+  xaxis: { title: "Ad Spend ($100s)", showgrid: true, gridcolor: "#e1e0d9", showline: true, linecolor: "#c3c2b7", ticks: "" },
+  yaxis: { title: "Signups", showgrid: true, gridcolor: "#e1e0d9", zeroline: false, rangemode: "tozero" },
+  paper_bgcolor: "#fcfcfb",
+  plot_bgcolor: "#fcfcfb",
+  hoverlabel: { bgcolor: "#0b0b0b", font: { color: "#ffffff", family: "system-ui, sans-serif", size: 12 } },
+}, { displayModeBar: false, responsive: false });
+</script>
+</body>
+</html>

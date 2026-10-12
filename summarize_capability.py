@@ -1,8 +1,7 @@
 """Summarize results/results.csv into a capability-by-task-tier table --
 the Amar, Eagan & Stasko (2005) task-accuracy analog of Xu & Wall (2024),
-computed across vis-attack's own charts, models, and all four perception
-conditions (raw_source / vision_screenshot / multimodal_combined /
-dual_agent).
+computed across vis-attack's own charts, models, and conditions
+(react_browser and historical single-turn conditions).
 
 Unlike summarize_results.py (which computes ASR = wrong_rate(attack) -
 wrong_rate(clean baseline)), this script only looks at rows whose

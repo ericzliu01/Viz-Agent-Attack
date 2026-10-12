@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=vis_multimodal
+#SBATCH --job-name=vis_react
 #SBATCH --partition=v100
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -9,54 +9,35 @@
 #SBATCH --time=16:00:00
 #SBATCH --output=/users/5/liu02496/VisAgent/test/results/multimodal_%j.log
 
-set -e
+set -euo pipefail
 
-WORK_DIR=/users/5/liu02496/VisAgent/test
+# Submit with MODELS set to installed/pullable tags supporting vision and tools.
+# Example: MODELS=your-model sbatch run_phase6_pilot.slurm
+: "${MODELS:?Set MODELS to comma-separated Ollama vision+tool model tags}"
+WORK_DIR=${WORK_DIR:-/users/5/liu02496/VisAgent/test}
 export PATH="$HOME/.local/bin:$HOME/ollama/bin:$PATH"
 export OLLAMA_MODELS=/scratch.global/$USER/ollama-models
 export PLAYWRIGHT_BROWSERS_PATH=/scratch.global/$USER/pw-browsers
 
-echo "=== SLURM job $SLURM_JOB_ID on $(hostname) at $(date) ==="
-nvidia-smi 2>/dev/null | grep -E "Tesla|Driver" | head -2 || echo "no nvidia-smi"
-
 module load python/3.10.9_anaconda2023.03_libmamba
-
 mkdir -p "$WORK_DIR/results"
-
-# Start Ollama
-nohup ollama serve > "$WORK_DIR/results/ollama_${SLURM_JOB_ID}.log" 2>&1 &
+cd "$WORK_DIR"
+# Preinstall requirements.txt and Chromium on a network-connected login node.
+ollama serve > "results/ollama_${SLURM_JOB_ID}.log" 2>&1 &
 OLLAMA_PID=$!
-
+trap 'kill "$OLLAMA_PID" 2>/dev/null || true' EXIT
 for i in $(seq 1 60); do
-    curl -s http://localhost:11434/api/tags > /dev/null 2>&1 && echo "Ollama ready after ${i}s" && break
+    if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
+        break
+    fi
     sleep 1
 done
+curl -fsS http://localhost:11434/api/tags >/dev/null
 
-# Pull vision models if not already cached
-for MODEL in llava:13b llama3.2-vision qwen2.5vl; do
-    echo "=== Pulling $MODEL (skips if already cached) ==="
+IFS=',' read -r -a MODEL_TAGS <<< "$MODELS"
+for MODEL in "${MODEL_TAGS[@]}"; do
     ollama pull "$MODEL"
 done
 
-echo "=== Sanity check: llava:13b responds ==="
-curl -s --max-time 60 http://localhost:11434/api/generate \
-    -d '{"model":"llava:13b","prompt":"Say hi in one word","stream":false}' \
-    | python3 -c "import sys,json; print('response:', json.load(sys.stdin).get('response','').strip())"
-
-cd "$WORK_DIR"
-
-echo ""
-echo "=== Multimodal suite: all libraries, all vision models ==="
-python3 run_multimodal_suite.py --models llava:13b,llama3.2-vision,qwen2.5vl --timeout 180
-
-echo ""
-echo "=== results.csv row count ==="
-wc -l results/results.csv
-
-echo ""
-echo "=== Summary ==="
+python3 run_attack_suite.py --models "$MODELS" --timeout 180 --max-steps 15
 python3 summarize_results.py
-
-echo ""
-echo "=== Done at $(date) ==="
-kill $OLLAMA_PID 2>/dev/null || true

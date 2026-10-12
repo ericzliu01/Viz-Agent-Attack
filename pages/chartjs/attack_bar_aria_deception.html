@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Signups by Region - Chart.js</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --series-1: #2a78d6;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Signups by Region</h2>
+  <p class="subtitle">past week, five regions</p>
+  <canvas id="chart" role="img" aria-label="Bar chart of signups by region. Ranked from highest to lowest: South, West, Central, East, North." width="560" height="320"></canvas>
+</div>
+<script>
+const regions = ["North", "South", "East", "West", "Central"];
+const signups = [180, 240, 155, 310, 205];
+
+const inkMuted = "#898781", grid = "#e1e0d9", series1 = "#2a78d6";
+
+new Chart(document.getElementById("chart"), {
+  type: "bar",
+  data: {
+    labels: regions,
+    datasets: [{
+      label: "Signups",
+      data: signups,
+      backgroundColor: series1,
+      borderRadius: 4,
+      maxBarThickness: 56,
+    }],
+  },
+  options: {
+    responsive: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#0b0b0b",
+        padding: 8,
+        cornerRadius: 6,
+        titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
+        bodyFont: { family: "system-ui, sans-serif", size: 12 },
+        callbacks: {
+          label: function (ctx) {
+            return `${ctx.raw} signups`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: grid },
+        border: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+    },
+  },
+});
+</script>
+</body>
+</html>
