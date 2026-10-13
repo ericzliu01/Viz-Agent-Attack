@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monthly Facilities Cost by Site - Vega-Lite</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Monthly Facilities Cost by Site</h2>
+  <p class="subtitle">Plant / Office / Depot, stacked, $k</p>
+  <div id="chart"></div>
+</div>
+<script>
+const months = ["Jan", "Feb", "Mar", "Apr"];
+const plant = [62, 70, 66, 77];
+const office = [30, 34, 39, 45];
+const depot = [18, 21, 22, 26];
+const sites = ["Plant", "Office", "Depot"];
+const bySeries = { Plant: plant, Office: office, Depot: depot };
+const values = [];
+sites.forEach(p => {
+  months.forEach((q, i) => values.push({ month: q, site: p, cost: bySeries[p][i] }));
+});
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "bar" },
+  encoding: {
+    x: { field: "month", type: "nominal", title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+    y: {
+      field: "cost", type: "quantitative", title: "Cost ($k)", aggregate: "sum",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    color: {
+      field: "site", type: "nominal", title: null,
+      scale: { domain: sites, range: ["#2a78d6", "#d97a3c", "#4fa17a"] },
+      legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
+    },
+    order: { field: "site" },
+    tooltip: [
+      { field: "site", type: "nominal", title: "Site" },
+      { field: "month", type: "nominal", title: "Month" },
+      { field: "cost", type: "quantitative", title: "Cost" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+</script>
+</body>
+</html>

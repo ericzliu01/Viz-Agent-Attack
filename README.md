@@ -74,6 +74,36 @@ library in the attack runner, and questions per library in the capability
 runner. An attack's clean baseline does not count toward that limit.
 `run_capability_suite.py` additionally accepts `--task-ids`
 (comma-separated subset of task_id values, e.g. `retrieve_value`).
+Both runners also accept `--datasets` (comma-separated; `original` for the
+hand-written pages, or dataset ids such as `dummy1`; default all), see
+"Multiple datasets" below.
+
+### Multiple datasets
+
+Every chart type runs on several datasets: the hand-written pages
+(`clean_<type>.html`, `attack_<type>_<attack>.html`) plus one generated copy
+per entry in `datasets/dummy_datasets.json`, named
+`clean_<type>__<id>.html` / `attack_<type>_<attack>__<id>.html` (attack_id
+`<type>_<attack>__<id>`, meta field `dataset`). Each generated attack is
+paired with the clean page of its own dataset. The current entries (three
+per chart type: `dummy1`-`dummy3`) are **placeholder dummy data**, to be
+replaced with real datasets.
+
+```sh
+python build_dataset_pages.py   # regenerate every __<id> page from the JSON
+```
+
+The script uses the hand-written pages as templates (their data and wording
+are recorded in `datasets/templates.json`), swaps in each dataset's values and
+labels, recomputes what the attacks inject (axis bounds, false claims, decoy
+targets), and recomputes every capability question and ground truth with the
+same Amar, Eagan & Stasko categories and tiers as the hand-written banks
+(the generator reproduces those banks exactly from `templates.json`, which a
+test checks). It deletes old `__` files first, so swapping in real data is:
+edit or replace the JSON (or pass `--datasets other.json`), rerun, rerun the
+tests. Datasets whose shape breaks a task or attack premise are rejected;
+the shape rules are in the script's docstring. Revenue entries go through
+`build_reasoning_pages.build()`.
 
 Before launching the browser, both runners call Ollama's `/api/show` for
 each model and fail fast unless its `capabilities` list includes both
@@ -198,6 +228,7 @@ other trial.
 - `run_attack_suite.py`: shared trial execution, attack pairing, and grading.
 - `run_capability_suite.py`: clean-chart task discovery.
 - `build_reasoning_pages.py`: generates `clean_revenue` and the three reasoning attacks.
+- `build_dataset_pages.py`: generates the extra datasets' pages from `datasets/`.
 - `summarize_reasoning.py`: per-attack and per-task reasoning results, bait and critic counts.
 
 ```sh

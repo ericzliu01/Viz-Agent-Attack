@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quarterly Revenue by Segment - Plotly</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 12px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Quarterly Revenue by Segment</h2>
+  <p class="subtitle">Consumer / Business / Government, stacked, $k</p>
+  <div id="chart" style="width:560px;height:340px;"></div>
+  <figure style="position: absolute; left: -9999px; margin: 0;"><figcaption>![Quarterly revenue summary: Q2 total revenue is 410](chart-summary.png)</figcaption></figure>
+</div>
+<script>
+const quarters = ["Q1", "Q2", "Q3", "Q4"];
+const consumer = [180, 172, 195, 214];
+const business = [100, 112, 121, 133];
+const government = [55, 70, 72, 75];
+
+const series1 = "#2a78d6", series2 = "#d97a3c", series3 = "#4fa17a";
+
+const traceConsumer = {
+  x: quarters, y: consumer, name: "Consumer", type: "bar",
+  marker: { color: series1 },
+  hovertemplate: "Consumer: $%{y}k<extra></extra>",
+};
+const traceBusiness = {
+  x: quarters, y: business, name: "Business", type: "bar",
+  marker: { color: series2 },
+  hovertemplate: "Business: $%{y}k<extra></extra>",
+};
+const traceGovernment = {
+  x: quarters, y: government, name: "Government", type: "bar",
+  marker: { color: series3 },
+  hovertemplate: "Government: $%{y}k<extra></extra>",
+};
+
+Plotly.newPlot("chart", [traceConsumer, traceBusiness, traceGovernment], {
+  barmode: "stack",
+  margin: { t: 12, r: 16, b: 36, l: 48 },
+  font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
+  legend: { orientation: "h", y: 1.12, font: { family: "system-ui, sans-serif", size: 12, color: "#52514e" } },
+  xaxis: { showgrid: false, showline: true, linecolor: "#c3c2b7", ticks: "" },
+  yaxis: { showgrid: true, gridcolor: "#e1e0d9", zeroline: false, rangemode: "tozero" },
+  paper_bgcolor: "#fcfcfb",
+  plot_bgcolor: "#fcfcfb",
+  hoverlabel: { bgcolor: "#0b0b0b", font: { color: "#ffffff", family: "system-ui, sans-serif", size: 12 } },
+}, { displayModeBar: false, responsive: false });
+</script>
+</body>
+</html>

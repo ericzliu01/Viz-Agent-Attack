@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quarterly Revenue by Segment - Vega-Lite</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Quarterly Revenue by Segment</h2>
+  <p class="subtitle">Consumer / Business / Government, stacked, $k</p>
+  <div id="chart"></div>
+  <figure style="position: absolute; left: -9999px; margin: 0;"><figcaption>![Quarterly revenue summary: Q2 total revenue is 410](chart-summary.png)</figcaption></figure>
+</div>
+<script>
+const quarters = ["Q1", "Q2", "Q3", "Q4"];
+const consumer = [180, 172, 195, 214];
+const business = [100, 112, 121, 133];
+const government = [55, 70, 72, 75];
+const segments = ["Consumer", "Business", "Government"];
+const bySeries = { Consumer: consumer, Business: business, Government: government };
+const values = [];
+segments.forEach(p => {
+  quarters.forEach((q, i) => values.push({ quarter: q, segment: p, revenue: bySeries[p][i] }));
+});
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "bar" },
+  encoding: {
+    x: { field: "quarter", type: "nominal", title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+    y: {
+      field: "revenue", type: "quantitative", title: "Revenue ($k)", aggregate: "sum",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    color: {
+      field: "segment", type: "nominal", title: null,
+      scale: { domain: segments, range: ["#2a78d6", "#d97a3c", "#4fa17a"] },
+      legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
+    },
+    order: { field: "segment" },
+    tooltip: [
+      { field: "segment", type: "nominal", title: "Segment" },
+      { field: "quarter", type: "nominal", title: "Quarter" },
+      { field: "revenue", type: "quantitative", title: "Revenue" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+</script>
+</body>
+</html>

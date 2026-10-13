@@ -5,7 +5,8 @@ computed across vis-attack's own charts, models, and conditions
 
 Unlike summarize_results.py (which computes ASR = wrong_rate(attack) -
 wrong_rate(clean baseline)), this script only looks at rows whose
-attack_id is one of the 4 standardized clean chart types (CHART_TYPES) and
+attack_id is a clean page (clean_<type>, or clean_<type>__<dataset> for a
+generated dataset; see run_capability_suite.clean_pages) and
 reports raw accuracy, since there is no attack variant here -- it answers
 "how good is this model/condition at this *kind* of task on an honest
 chart", not "how much did an attack degrade it".
@@ -24,7 +25,7 @@ from collections import defaultdict
 
 from results_logger import read_rows
 from run_attack_suite import PAGES_DIR
-from run_capability_suite import CHART_TYPES
+from run_capability_suite import clean_pages
 from summarize_results import fmt_table, md_table
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +43,7 @@ def build_task_lookup():
         lib_dir = os.path.join(PAGES_DIR, library)
         if not os.path.isdir(lib_dir):
             continue
-        for chart_type in CHART_TYPES:
+        for chart_type in clean_pages(lib_dir):
             meta_path = os.path.join(lib_dir, f"{chart_type}.meta.json")
             if os.path.isfile(meta_path):
                 with open(meta_path, encoding="utf-8") as f:
@@ -76,7 +77,7 @@ def main():
 
     capability_rows = []
     for row in rows:
-        if row["attack_id"] not in CHART_TYPES:
+        if not row["attack_id"].startswith("clean_"):
             continue
         task = lookup.get(row["question"])
         if task is None:
@@ -91,9 +92,10 @@ def main():
     by_task = defaultdict(list)
     by_tier = defaultdict(list)
     for r in capability_rows:
-        # attack_id doubles as the chart type (clean_bar/clean_line/clean_scatter/
-        # clean_stacked_bar) here -- keep it in the key so e.g. Find Extremum on
-        # a bar chart isn't blended with Find Extremum on a scatter plot.
+        # attack_id doubles as the chart type and dataset (clean_bar,
+        # clean_bar__dummy1, ...) here -- keep it in the key so e.g. Find
+        # Extremum on a bar chart isn't blended with Find Extremum on a scatter
+        # plot.
         by_task[(r["condition"], r["model"], r["library"], r["attack_id"], r["task_category"], r["tier"])].append(r)
         by_tier[(r["condition"], r["model"], r["tier"])].append(r)
 

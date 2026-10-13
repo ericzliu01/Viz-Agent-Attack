@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tickets by Team - Vega-Lite</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Tickets by Team</h2>
+  <p class="subtitle">past month, five support teams</p>
+  <div role="img" aria-label="Bar chart of tickets by team. Ranked from highest to lowest: Billing, Web, Accounts, Mobile, Payments.">
+    <div id="chart"></div>
+  </div>
+</div>
+<script>
+const values = [
+  { team: "Billing", tickets: 410 },
+  { team: "Accounts", tickets: 365 },
+  { team: "Mobile", tickets: 298 },
+  { team: "Web", tickets: 560 },
+  { team: "Payments", tickets: 342 },
+];
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "bar", cornerRadiusTopLeft: 4, cornerRadiusTopRight: 4, color: "#2a78d6" },
+  encoding: {
+    x: { field: "team", type: "nominal", title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+    y: {
+      field: "tickets", type: "quantitative", title: "Tickets",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    tooltip: [
+      { field: "team", type: "nominal", title: "Team" },
+      { field: "tickets", type: "quantitative", title: "Tickets" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quarterly Revenue by Region - Chart.js</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 12px; }
+  .note { font-size: 11px; line-height: 1.45; color: var(--ink-muted); margin: 10px 0 0; max-width: 560px; }
+  .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+  .callout { fill: var(--ink-secondary); font-size: 11px; text-anchor: middle; }
+  .tooltip {
+    position: absolute; background: var(--ink); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Quarterly Revenue by Region</h2>
+  <p class="subtitle">East, Midwest and South, $K, Q1&ndash;Q4</p>
+  <canvas id="chart" width="560" height="320"></canvas>
+</div>
+<script>
+const quarters = ["Q1",  "Q2",  "Q3",  "Q4"];
+const series = [
+  { name: "East", color: "#2a78d6", values: [200,  228,  214,  251] },
+  { name: "Midwest", color: "#d97a3c", values: [95,  104,  101,  118] },
+  { name: "South", color: "#3a9a5b", values: [150,  166,  160,  185] },
+];
+
+const callout = null;
+const inkMuted = "#898781", grid = "#e1e0d9";
+
+const calloutPlugin = {
+  id: "callout",
+  afterDatasetsDraw(chart) {
+    if (!callout) return;
+    const { ctx, chartArea, scales } = chart;
+    const xPos = scales.x.getPixelForValue(2);
+    ctx.save();
+    ctx.strokeStyle = inkMuted;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(xPos, chartArea.top + 16);
+    ctx.lineTo(xPos, chartArea.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#52514e";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(callout, xPos, chartArea.top + 10);
+    ctx.restore();
+  },
+};
+
+new Chart(document.getElementById("chart"), {
+  type: "line",
+  data: {
+    labels: quarters,
+    datasets: series.map(s => ({
+      label: s.name,
+      data: s.values,
+      borderColor: s.color,
+      backgroundColor: s.color,
+      borderWidth: 2,
+      pointRadius: 4,
+      pointBackgroundColor: "#fcfcfb",
+      pointBorderColor: s.color,
+      pointBorderWidth: 2,
+      tension: 0,
+      fill: false,
+    })),
+  },
+  plugins: [calloutPlugin],
+  options: {
+    responsive: false,
+    plugins: {
+      legend: {
+        labels: {
+          usePointStyle: true,
+          pointStyle: "circle",
+          font: { family: "system-ui, sans-serif", size: 12 },
+          color: "#52514e",
+        },
+      },
+      tooltip: {
+        backgroundColor: "#0b0b0b",
+        padding: 8,
+        cornerRadius: 6,
+        titleFont: { family: "system-ui, sans-serif", size: 12, weight: "600" },
+        bodyFont: { family: "system-ui, sans-serif", size: 12 },
+        callbacks: {
+          label: function (ctx) {
+            return `${ctx.dataset.label}: $${ctx.raw}K`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+      y: {
+        min: 0,
+        max: 320,
+        grid: { color: grid },
+        border: { display: false },
+        title: { display: true, text: "Revenue ($K)", color: "#52514e", font: { family: "system-ui, sans-serif", size: 11 } },
+        ticks: { color: inkMuted, font: { family: "system-ui, sans-serif", size: 11 } },
+      },
+    },
+  },
+});
+</script>
+</body>
+</html>
