@@ -68,7 +68,7 @@ touch "$VIS_RESULTS_DIR/done"
 unset VIS_RESULTS_DIR
 (
     flock 9
-    PARTS=("$WORK_DIR"/results/real_"${SLURM_ARRAY_JOB_ID}"_*)
+    PARTS=("$WORK_DIR"/results/real_"${SLURM_ARRAY_JOB_ID}"_*/)
     if [ "$(ls "$WORK_DIR"/results/real_"${SLURM_ARRAY_JOB_ID}"_*/done 2>/dev/null | wc -l)" -eq 2 ]; then
         python3 merge_results.py "${PARTS[@]}"
         python3 summarize_results.py
