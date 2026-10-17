@@ -64,7 +64,7 @@ python3 run_attack_suite.py "${COMMON[@]}"
 STEAM_LINE=steam_line_retrieve_value,steam_line_find_extremum,steam_line_determine_range,steam_line_sort,steam_line_compute_derived_value,steam_line_correlate
 python3 run_capability_suite.py "${COMMON[@]}" --datasets steam --task-ids "$STEAM_LINE"
 
-touch "$VIS_RESULTS_DIR/done"
+mkdir -p "$VIS_RESULTS_DIR" && touch "$VIS_RESULTS_DIR/done"
 unset VIS_RESULTS_DIR
 (
     flock 9
