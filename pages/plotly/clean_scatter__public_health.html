@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Male vs Female Chronic Liver Disease Mortality by State (2022)</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Male vs Female Chronic Liver Disease Mortality by State (2022)</h2>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "scatter", "x_title": "Male crude rate (per 100,000)", "y_title": "Female crude rate (per 100,000)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": [], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": null, "right_max": null, "auto_max": 29.505000000000003, "points": [[22.4, 13.1], [18.7, 10.2], [24.7, 16.7], [12.8, 7.3], [24.2, 14.2], [12.8, 5.7], [22.2, 12.5], [17.7, 11.0], [21.0, 12.6], [20.3, 12.2], [23.8, 16.0], [19.2, 10.5], [21.6, 11.1], [24.7, 15.9], [24.7, 13.8], [23.8, 26.8], [27.7, 16.4], [20.5, 12.0], [21.7, 12.3], [18.4, 10.0], [22.8, 15.3], [22.7, 13.7], [14.0, 7.7], [33.2, 22.2], [32.9, 17.9], [13.3, 6.6], [19.9, 10.4], [13.8, 7.6], [21.2, 12.2], [20.1, 11.1], [27.7, 17.1], [19.6, 12.2], [23.7, 14.0], [26.1, 15.3], [21.2, 13.0], [25.8, 14.1], [17.3, 10.1], [28.6, 20.1], [50.4, 28.1], [21.6, 12.2], [11.3, 7.7], [23.9, 16.0], [21.1, 12.8], [21.3, 13.9], [17.7, 11.7], [36.3, 25.7], [17.7, 10.6], [17.6, 10.3], [21.1, 12.9], [20.8, 12.2], [24.0, 16.3], [24.9, 17.2]]};
+const series = CFG.series || [];
+let traces;
+if (CFG.kind === "bar") {
+  traces = [{type: "bar", x: CFG.labels, y: CFG.values, name: CFG.y_title,
+    marker: {color: CFG.labels.map(l => CFG.highlight.includes(l) ? CFG.highlight_color : CFG.colors[0])}}];
+} else if (CFG.kind === "scatter") {
+  traces = [{type: "scatter", mode: "markers", x: CFG.points.map(p => p[0]), y: CFG.points.map(p => p[1]),
+    name: CFG.y_title, marker: {color: CFG.colors[0], size: 7, opacity: 0.75}}];
+} else {
+  traces = series.map((s, k) => ({type: CFG.kind === "line" ? "scatter" : "bar",
+    mode: CFG.kind === "line" ? "lines+markers" : undefined, x: CFG.labels, y: s.values, name: s.name,
+    yaxis: s.name === CFG.right ? "y2" : "y", marker: {color: CFG.colors[k % CFG.colors.length]},
+    line: {color: CFG.colors[k % CFG.colors.length]}}));
+}
+const yaxis = {title: {text: CFG.y_title}, type: CFG.y_log ? "log" : "linear", gridcolor: "#e1e0d9"};
+if (CFG.y_min !== null || CFG.y_max !== null) {
+  const top = CFG.y_max !== null ? CFG.y_max : null;
+  yaxis.range = [CFG.y_min !== null ? CFG.y_min : 0, top];
+  if (top === null) yaxis.autorange = "max";
+}
+const layout = {width: 700, height: 420, margin: {t: 16, r: CFG.right ? 72 : 20, b: 90, l: 72},
+  paper_bgcolor: "#fcfcfb", plot_bgcolor: "#fcfcfb", barmode: CFG.kind === "stacked_bar" ? "relative" : undefined,
+  showlegend: series.length > 1, xaxis: {title: {text: CFG.x_title}, type: CFG.kind === "scatter" ? "linear" : "category"}, yaxis};
+if (CFG.right) layout.yaxis2 = {overlaying: "y", side: "right", range: [0, CFG.right_max],
+  title: {text: `${CFG.right} (right axis)`}, showgrid: false};
+Plotly.newPlot("chart", traces, layout, {displayModeBar: false, staticPlot: false});
+</script>
+</body>
+</html>

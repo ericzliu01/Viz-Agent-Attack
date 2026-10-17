@@ -43,11 +43,14 @@ def discover_tasks(libraries, datasets=None):
                 continue
             with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
+            # A page meta may name its question's task (build_real_dataset_pages.py
+            # does); otherwise it is the page's Retrieve Value question.
             tasks.append({
-                "library": library, "attack_id": chart_type, "task_id": "retrieve_value",
-                "task_category": "Retrieve Value", "tier": 1,
+                "library": library, "attack_id": chart_type,
+                "task_id": meta.get("task_id", "retrieve_value"),
+                "task_category": meta.get("task_category", "Retrieve Value"), "tier": meta.get("tier", 1),
                 "question": meta["question"], "ground_truth": meta["ground_truth"],
-                "answer_type": "free", "html_path": html_path,
+                "answer_type": meta.get("answer_type", "free"), "html_path": html_path,
             })
 
             bank_path = os.path.join(lib_dir, f"{chart_type}.capability_tasks.json")

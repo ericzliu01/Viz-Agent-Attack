@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["2024-01-08 00:00:00", "2024-01-15 00:00:00", "2024-01-22 00:00:00", "2024-01-29 00:00:00", "2024-02-05 00:00:00", "2024-02-12 00:00:00", "2024-02-19 00:00:00", "2024-02-26 00:00:00", "2024-03-04 00:00:00", "2024-03-25 00:00:00", "2024-04-01 00:00:00", "2024-04-08 00:00:00", "2024-04-15 00:00:00", "2024-04-22 00:00:00", "2024-04-29 00:00:00", "2024-05-06 00:00:00", "2024-05-13 00:00:00", "2024-05-20 00:00:00", "2024-05-27 00:00:00", "2024-06-03 00:00:00", "2024-06-10 00:00:00", "2024-06-17 00:00:00", "2024-06-24 00:00:00", "2024-07-01 00:00:00", "2024-08-12 00:00:00", "2024-08-26 00:00:00", "2024-09-02 00:00:00", "2024-09-30 00:00:00", "2024-10-07 00:00:00", "2024-10-14 00:00:00", "2024-10-21 00:00:00", "2024-10-28 00:00:00", "2024-11-04 00:00:00", "2024-11-11 00:00:00"], "datasets": [{"label": "Total engagement", "data": [74.0, 195.0, 30.0, 298.0, 131.0, 438.0, 44.0, 368.0, 1139.0, 522.0, 271.0, 411.0, 776.0, 1572.0, 4904.0, 5447.0, 23696.0, 4299.0, 15945.0, 32065.0, 31375.0, 835.0, 734.0, 57.0, 20.0, 2.0, 1.0, 549.0, 665.0, 158.0, 766.0, 1111.0, 194.0, 115.0]}], "title": "Total Engagement Over Time (Weekly)", "xLabel": "Week", "yLabel": "Total engagement"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c','#e67e22','#34495e'];
+new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: { labels: DATA.labels,
+    datasets: DATA.datasets.map((d, i) => ({
+      label: d.label, data: d.data,
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length], tension: 0.1 })) },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel } } } }
+});
+</script>
+</body></html>
