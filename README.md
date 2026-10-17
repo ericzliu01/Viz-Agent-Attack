@@ -128,7 +128,7 @@ python build_real_dataset_pages.py   # also run by build_dataset_pages.py
 python run_attack_suite.py --models YOUR_MODEL --datasets climate,public_health,steam
 ```
 
-`run_real_datasets.slurm` runs this as a two-task Slurm array (two GPU
+`run_real_datasets.slurm` runs this, with and without `--critic`, as a two-task Slurm array (two GPU
 nodes, two libraries each). Each task writes to its own folder via
 `VIS_RESULTS_DIR`, and the last to finish runs `merge_results.py` and the
 summaries.
