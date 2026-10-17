@@ -110,6 +110,29 @@ each model and fail fast unless its `capabilities` list includes both
 `vision` and `tools`; older Ollama servers that omit that field only print
 a warning, since absence doesn't prove the model lacks the capability.
 
+### Real datasets
+
+`datasets/climate.csv`, `public_health.csv` and `steam.csv` back one chart
+per type each (bar, line, scatter, stacked bar). The chart data is in
+`datasets/real_datasets.json` and the 60 tasks (20 per dataset, Amar, Eagan
+& Stasko categories with the tiers above) are in `tasks/extended_tasks.json`.
+Each task names the attack it is paired with, so there is one attack page
+per task: `attack_<type>_<attack>__<dataset>__<task>.html`, paired with
+`clean_<type>__<dataset>.html`. All of these questions are multiple choice
+(the task's answer and two wrong options; the bait is the first wrong
+option). The steam line chart has one series, so its 6 tasks have no attack
+and run as capability questions only.
+
+```sh
+python build_real_dataset_pages.py   # also run by build_dataset_pages.py
+python run_attack_suite.py --models YOUR_MODEL --datasets climate,public_health,steam
+```
+
+`run_real_datasets.slurm` runs this as a two-task Slurm array (two GPU
+nodes, two libraries each). Each task writes to its own folder via
+`VIS_RESULTS_DIR`, and the last to finish runs `merge_results.py` and the
+summaries.
+
 ### Vision sanity check
 
 Before trusting attack results for a model, confirm it actually reads

@@ -48,7 +48,7 @@ def build_task_lookup():
             if os.path.isfile(meta_path):
                 with open(meta_path, encoding="utf-8") as f:
                     meta = json.load(f)
-                lookup[meta["question"]] = (library, "Retrieve Value", 1)
+                lookup[meta["question"]] = (library, meta.get("task_category", "Retrieve Value"), meta.get("tier", 1))
 
             bank_path = os.path.join(lib_dir, f"{chart_type}.capability_tasks.json")
             if os.path.isfile(bank_path):
