@@ -184,7 +184,7 @@ def add_agent_arguments(parser):
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
     parser.add_argument("--datasets",
                         help="Comma-separated datasets to run: 'original' (the hand-written pages) "
-                             "and/or ids from datasets/dummy_datasets.json (default: all)")
+                             "and/or ids from datasets/corpus_datasets.json (default: all)")
 
 
 def validate_arguments(parser, args):

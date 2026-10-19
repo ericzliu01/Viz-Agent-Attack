@@ -75,21 +75,26 @@ runner. An attack's clean baseline does not count toward that limit.
 `run_capability_suite.py` additionally accepts `--task-ids`
 (comma-separated subset of task_id values, e.g. `retrieve_value`).
 Both runners also accept `--datasets` (comma-separated; `original` for the
-hand-written pages, or dataset ids such as `dummy1`; default all), see
+hand-written pages, or dataset ids such as `climate_core`; default all), see
 "Multiple datasets" below.
 
 ### Multiple datasets
 
 Every chart type runs on several datasets: the hand-written pages
 (`clean_<type>.html`, `attack_<type>_<attack>.html`) plus one generated copy
-per entry in `datasets/dummy_datasets.json`, named
+per entry in `datasets/corpus_datasets.json`, named
 `clean_<type>__<id>.html` / `attack_<type>_<attack>__<id>.html` (attack_id
 `<type>_<attack>__<id>`, meta field `dataset`). Each generated attack is
-paired with the clean page of its own dataset. The current entries (three
-per chart type: `dummy1`-`dummy3`) are **placeholder dummy data**, to be
-replaced with real datasets.
+paired with the clean page of its own dataset. The entries are computed
+from the CSVs in `datasets/` by `datasets/build_corpus_datasets.py`:
+`climate_core` (bar, line, scatter, stacked bar), `public_health_core`
+(bar) and `steam_core` (bar, line, stacked bar). Chart types a dataset has
+no entry for have no real view that fits the attack premises; see
+`notes/real_corpus_fit.md`. The revenue (reasoning) entries are still the
+dummy data from `datasets/dummy_datasets.json`.
 
 ```sh
+python datasets/build_corpus_datasets.py   # recompute the entries from the CSVs
 python build_dataset_pages.py   # regenerate every __<id> page from the JSON
 ```
 

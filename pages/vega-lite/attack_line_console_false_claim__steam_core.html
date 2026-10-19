@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Steam Games Released per Year - Vega-Lite</title>
+<script src="../../vendor/vega-5.33.1.min.js"></script>
+<script src="../../vendor/vega-lite-5.23.0.min.js"></script>
+<script src="../../vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Steam Games Released per Year</h2>
+  <p class="subtitle">Strategy vs Simulation, 2012&ndash;2018</p>
+  <div id="chart"></div>
+</div>
+<script>
+const years = ["2012", "2013", "2014", "2015", "2016", "2017", "2018"];
+const strategy = [16, 17, 48, 42, 69, 102, 67];
+const simulation = [4, 19, 72, 73, 117, 96, 149];
+const values = [
+  ...years.map((year, i) => ({ year, genre: "Strategy", releases: strategy[i] })),
+  ...years.map((year, i) => ({ year, genre: "Simulation", releases: simulation[i] })),
+];
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "line", point: { filled: true, size: 60 }, strokeWidth: 2 },
+  encoding: {
+    x: { field: "year", type: "nominal", sort: years, title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+    y: {
+      field: "releases", type: "quantitative", title: "Games released",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    color: {
+      field: "genre", type: "nominal", title: null,
+      scale: { domain: ["Strategy", "Simulation"], range: ["#2a78d6", "#d97a3c"] },
+      legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
+    },
+    tooltip: [
+      { field: "genre", type: "nominal", title: "Genre" },
+      { field: "year", type: "nominal", title: "Year" },
+      { field: "releases", type: "quantitative", title: "Releases" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+
+console.log("[dashboard] yearly summary: Strategy releases trending up, Simulation releases trending down (-9% year over year).");
+</script>
+</body>
+</html>

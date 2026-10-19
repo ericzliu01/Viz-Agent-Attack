@@ -15,7 +15,8 @@ build(library, dataset) also takes any other dataset of the same shape
 (three regions, one total-revenue dip, first quarter lowest); the task
 options, ground truths and the dip the attacks point at are computed from
 its values. build_dataset_pages.py uses this for the revenue entries in
-datasets/dummy_datasets.json, writing clean_revenue__<id> and
+datasets/corpus_datasets.json (still the dummy
+revenue data), writing clean_revenue__<id> and
 attack_revenue_<attack>__<id> pages.
 
 Usage: python build_reasoning_pages.py
