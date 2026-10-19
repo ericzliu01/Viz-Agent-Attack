@@ -10,9 +10,11 @@ and listed in notes/real_corpus_fit.md:
   line, stacked_bar: public_health (the only rising pairs are prevalence
            percentages, which the line tasks' "how many" wording can't ask
            about; the stacked fit only works by sorting states by total)
-The revenue chart type (reasoning attacks) keeps the dummy entries from
-dummy_datasets.json: its pages and attacks are written around quarterly
-revenue by region.
+The revenue chart type (reasoning attacks) gets one real entry, steam_core:
+Steam releases per year for three genres, the only real view found whose
+yearly total has the shape those attacks need (one mild dip, the first
+year lowest, growth read as good news by the persona and framing texts).
+Its "words" swap the revenue wording; see build_reasoning_pages.WORDS.
 
 Usage (repo root): python datasets/build_corpus_datasets.py && python build_dataset_pages.py
 """
@@ -109,6 +111,7 @@ def steam(s):
     line_years = list(range(2012, 2019))
     releases = s.groupby(["genre", "year"]).size()
     stack_years = list(range(2010, 2016))
+    reasoning_years = list(range(2015, 2019))
     tiers = s.groupby(["tier", "year"]).size()
     return {
         "bar": {
@@ -139,6 +142,28 @@ def steam(s):
             "series": [{"name": t, "values": ints(tiers.get((t, y), 0) for y in stack_years)}
                        for t in ("Mixed", "Positive", "Negative")],
         },
+        "revenue": {
+            "id": "steam_core", "quarters": [str(y) for y in reasoning_years],
+            "regions": [{"name": g, "values": ints(releases.get((g, y), 0) for y in reasoning_years)}
+                        for g in ("Simulation", "Free to Play", "Racing")],
+            "words": {
+                "title": "Steam Game Releases by Genre",
+                "metric": "release count", "Metric": "Release Count",
+                "unit": "games released", "y_title": "Games released", "retrieve_unit": "",
+                "value_prefix": "", "value_suffix": " games",
+                "group": "genre", "groups": "genres", "Group": "Genre",
+                "period": "year", "periods": "years", "Period": "Year", "periodly": "yearly",
+                "over": "over the four years",
+                "framing_heading": "Steam Release Collapse Looms: {dip} Plunge Signals Crisis",
+                "framing_tail": "studios exit as growth stalls",
+                "framing_y": "Games released, falling",
+                "source": "Steam catalog export",
+                "top_phrase": "genre with the most releases",
+                "dashboard": "game releases dashboard", "team": "publishing team",
+                "figures_note": "Release counts are the number of games released on Steam in each year, "
+                                "by first listed genre.",
+            },
+        },
     }
 
 
@@ -147,14 +172,10 @@ def main():
     p = pd.read_csv(os.path.join(HERE, "public_health.csv"), low_memory=False)
     s = pd.read_csv(os.path.join(HERE, "steam.csv"))
     parts = [climate(c), public_health(p), steam(s)]
-    with open(os.path.join(HERE, "dummy_datasets.json"), encoding="utf-8") as fh:
-        revenue = json.load(fh)["revenue"]
     out = {"_comment": "Real datasets for the original attack corpus, computed from the CSVs by "
-                       "datasets/build_corpus_datasets.py (views and gaps in its docstring). revenue keeps the "
-                       "dummy entries. Run `python build_dataset_pages.py` after rebuilding."}
-    for chart_type in ("bar", "line", "scatter", "stacked_bar"):
+                       "datasets/build_corpus_datasets.py (views and gaps in its docstring). Run `python build_dataset_pages.py` after rebuilding."}
+    for chart_type in ("bar", "line", "scatter", "stacked_bar", "revenue"):
         out[chart_type] = [part[chart_type] for part in parts if chart_type in part]
-    out["revenue"] = revenue
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=1, ensure_ascii=False)
         fh.write("\n")

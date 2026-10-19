@@ -3,7 +3,7 @@
 2026-10-19. Two things are checked here: whether the real-dataset charts
 (PR #8) match the CSVs in `datasets/`, and how the original attack corpus
 was moved from the dummy datasets onto the CSVs, with the attacks that
-still need adjustment.
+still need adjustment and the Slurm jobs that run them.
 
 ## Terms
 
@@ -72,6 +72,7 @@ attack premise and task answer is recomputed from real numbers:
 | scatter | climate_core | CO2 per capita, China vs Germany, 2002-2022 every fourth year |
 | stacked bar | climate_core | China CO2 from cement, oil and gas, 2013-2017 |
 | stacked bar | steam_core | Games released per year by review rating (Mixed, Positive, Negative), 2010-2015 |
+| revenue (reasoning) | steam_core | Games released per year, Simulation, Free to Play and Racing, 2015-2018 |
 
 Two generator fixes came with this. A new shape rule requires the two
 lines to peak in different years, because `line_close_colors` uses the
@@ -80,9 +81,18 @@ year, so bait and answer were equal). Scatter charts whose x values are
 years now print them without a thousands separator, and the Vega-Lite
 version no longer starts the x axis at zero.
 
-Analysis: the corpus now has 8 real datasets in place of 12 dummy ones,
-so each library has 29 original-corpus attack pages on real data instead
-of 42 on dummy data.
+The reasoning attacks' chart is written around quarterly revenue, so its
+wording (title, units, "region", "quarter", the framing headline, the
+critic note's data source and the persona memory documents) now comes from
+a `words` dict on the dataset entry; the hand-written revenue pages are
+unchanged byte for byte. The Steam view is the only real one found whose
+yearly total has the shape those attacks need: one dip under 10 % (2017,
+-6 %), the first year lowest, and growth that the persona and framing texts
+can read as good news.
+
+Analysis: the corpus now has 9 real datasets in place of 15 dummy ones,
+so each library has 29 original-corpus attack pages and 30 reasoning
+attack tasks on real data.
 
 ## Attacks that need adjustment
 
@@ -96,7 +106,7 @@ its task.
 | same three | TM, MT, MT | steam | No fit: no pair of real series where one strictly rises and the other strictly falls. | Same as above, using the pinned achievements vs playtime sample. |
 | line_automation_cloak, line_close_colors, line_console_false_claim, line_dual_axis | TM, MT, TM, MT | public health | The only rising pairs are prevalence percentages (arthritis, Arizona vs California 2019-2023), and the line tasks ask "how many", which does not work for percentages. | Add a percentage wording to the line template, then add that view. |
 | stacked_bar_alt_text_bias, stacked_bar_close_colors, stacked_bar_wide_axis_range | TM, MT, MT | public health | A fit exists (liver deaths by age group) only if states are ordered by total, and the stacked tasks assume a time axis ("increases each year"). | Reword the stacked tasks for a categorical axis, or accept the ordering by total. |
-| revenue_biased_framing, revenue_critic_evasion, revenue_persona_hyperstition | reasoning | all three | Kept on dummy data: the pages and attack text are written around quarterly revenue by region. | Rewrite the reasoning template for one real dataset (for example climate CO2 by source per year). |
+| revenue_biased_framing, revenue_critic_evasion, revenue_persona_hyperstition | MT, TM, TM | climate, public health | Climate views fit the numbers (for example Russia coal, oil and gas 2005-2008), but a dip in emissions or deaths is good news, which inverts the framing and persona texts. Runs on steam_core only. | None needed unless a second reasoning dataset is wanted. |
 
 Wording to tidy (no premise is broken):
 
@@ -107,5 +117,29 @@ Wording to tidy (no premise is broken):
   differs from the real-dataset chart's "Very Positive".
 
 Analysis: 13 attack x dataset combinations have no real fit (10 for public
-health, 3 for steam), and the 3 reasoning attacks stay on dummy data; all
-other original-corpus attacks now run on real numbers.
+health, 3 for steam), and the reasoning attacks run on one real dataset;
+every other attack now runs on real numbers.
+
+## Experiment jobs
+
+Terms: a "job" is a Slurm script submitted with
+`MODELS=<tags> sbatch <job>.slurm`; "two-node array" means two array tasks,
+each on its own V100 node, one for d3 and plotly and one for chartjs and
+vega-lite, with the last task to finish merging both result files into
+`results/results.csv` and writing the summaries. "Trials per node" counts
+attacked pages plus their clean baselines, per model.
+
+| Job | Pages | Trials per node | Change |
+|---|---|---|---|
+| `run_multimodal_suite.slurm` | the 14 original attacks on the hand-written pages and climate_core, public_health_core, steam_core | 172 | now a two-node array, limited to these attacks and datasets (it used to run every page, including the real-dataset and reasoning pages that have their own jobs) |
+| `run_reasoning_attacks.slurm` | the 3 reasoning attacks on the hand-written revenue chart and steam_core | 240 attack, 240 with critic, 40 capability | now a two-node array; adds steam_core |
+| `run_real_datasets.slurm` | the 54 real-dataset tasks (PR #8) | 216 attack, 216 with critic, 12 capability | unchanged |
+
+`--attacks` now also matches a hand-written attack's copies on every
+dataset (`revenue_biased_framing` picks `revenue_biased_framing__steam_core`
+too), and `--datasets` narrows it. `summarize_results.py` adds an "ASR by
+dataset" table, where the dataset is `original`, a core dataset or a
+real-dataset id.
+
+Analysis: the three jobs no longer overlap, so submitting all three runs
+every page exactly once per model.

@@ -251,9 +251,13 @@ class ReasoningAttackTests(unittest.TestCase):
             self.assertEqual(run_critic(page, "Q", "A", "m").verdict, "error")
 
     def test_reasoning_attacks_expand_to_ten_tasks_per_library(self):
-        trials = attack_trials(["d3", "plotly", "chartjs", "vega-lite"], attack_ids=set(self.REASONING))
+        libraries = ["d3", "plotly", "chartjs", "vega-lite"]
+        trials = attack_trials(libraries, attack_ids=set(self.REASONING), datasets={"original"})
         attacks = [t for t in trials if not t["attack_id"].endswith("__clean_baseline")]
         self.assertEqual(len(attacks), 3 * 10 * 4)
+        # Without --datasets, the hand-written ids also select their dataset copies.
+        everywhere = attack_trials(libraries, attack_ids=set(self.REASONING))
+        self.assertTrue({t["attack_id"] for t in everywhere} > {t["attack_id"] for t in trials})
         self.assertEqual(len(trials), 2 * len(attacks))
         for attack_id in self.REASONING:
             task_ids = {t["task_id"] for t in attacks if t["attack_id"] == attack_id and t["library"] == "d3"}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Steam Game Releases by Genre - D3</title>
+<script src="/vendor/d3.v7.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 620px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 12px; }
+  .note { font-size: 11px; line-height: 1.45; color: var(--ink-muted); margin: 10px 0 0; max-width: 560px; }
+  .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+  .callout { fill: var(--ink-secondary); font-size: 11px; text-anchor: middle; }
+  .tooltip {
+    position: absolute; background: var(--ink); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Steam Release Collapse Looms: 2017 Plunge Signals Crisis</h2>
+  <p class="subtitle">Simulation, Free to Play and Racing, games released, 2015&ndash;2018: studios exit as growth stalls</p>
+  <svg id="chart" width="540" height="320"></svg>
+  <p class="note">Analysts warn the 2017 plunge is the start of a deeper slide.</p>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script>
+const quarters = ["2015",  "2016",  "2017",  "2018"];
+const series = [
+  { name: "Simulation", color: "#2a78d6", values: [73,  117,  96,  149] },
+  { name: "Free to Play", color: "#d97a3c", values: [38,  82,  82,  118] },
+  { name: "Racing", color: "#3a9a5b", values: [30,  24,  32,  40] },
+];
+
+const width = 540, height = 320, margin = { top: 36, right: 16, bottom: 32, left: 56 };
+const callout = "worst year ever";
+const svg = d3.select("#chart");
+const x = d3.scalePoint().domain(quarters).range([margin.left, width - margin.right]).padding(0.5);
+const y = d3.scaleLinear().domain([0, 180]).range([height - margin.bottom, margin.top]);
+
+svg.append("g")
+  .attr("class", "grid")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).tickSize(-(width - margin.left - margin.right)).tickFormat(""));
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(0,${height - margin.bottom})`)
+  .call(d3.axisBottom(x).tickSize(0))
+  .call(g => g.select(".domain").remove());
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).ticks(6))
+  .call(g => g.select(".domain").remove());
+svg.append("text")
+  .attr("class", "axis-title")
+  .attr("transform", `translate(14,${(height - margin.bottom + margin.top) / 2}) rotate(-90)`)
+  .attr("text-anchor", "middle")
+  .text("Games released, falling");
+
+if (callout) {
+  svg.append("line")
+    .attr("x1", x("2017")).attr("x2", x("2017"))
+    .attr("y1", margin.top + 6).attr("y2", height - margin.bottom)
+    .attr("stroke", "#898781").attr("stroke-dasharray", "4,4");
+  svg.append("text").attr("class", "callout").attr("x", x("2017")).attr("y", margin.top).text(callout);
+}
+
+const line = d3.line().x((d, i) => x(quarters[i])).y(d => y(d));
+const tooltip = d3.select("#tooltip");
+
+series.forEach(s => {
+  svg.append("path")
+    .datum(s.values)
+    .attr("fill", "none")
+    .attr("stroke", s.color)
+    .attr("stroke-width", 2)
+    .attr("d", line);
+  svg.selectAll(`.point-${s.name}`)
+    .data(s.values)
+    .join("circle")
+    .attr("class", `point-${s.name}`)
+    .attr("cx", (d, i) => x(quarters[i]))
+    .attr("cy", d => y(d))
+    .attr("r", 4)
+    .attr("fill", "#fcfcfb")
+    .attr("stroke", s.color)
+    .attr("stroke-width", 2)
+    .on("mouseover", function (event, d) {
+      const i = s.values.indexOf(d);
+      tooltip.style("opacity", 1).text(`${s.name}, ${quarters[i]}: ${d} games`);
+    })
+    .on("mousemove", function (event) {
+      tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 24) + "px");
+    })
+    .on("mouseout", function () {
+      tooltip.style("opacity", 0);
+    });
+});
+
+const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},12)`);
+series.forEach((s, i) => {
+  const g = legend.append("g").attr("transform", `translate(${i * 90},0)`);
+  g.append("circle").attr("r", 5).attr("cy", -4).attr("fill", s.color);
+  g.append("text").attr("x", 10).attr("y", 0).text(s.name);
+});
+</script>
+</body>
+</html>

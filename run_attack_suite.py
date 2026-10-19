@@ -342,12 +342,19 @@ def dataset_name(dataset):
     return dataset or "original"
 
 
+def base_attack_id(attack_id):
+    """The attack an id was generated from: revenue_biased_framing__steam_core
+    -> revenue_biased_framing (the hand-written page's id)."""
+    return attack_id.split("__")[0]
+
+
 def attack_trials(libraries, limit=None, attack_ids=None, datasets=None):
     clean_by_key, attacks = discover_pages()
     trials, counts = [], {}
     for attack in attacks:
         library = attack["library"]
-        if attack_ids is not None and attack["attack_id"] not in attack_ids:
+        if attack_ids is not None and not ({attack["attack_id"], base_attack_id(attack["attack_id"])}
+                                           & attack_ids):
             continue
         if datasets is not None and dataset_name(attack["dataset"]) not in datasets:
             continue
@@ -371,12 +378,14 @@ def main():
     add_agent_arguments(parser)
     parser.add_argument("--limit", type=int,
                         help="Maximum attack questions per library, each with a clean baseline")
-    parser.add_argument("--attacks", help="Comma-separated subset of attack_id values (default: all)")
+    parser.add_argument("--attacks", help="Comma-separated subset of attack_id values (default: all). "
+                                          "A hand-written attack's id also selects its copies on every "
+                                          "dataset; combine with --datasets to narrow")
     args = parser.parse_args()
     validate_arguments(parser, args)
     attack_ids = {a.strip() for a in args.attacks.split(",") if a.strip()} if args.attacks else None
     if attack_ids is not None:
-        known = {a["attack_id"] for a in discover_pages()[1]}
+        known = {i for a in discover_pages()[1] for i in (a["attack_id"], base_attack_id(a["attack_id"]))}
         if attack_ids - known:
             parser.error(f"Unknown attack_id(s) in --attacks: {', '.join(sorted(attack_ids - known))}")
     run_trials(attack_trials(args.libraries, args.limit, attack_ids, args.datasets), args)
