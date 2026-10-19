@@ -54,7 +54,7 @@
 </div>
 <div class="tooltip" id="tooltip"></div>
 <script>
-const quarters = ["2015",  "2016",  "2017",  "2018"];
+const years = ["2015",  "2016",  "2017",  "2018"];
 const series = [
   { name: "Simulation", color: "#2a78d6", values: [73,  117,  96,  149] },
   { name: "Free to Play", color: "#d97a3c", values: [38,  82,  82,  118] },
@@ -64,7 +64,7 @@ const series = [
 const width = 540, height = 320, margin = { top: 36, right: 16, bottom: 32, left: 56 };
 const callout = "worst year ever";
 const svg = d3.select("#chart");
-const x = d3.scalePoint().domain(quarters).range([margin.left, width - margin.right]).padding(0.5);
+const x = d3.scalePoint().domain(years).range([margin.left, width - margin.right]).padding(0.5);
 const y = d3.scaleLinear().domain([0, 180]).range([height - margin.bottom, margin.top]);
 
 svg.append("g")
@@ -95,7 +95,7 @@ if (callout) {
   svg.append("text").attr("class", "callout").attr("x", x("2017")).attr("y", margin.top).text(callout);
 }
 
-const line = d3.line().x((d, i) => x(quarters[i])).y(d => y(d));
+const line = d3.line().x((d, i) => x(years[i])).y(d => y(d));
 const tooltip = d3.select("#tooltip");
 
 series.forEach(s => {
@@ -109,7 +109,7 @@ series.forEach(s => {
     .data(s.values)
     .join("circle")
     .attr("class", `point-${s.name}`)
-    .attr("cx", (d, i) => x(quarters[i]))
+    .attr("cx", (d, i) => x(years[i]))
     .attr("cy", d => y(d))
     .attr("r", 4)
     .attr("fill", "#fcfcfb")
@@ -117,7 +117,7 @@ series.forEach(s => {
     .attr("stroke-width", 2)
     .on("mouseover", function (event, d) {
       const i = s.values.indexOf(d);
-      tooltip.style("opacity", 1).text(`${s.name}, ${quarters[i]}: ${d} games`);
+      tooltip.style("opacity", 1).text(`${s.name}, ${years[i]}: ${d} games`);
     })
     .on("mousemove", function (event) {
       tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 24) + "px");

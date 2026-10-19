@@ -26,8 +26,9 @@ export PLAYWRIGHT_BROWSERS_PATH=/scratch.global/$USER/pw-browsers
 
 LIBRARY_SPLIT=("d3,plotly" "chartjs,vega-lite")
 LIBRARIES=${LIBRARY_SPLIT[$SLURM_ARRAY_TASK_ID]}
-# Separate port per task, in case both tasks land on one multi-GPU node.
-PORT=$((11434 + SLURM_ARRAY_TASK_ID))
+# A port of its own per array task (each has its own SLURM_JOB_ID), so tasks
+# of this and the other jobs can share a multi-GPU node.
+PORT=$((20000 + SLURM_JOB_ID % 40000))
 export OLLAMA_HOST=127.0.0.1:$PORT
 BASE_URL=http://127.0.0.1:$PORT
 
@@ -78,4 +79,5 @@ unset VIS_RESULTS_DIR
     else
         echo "Other array task still running; it will merge and summarize."
     fi
-) 9>"$WORK_DIR/results/real_${SLURM_ARRAY_JOB_ID}.lock"
+# One lock for every job, since they all append to results/results.csv.
+) 9>"$WORK_DIR/results/merge.lock"

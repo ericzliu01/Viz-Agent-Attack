@@ -26,8 +26,9 @@ export PLAYWRIGHT_BROWSERS_PATH=/scratch.global/$USER/pw-browsers
 
 LIBRARY_SPLIT=("d3,plotly" "chartjs,vega-lite")
 LIBRARIES=${LIBRARY_SPLIT[$SLURM_ARRAY_TASK_ID]}
-# Separate port per task, in case both tasks land on one multi-GPU node.
-PORT=$((11434 + SLURM_ARRAY_TASK_ID))
+# A port of its own per array task (each has its own SLURM_JOB_ID), so tasks
+# of this and the other jobs can share a multi-GPU node.
+PORT=$((20000 + SLURM_JOB_ID % 40000))
 export OLLAMA_HOST=127.0.0.1:$PORT
 BASE_URL=http://127.0.0.1:$PORT
 
@@ -65,6 +66,14 @@ ATTACKS+=,stacked_bar_alt_text_bias,stacked_bar_close_colors,stacked_bar_wide_ax
 DATASETS=original,climate_core,public_health_core,steam_core
 python3 run_attack_suite.py --models "$MODELS" --base-url "$BASE_URL" --libraries "$LIBRARIES" \
     --attacks "$ATTACKS" --datasets "$DATASETS" --timeout 180 --max-steps 15
+# The same charts' capability questions on the clean pages (no attack), so each
+# dataset has its own capability baseline: 212 trials per task here (the 9
+# generic task ids also pick the revenue charts' retrieve_value question, which
+# the reasoning job does not ask).
+TASKS=retrieve_value,find_anomalies,find_extremum,filter,determine_range,sort
+TASKS+=,compute_derived_value,characterize_distribution,correlate
+python3 run_capability_suite.py --models "$MODELS" --base-url "$BASE_URL" --libraries "$LIBRARIES" \
+    --task-ids "$TASKS" --datasets "$DATASETS" --timeout 180 --max-steps 15
 
 mkdir -p "$VIS_RESULTS_DIR" && touch "$VIS_RESULTS_DIR/done"
 unset VIS_RESULTS_DIR
@@ -74,7 +83,9 @@ unset VIS_RESULTS_DIR
     if [ "$(ls "$WORK_DIR"/results/multimodal_"${SLURM_ARRAY_JOB_ID}"_*/done 2>/dev/null | wc -l)" -eq 2 ]; then
         python3 merge_results.py "${PARTS[@]}"
         python3 summarize_results.py
+        python3 summarize_capability.py
     else
         echo "Other array task still running; it will merge and summarize."
     fi
-) 9>"$WORK_DIR/results/multimodal_${SLURM_ARRAY_JOB_ID}.lock"
+# One lock for every job, since they all append to results/results.csv.
+) 9>"$WORK_DIR/results/merge.lock"

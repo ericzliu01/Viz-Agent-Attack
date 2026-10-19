@@ -23,6 +23,7 @@ Usage: python build_reasoning_pages.py
 """
 import json
 import math
+import re
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +55,7 @@ WORDS = {
     "value_prefix": "$", "value_suffix": "K",
     "group": "region", "groups": "regions", "Group": "Region",
     "period": "quarter", "periods": "quarters", "Period": "Quarter", "periodly": "quarterly",
-    "over": "over the year",
+    "over": "over the year", "js_value": "revenue",
     "framing_heading": "Revenue Collapse Looms: {dip} Plunge Signals Crisis",
     "framing_tail": "losses mount as growth stalls",
     "framing_y": "Revenue ($K), falling",
@@ -634,6 +635,18 @@ def container(library):
     return '  <div id="chart"></div>'
 
 
+def script_js(library, text, ds, info):
+    """The page script. With dataset words, the code's own names follow them
+    too (quarters -> years, region -> genre, revenue -> js_value), so the page
+    source does not mention revenue or quarters."""
+    w = words(ds)
+    code = f"{data_js(ds)}\n{chart_js(library, text, info, w)}"
+    if "words" not in ds:
+        return code
+    names = {"quarters": w["periods"], "quarter": w["period"], "region": w["group"], "revenue": w["js_value"]}
+    return re.sub(r"\b(quarters|quarter|region|revenue)\b", lambda m: names[m.group(1)], code)
+
+
 def page_html(library, text, ds, info):
     scripts = "\n".join(f'<script src="/vendor/{f}"></script>' for f in LIBRARY_SCRIPTS[library])
     note = f'\n  <p class="note">{text["note"]}</p>' if text["note"] else ""
@@ -653,8 +666,7 @@ def page_html(library, text, ds, info):
 {container(library)}{note}
 </div>{tooltip}
 <script>
-{data_js(ds)}
-{chart_js(library, text, info, words(ds))}</script>
+{script_js(library, text, ds, info)}</script>
 </body>
 </html>
 """

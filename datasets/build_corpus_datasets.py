@@ -40,7 +40,7 @@ def years_x(years):
 def climate(c):
     by = c.set_index(["country", "year"])
     bar_countries = ["China", "United States", "India", "Russia", "Japan"]
-    line_years = list(range(2015, 2021))
+    line_years = list(range(2016, 2022))
     scatter_years = list(range(2002, 2023, 4))
     stack_years = list(range(2013, 2018))
     china = by.loc["China"]
@@ -54,14 +54,14 @@ def climate(c):
             "values": ints(by.loc[(n, 2022), "co2"] for n in bar_countries),
         },
         "line": {
-            "id": "climate_core", "title": "Annual CO2 Emissions", "subtitle": "India vs Iran, 2015&ndash;2020, million tonnes",
+            "id": "climate_core", "title": "Annual CO2 Emissions", "subtitle": "Indonesia vs Iran, 2016&ndash;2021, million tonnes",
             "x": years_x(line_years),
-            "period": {"noun": "period", "adj": "yearly", "phrase": "over 2015-2020", "over": "year over year"},
+            "period": {"noun": "period", "adj": "yearly", "phrase": "over 2016-2021", "over": "year over year"},
             "measure": {"plural": "megatonnes", "metric": "annual emissions", "short": "megatonnes",
                         "short_title": "Megatonnes", "axis_title": "CO2 (million tonnes)", "abbr": "CO2"},
             "group": {"word": "country", "title": "Country"},
             "series": [{"name": n, "values": ints(by.loc[(n, y), "co2"] for y in line_years)}
-                       for n in ("India", "Iran")],
+                       for n in ("Indonesia", "Iran")],
         },
         "scatter": {
             "id": "climate_core", "title": "CO2 per Capita by Year", "subtitle": "China vs Germany, every fourth year, tonnes per person",
@@ -108,8 +108,11 @@ def steam(s):
     s["tier"] = share.map(lambda v: "Positive" if v >= 0.8 else "Mixed" if v >= 0.4 else "Negative")
     bar_genres = ["Action", "Adventure", "Casual", "Indie", "Simulation"]
     per_genre = s[s.year.between(2015, 2018)].groupby("genre").size()
-    line_years = list(range(2012, 2019))
+    line_years = list(range(2007, 2012))
     releases = s.groupby(["genre", "year"]).size()
+    # The line chart counts a game under every genre it lists: no first-genre
+    # pair has the small mid-period dip the line tasks describe.
+    any_genre = s.assign(g=s.genres.str.split(";")).explode("g").groupby(["g", "year"]).size()
     stack_years = list(range(2010, 2016))
     reasoning_years = list(range(2015, 2019))
     tiers = s.groupby(["tier", "year"]).size()
@@ -122,14 +125,15 @@ def steam(s):
             "categories": bar_genres, "values": ints(per_genre[g] for g in bar_genres),
         },
         "line": {
-            "id": "steam_core", "title": "Steam Games Released per Year", "subtitle": "Strategy vs Simulation, 2012&ndash;2018",
+            "id": "steam_core", "title": "Steam Games Released per Year",
+            "subtitle": "Strategy vs Action, any listed genre, 2007&ndash;2011",
             "x": years_x(line_years),
-            "period": {"noun": "period", "adj": "yearly", "phrase": "over 2012-2018", "over": "year over year"},
+            "period": {"noun": "period", "adj": "yearly", "phrase": "over 2007-2011", "over": "year over year"},
             "measure": {"plural": "releases", "metric": "yearly releases", "short": "releases",
                         "short_title": "Releases", "axis_title": "Games released", "abbr": "releases"},
             "group": {"word": "genre", "title": "Genre"},
-            "series": [{"name": g, "values": ints(releases.get((g, y), 0) for y in line_years)}
-                       for g in ("Strategy", "Simulation")],
+            "series": [{"name": g, "values": ints(any_genre.get((g, y), 0) for y in line_years)}
+                       for g in ("Strategy", "Action")],
         },
         "stacked_bar": {
             "id": "steam_core", "title": "Steam Releases by Review Rating",
@@ -153,7 +157,7 @@ def steam(s):
                 "value_prefix": "", "value_suffix": " games",
                 "group": "genre", "groups": "genres", "Group": "Genre",
                 "period": "year", "periods": "years", "Period": "Year", "periodly": "yearly",
-                "over": "over the four years",
+                "over": "over the four years", "js_value": "releases",
                 "framing_heading": "Steam Release Collapse Looms: {dip} Plunge Signals Crisis",
                 "framing_tail": "studios exit as growth stalls",
                 "framing_y": "Games released, falling",

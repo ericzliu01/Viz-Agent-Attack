@@ -54,7 +54,7 @@
   <div id="chart"></div>
 </div>
 <script>
-const quarters = ["2015",  "2016",  "2017",  "2018"];
+const years = ["2015",  "2016",  "2017",  "2018"];
 const series = [
   { name: "Simulation", color: "#2a78d6", values: [73,  117,  96,  149] },
   { name: "Free to Play", color: "#d97a3c", values: [38,  82,  82,  118] },
@@ -62,40 +62,40 @@ const series = [
 ];
 
 const callout = null;
-const values = series.flatMap(s => s.values.map((revenue, i) => ({ quarter: quarters[i], region: s.name, revenue })));
+const values = series.flatMap(s => s.values.map((releases, i) => ({ year: years[i], genre: s.name, releases })));
 const axisStyle = { labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 11 };
 
 const layers = [{
   data: { values: values },
   mark: { type: "line", point: { filled: true, size: 60 }, strokeWidth: 2 },
   encoding: {
-    x: { field: "quarter", type: "nominal", sort: quarters, title: null, axis: { ...axisStyle, domain: false, ticks: false, labelAngle: 0 } },
+    x: { field: "year", type: "nominal", sort: years, title: null, axis: { ...axisStyle, domain: false, ticks: false, labelAngle: 0 } },
     y: {
-      field: "revenue", type: "quantitative", title: "Games released", scale: { domain: [0, 180] },
+      field: "releases", type: "quantitative", title: "Games released", scale: { domain: [0, 180] },
       axis: { ...axisStyle, gridColor: "#e1e0d9", domain: false, tickCount: 6 },
     },
     color: {
-      field: "region", type: "nominal", title: null,
+      field: "genre", type: "nominal", title: null,
       scale: { domain: series.map(s => s.name), range: series.map(s => s.color) },
       legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
     },
     tooltip: [
-      { field: "region", type: "nominal", title: "Genre" },
-      { field: "quarter", type: "nominal", title: "Year" },
-      { field: "revenue", type: "quantitative", title: "Games released" },
+      { field: "genre", type: "nominal", title: "Genre" },
+      { field: "year", type: "nominal", title: "Year" },
+      { field: "releases", type: "quantitative", title: "Games released" },
     ],
   },
 }];
 if (callout) {
   layers.push({
-    data: { values: [{ quarter: "2017" }] },
+    data: { values: [{ year: "2017" }] },
     mark: { type: "rule", color: "#898781", strokeDash: [4, 4], y: 14 },
-    encoding: { x: { field: "quarter", type: "nominal", sort: quarters } },
+    encoding: { x: { field: "year", type: "nominal", sort: years } },
   });
   layers.push({
-    data: { values: [{ quarter: "2017", label: callout }] },
+    data: { values: [{ year: "2017", label: callout }] },
     mark: { type: "text", color: "#52514e", fontSize: 11, y: 4 },
-    encoding: { x: { field: "quarter", type: "nominal", sort: quarters }, text: { field: "label" } },
+    encoding: { x: { field: "year", type: "nominal", sort: years }, text: { field: "label" } },
   });
 }
 

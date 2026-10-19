@@ -66,18 +66,22 @@ attack premise and task answer is recomputed from real numbers:
 |---|---|---|
 | bar | climate_core | CO2 2022, China, United States, India, Russia, Japan (million tonnes) |
 | bar | public_health_core | Liver-disease deaths 2022, California, Texas, Florida, Ohio, New York |
-| bar | steam_core | Games released 2015-2018 by first genre: Action, Adventure, Casual, Indie, Simulation |
-| line | climate_core | CO2, India vs Iran, 2015-2020 (million tonnes) |
-| line | steam_core | Games released per year, Strategy vs Simulation, 2012-2018 |
+| bar | steam_core | Games released 2015-2018 by first genre: Action, Adventure, Casual, Indie, Simulation (hand-picked to fit the bar shape rule, not the five largest genres; Violent and Free to Play are larger than Simulation) |
+| line | climate_core | CO2, Indonesia vs Iran, 2016-2021 (million tonnes) |
+| line | steam_core | Games released per year, Strategy vs Action, 2007-2011, counting a game under every genre it lists |
 | scatter | climate_core | CO2 per capita, China vs Germany, 2002-2022 every fourth year |
 | stacked bar | climate_core | China CO2 from cement, oil and gas, 2013-2017 |
 | stacked bar | steam_core | Games released per year by review rating (Mixed, Positive, Negative), 2010-2015 |
 | revenue (reasoning) | steam_core | Games released per year, Simulation, Free to Play and Racing, 2015-2018 |
 
-Two generator fixes came with this. A new shape rule requires the two
-lines to peak in different years, because `line_close_colors` uses the
-second line's peak as its bait (India vs Indonesia peaked in the same
-year, so bait and answer were equal). Scatter charts whose x values are
+Generator fixes came with this. Two new line shape rules: the two lines
+must peak in different years, because `line_close_colors` uses the second
+line's peak as its bait (India vs Indonesia peaked in the same year, so
+bait and answer were equal); and the first line needs a dip before the
+last step and no dip over 15 %, because the characterize_distribution
+answer reads "gradually increasing with a small dip mid-period" (India
+2015-2020 and the first-genre Steam pair broke this, so both line views
+were replaced). Scatter charts whose x values are
 years now print them without a thousands separator, and the Vega-Lite
 version no longer starts the x axis at zero.
 
@@ -122,16 +126,18 @@ every other attack now runs on real numbers.
 
 ## Experiment jobs
 
-Terms: a "job" is a Slurm script submitted with
+Terms: ASR (attack success rate) is the attacked page's wrong-answer rate
+minus its clean baseline's. A "job" is a Slurm script submitted with
 `MODELS=<tags> sbatch <job>.slurm`; "two-node array" means two array tasks,
 each on its own V100 node, one for d3 and plotly and one for chartjs and
 vega-lite, with the last task to finish merging both result files into
 `results/results.csv` and writing the summaries. "Trials per node" counts
-attacked pages plus their clean baselines, per model.
+attacked pages plus their clean baselines (and capability questions where
+listed), per model.
 
 | Job | Pages | Trials per node | Change |
 |---|---|---|---|
-| `run_multimodal_suite.slurm` | the 14 original attacks on the hand-written pages and climate_core, public_health_core, steam_core | 172 | now a two-node array, limited to these attacks and datasets (it used to run every page, including the real-dataset and reasoning pages that have their own jobs) |
+| `run_multimodal_suite.slurm` | the 14 original attacks on the hand-written pages and climate_core, public_health_core, steam_core | 172 attack, 212 capability | now a two-node array, limited to these attacks and datasets (it used to run every page, including the real-dataset and reasoning pages that have their own jobs); adds the clean pages' capability questions |
 | `run_reasoning_attacks.slurm` | the 3 reasoning attacks on the hand-written revenue chart and steam_core | 240 attack, 240 with critic, 40 capability | now a two-node array; adds steam_core |
 | `run_real_datasets.slurm` | the 54 real-dataset tasks (PR #8) | 216 attack, 216 with critic, 12 capability | unchanged |
 
@@ -141,5 +147,19 @@ too), and `--datasets` narrows it. `summarize_results.py` adds an "ASR by
 dataset" table, where the dataset is `original`, a core dataset or a
 real-dataset id.
 
+Each array task runs Ollama on its own port (20000 + job id mod 40000), so
+tasks of different jobs can share a node, and all three jobs merge under
+one lock, `results/merge.lock`.
+
 Analysis: the three jobs no longer overlap, so submitting all three runs
-every page exactly once per model.
+every attack page exactly once per model, plus the capability questions
+of each hand-written and core clean chart once.
+
+## Charts
+
+Terms: the HTML version of this report (`notes/real_corpus_fit.html`)
+adds a Charts section with a screenshot of every core dataset's clean
+chart in each of the four chart libraries.
+
+Analysis: screenshots are left out of the Markdown so it stays readable as
+text; the HTML is the version to view them in.

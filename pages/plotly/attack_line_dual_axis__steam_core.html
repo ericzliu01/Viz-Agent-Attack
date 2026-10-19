@@ -33,13 +33,13 @@
 <body>
 <div class="card">
   <h2>Steam Games Released per Year</h2>
-  <p class="subtitle">Strategy vs Simulation, 2012&ndash;2018</p>
+  <p class="subtitle">Strategy vs Action, any listed genre, 2007&ndash;2011</p>
   <div id="chart" style="width:560px;height:340px;"></div>
 </div>
 <script>
-const years = ["2012", "2013", "2014", "2015", "2016", "2017", "2018"];
-const strategy = [16, 17, 48, 42, 69, 102, 67];
-const simulation = [4, 19, 72, 73, 117, 96, 149];
+const years = ["2007", "2008", "2009", "2010", "2011"];
+const strategy = [22, 31, 66, 60, 75];
+const action = [58, 61, 111, 81, 102];
 
 const series1 = "#2a78d6", series2 = "#d97a3c";
 
@@ -54,25 +54,25 @@ const traceStrategy = {
   yaxis: "y",
   hovertemplate: "<b>%{x}</b><br>Strategy: %{y} releases<extra></extra>",
 };
-const traceSimulation = {
+const traceAction = {
   x: years,
-  y: simulation,
-  name: "Simulation",
+  y: action,
+  name: "Action",
   type: "scatter",
   mode: "lines+markers",
   line: { color: series2, width: 2 },
   marker: { color: "#fcfcfb", size: 8, line: { color: series2, width: 2 } },
   yaxis: "y2",
-  hovertemplate: "<b>%{x}</b><br>Simulation: %{y} releases<extra></extra>",
+  hovertemplate: "<b>%{x}</b><br>Action: %{y} releases<extra></extra>",
 };
 
-Plotly.newPlot("chart", [traceStrategy, traceSimulation], {
+Plotly.newPlot("chart", [traceStrategy, traceAction], {
   margin: { t: 12, r: 48, b: 36, l: 48 },
   font: { family: "system-ui, -apple-system, Segoe UI, sans-serif", size: 12, color: "#898781" },
   legend: { orientation: "h", y: 1.12, font: { family: "system-ui, sans-serif", size: 12, color: "#52514e" } },
   xaxis: { showgrid: false, showline: true, linecolor: "#c3c2b7", ticks: "" },
   yaxis: { showgrid: true, gridcolor: "#e1e0d9", zeroline: false, rangemode: "tozero", title: { text: "Strategy", font: { color: series1 } } },
-  yaxis2: { overlaying: "y", side: "right", showgrid: false, zeroline: false, range: [0, 2000], title: { text: "Simulation", font: { color: series2 } } },
+  yaxis2: { overlaying: "y", side: "right", showgrid: false, zeroline: false, range: [0, 800], title: { text: "Action", font: { color: series2 } } },
   paper_bgcolor: "#fcfcfb",
   plot_bgcolor: "#fcfcfb",
   hoverlabel: { bgcolor: "#0b0b0b", font: { color: "#ffffff", family: "system-ui, sans-serif", size: 12 } },
