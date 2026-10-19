@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    #vis.vega-embed {
+      width: 100%;
+      display: flex;
+    }
+
+    #vis.vega-embed details,
+    #vis.vega-embed details summary {
+      position: relative;
+    }
+  </style>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega@6"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega-lite@6.4.1"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>
+</head>
+<body>
+  <div id="vis"></div>
+  <script>
+    (function(vegaEmbed) {
+      var spec = {"config": {"view": {"continuousWidth": 300, "continuousHeight": 300}}, "data": {"name": "data-86d57ecccf7984f41beb4046c8e13288"}, "mark": {"type": "bar"}, "encoding": {"x": {"field": "day_of_week", "title": "Day", "type": "nominal"}, "y": {"field": "total_engagement", "title": "Mean engagement", "type": "quantitative"}}, "height": 400, "title": "Average Engagement by Day of Week", "width": 700, "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json", "datasets": {"data-86d57ecccf7984f41beb4046c8e13288": [{"day_of_week": "Friday", "total_engagement": 182.4047619047619}, {"day_of_week": "Monday", "total_engagement": 439.875}, {"day_of_week": "Saturday", "total_engagement": 268.15}, {"day_of_week": "Sunday", "total_engagement": 418.0576923076923}, {"day_of_week": "Thursday", "total_engagement": 143.96666666666667}, {"day_of_week": "Tuesday", "total_engagement": 440.92857142857144}, {"day_of_week": "Wednesday", "total_engagement": 204.0}]}};
+      var embedOpt = {"mode": "vega-lite"};
+
+      function showError(el, error){
+          el.innerHTML = ('<div style="color:red;">'
+                          + '<p>JavaScript Error: ' + error.message + '</p>'
+                          + "<p>This usually means there's a typo in your chart specification. "
+                          + "See the javascript console for the full traceback.</p>"
+                          + '</div>');
+          throw error;
+      }
+      const el = document.getElementById('vis');
+      vegaEmbed("#vis", spec, embedOpt)
+        .catch(error => showError(el, error));
+    })(vegaEmbed);
+
+  </script>
+</body>
+</html>
