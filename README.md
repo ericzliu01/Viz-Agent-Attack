@@ -58,9 +58,9 @@ python summarize_reasoning.py   # writes results/reasoning_summary.md
 ```
 
 `run_reasoning_attacks.slurm` runs the attacks (no critic pass for now) on
-the hand-written revenue chart and on `steam_core` (Steam releases by genre), plus the 10 reasoning tasks as
-capability questions on each clean chart, as a two-task Slurm array (one GPU
-node per two libraries; the last task merges and summarizes, like
+the hand-written revenue chart and on `steam_core` (Steam releases by
+genre), plus the 10 reasoning tasks as capability questions on each clean
+chart, as a two-task Slurm array (one GPU node per two libraries; the last task merges and summarizes, like
 `run_real_datasets.slurm`). `run_multimodal_suite.slurm` runs the 14
 original attacks on the hand-written pages and the CSV-based datasets the
 same way. Submit each with `MODELS=<tags> sbatch <job>.slurm`;
