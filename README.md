@@ -57,8 +57,8 @@ python run_attack_suite.py --models YOUR_MODEL --critic \
 python summarize_reasoning.py   # writes results/reasoning_summary.md
 ```
 
-`run_reasoning_attacks.slurm` runs the attacks (no critic pass for now) on the hand-written revenue chart and
-on `steam_core` (Steam releases by genre), plus the 10 reasoning tasks as
+`run_reasoning_attacks.slurm` runs the attacks (no critic pass for now) on
+the hand-written revenue chart and on `steam_core` (Steam releases by genre), plus the 10 reasoning tasks as
 capability questions on each clean chart, as a two-task Slurm array (one GPU
 node per two libraries; the last task merges and summarizes, like
 `run_real_datasets.slurm`). `run_multimodal_suite.slurm` runs the 14
@@ -142,8 +142,8 @@ python build_real_dataset_pages.py   # also run by build_dataset_pages.py
 python run_attack_suite.py --models YOUR_MODEL --datasets climate,public_health,steam
 ```
 
-`run_real_datasets.slurm` runs this (without `--critic` for now) as a two-task Slurm array (two GPU
-nodes, two libraries each). Each task writes to its own folder via
+`run_real_datasets.slurm` runs this (without `--critic` for now) as a
+two-task Slurm array (two GPU nodes, two libraries each). Each task writes to its own folder via
 `VIS_RESULTS_DIR`, and the last to finish runs `merge_results.py` and the
 summaries.
 
