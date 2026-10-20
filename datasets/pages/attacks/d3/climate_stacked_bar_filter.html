@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}
+  .axis-label{font-size:12px;fill:#333;} .title{font-size:16px;font-weight:bold;}</style>
+</head><body>
+<svg id="chart" viewBox="0 0 800 500"></svg>
+<script>
+const DATA = {"labels": ["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022"], "datasets": [{"label": "Cement", "data": [33.484, 32.736, 32.993, 34.838, 36.31, 37.075, 37.309, 38.561, 39.461, 40.239, 41.445, 41.613, 43.164, 43.349, 45.886, 46.194, 46.851, 45.509, 41.416, 29.615, 31.449, 32.208, 35.27, 36.369, 39.439, 39.907, 39.439, 40.324, 38.971, 40.896, 40.688, 41.312, 41.884]}, {"label": "Coal", "data": [1781.824, 1764.221, 1780.599, 1847.292, 1855.938, 1875.787, 1951.815, 1992.723, 2018.609, 2013.12, 2122.34, 2054.729, 2060.072, 2100.323, 2115.293, 2139.954, 2103.871, 2130.169, 2096.888, 1842.392, 1946.51, 1840.243, 1625.427, 1684.672, 1682.162, 1446.99, 1319.993, 1277.049, 1224.38, 1043.896, 853.925, 979.504, 916.343]}, {"label": "Flaring", "data": [42.668, 41.848, 41.456, 41.099, 41.05, 39.276, 37.886, 37.911, 35.58, 35.494, 35.984, 35.707, 36.091, 36.138, 36.824, 37.015, 38.003, 38.481, 40.052, 38.602, 40.896, 43.764, 47.492, 53.023, 58.748, 60.574, 51.655, 55.272, 67.922, 84.52, 66.085, 60.221, 58.882]}, {"label": "Gas", "data": [1004.975, 1023.332, 1058.593, 1090.166, 1114.334, 1163.186, 1181.318, 1186.717, 1165.559, 1168.759, 1227.529, 1173.162, 1212.087, 1176.551, 1177.528, 1160.661, 1146.714, 1221.593, 1229.733, 1211.966, 1266.778, 1287.589, 1344.719, 1381.183, 1411.355, 1444.047, 1451.146, 1424.996, 1577.716, 1632.056, 1612.504, 1617.424, 1707.391]}, {"label": "Land Use Change", "data": [299.218, 250.527, 194.772, 177.943, 230.715, 114.026, 94.963, 121.207, 129.293, 170.899, 155.802, 56.933, 126.328, 268.839, 215.298, 323.501, -49.36, -20.978, 97.343, 79.04, 170.196, -68.071, 46.088, 2.382, 74.884, 53.68, 105.186, 164.417, 99.65, 98.056, 86.538, 89.716, 118.009]}, {"label": "Oil", "data": [2139.346, 2082.099, 2130.489, 2144.156, 2181.844, 2174.303, 2257.023, 2273.815, 2320.08, 2374.201, 2440.405, 2448.622, 2443.823, 2505.134, 2571.107, 2584.13, 2550.54, 2538.968, 2370.623, 2243.79, 2258.293, 2212.686, 2152.244, 2178.417, 2210.569, 2235.988, 2252.27, 2259.157, 2305.441, 2299.82, 1991.579, 2182.605, 2198.937]}], "title": "US CO2 by Fuel Source (1990-2022)", "xLabel": "Year", "yLabel": "CO2 (million tonnes)"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c'];
+const margin = {top: 50, right: 120, bottom: 70, left: 80};
+const width = 800 - margin.left - margin.right;
+const height = 500 - margin.top - margin.bottom;
+const svg = d3.select('#chart').append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+// Build stacked rows: one per label
+const rows = DATA.labels.map((label, i) => {
+  const row = { label };
+  DATA.datasets.forEach(ds => { row[ds.label] = ds.data[i] || 0; });
+  return row;
+});
+const keys = DATA.datasets.map(ds => ds.label);
+const x = d3.scaleBand().domain(DATA.labels).range([0, width]).padding(0.2);
+const stack = d3.stack().keys(keys);
+const series = stack(rows);
+const yMax = d3.max(series, s => d3.max(s, d => d[1]));
+const y = d3.scaleLinear().domain([0, yMax]).range([height, 0]);
+const group = svg.selectAll('g.layer').data(series).enter().append('g')
+  .attr('fill', (_, i) => COLORS[i % COLORS.length]);
+group.selectAll('rect').data(d => d).enter().append('rect')
+  .attr('x', d => x(d.data.label))
+  .attr('y', d => y(d[1]))
+  .attr('height', d => y(d[0]) - y(d[1]))
+  .attr('width', x.bandwidth());
+svg.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(x))
+  .selectAll('text').attr('transform','rotate(-30)').style('text-anchor','end');
+svg.append('g').call(d3.axisLeft(y));
+svg.append('text').attr('class','axis-label').attr('x', width/2).attr('y', height+60)
+  .attr('text-anchor','middle').text(DATA.xLabel);
+svg.append('text').attr('class','axis-label').attr('transform','rotate(-90)')
+  .attr('x',-height/2).attr('y',-55).attr('text-anchor','middle').text(DATA.yLabel);
+svg.append('text').attr('class','title').attr('x', width/2).attr('y', -20)
+  .attr('text-anchor','middle').text(DATA.title);
+const legend = svg.append('g').attr('transform', `translate(${width + 20}, 20)`);
+keys.forEach((k, i) => {
+  const row = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
+  row.append('rect').attr('width', 12).attr('height', 12).attr('fill', COLORS[i % COLORS.length]);
+  row.append('text').attr('x', 18).attr('y', 10).style('font-size','12px').text(k);
+});
+</script>
+<script>document.querySelector('svg').style.transform = 'scaleY(0.5) translateY(50%)';</script></body></html>

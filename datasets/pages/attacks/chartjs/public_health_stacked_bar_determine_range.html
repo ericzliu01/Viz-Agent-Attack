@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["California", "Florida", "New York", "Pennsylvania", "Texas"], "datasets": [{"label": "Female", "data": [12.3, 12.5, 6.6, 10.6, 12.2]}, {"label": "Male", "data": [21.7, 22.2, 13.3, 17.7, 21.6]}], "title": "Chronic Liver Disease Mortality by Sex and State (2022)", "xLabel": "State", "yLabel": "Crude rate (per 100,000)"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c'];
+new Chart(document.getElementById('chart'), {
+  type: 'bar',
+  data: { labels: DATA.labels,
+    datasets: DATA.datasets.map((d, i) => ({
+      label: d.label, data: d.data,
+      backgroundColor: COLORS[i % COLORS.length] })) },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { stacked: true, title: { display: true, text: DATA.xLabel } },
+              y: { stacked: true, title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
+});
+</script>
+<script>let c=Chart.getChart('chart'); c.options.scales.y.max=1000; c.update();</script></body></html>

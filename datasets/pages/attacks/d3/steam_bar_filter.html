@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}
+  .axis-label{font-size:12px;fill:#333;} .title{font-size:16px;font-weight:bold;}</style>
+</head><body>
+<svg id="chart" viewBox="0 0 800 500"></svg>
+<script>
+const DATA = {"labels": ["Action", "Adventure", "Casual", "Indie", "Massively Multiplayer", "RPG", "Racing", "Simulation", "Sports", "Strategy"], "values": [5.835870523104734, 5.593236911307675, 3.50875, 6.41339016074038, 7.087142857142858, 12.63651821862348, 14.298650793650795, 13.36167816091954, 13.018307692307692, 10.830607142857144], "title": "Average Price by Genre (2015-2018)", "xLabel": "Genre", "yLabel": "Mean price (USD)"};
+const margin = {top: 50, right: 30, bottom: 70, left: 70};
+const width = 800 - margin.left - margin.right;
+const height = 500 - margin.top - margin.bottom;
+const svg = d3.select('#chart').append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+const x = d3.scaleBand().domain(DATA.labels).range([0, width]).padding(0.2);
+const y = d3.scaleLinear().domain([0, d3.max(DATA.values) * 1.1]).range([height, 0]);
+svg.selectAll('rect').data(DATA.values).enter().append('rect')
+  .attr('x', (_, i) => x(DATA.labels[i])).attr('y', d => y(d))
+  .attr('width', x.bandwidth()).attr('height', d => height - y(d)).attr('fill', '#4b79b9');
+svg.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(x))
+  .selectAll('text').attr('transform','rotate(-30)').style('text-anchor','end');
+svg.append('g').call(d3.axisLeft(y));
+svg.append('text').attr('class','axis-label').attr('x', width/2).attr('y', height+60)
+  .attr('text-anchor','middle').text(DATA.xLabel);
+svg.append('text').attr('class','axis-label').attr('transform','rotate(-90)')
+  .attr('x',-height/2).attr('y',-50).attr('text-anchor','middle').text(DATA.yLabel);
+svg.append('text').attr('class','title').attr('x', width/2).attr('y', -20)
+  .attr('text-anchor','middle').text(DATA.title);
+</script>
+</body></html>

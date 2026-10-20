@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["China", "Germany", "India", "Indonesia", "Iran", "Japan", "Russia", "Saudi Arabia", "South Korea", "United States"], "values": [11711.808, 667.843, 2831.132, 758.021, 767.178, 1029.645, 1675.461, 666.994, 606.877, 5055.403], "title": "Total CO2 Emissions by Country (2022)", "xLabel": "Country", "yLabel": "CO2 (million tonnes)"};
+new Chart(document.getElementById('chart'), {
+  type: 'bar',
+  data: { labels: DATA.labels,
+    datasets: [{ label: DATA.yLabel, data: DATA.values,
+      backgroundColor: '#4b79b9', borderColor: '#4b79b9', borderWidth: 1 }] },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
+});
+</script>
+<script>let c=Chart.getChart('chart'); c.options.scales.y.min=100; c.update();</script></body></html>
