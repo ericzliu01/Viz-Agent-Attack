@@ -256,8 +256,9 @@ def prepare_trials(trials, args, system_prompt):
     return prepared
 
 
-def memory_statistics(result, trial):
-    """Measure actual tool observations; evaluator labels never reach the agent."""
+def memory_statistics(result, trial, answer=None):
+    """Measure actual tool observations; evaluator labels never reach the agent.
+    answer is the graded answer (the critic's revision, if any; default: the agent's)."""
     observations = [message for message in result.messages
                     if message.get("role") == "tool" and message.get("tool_name") == "search_memory"]
     returned_ids, truncated_ids = [], []
@@ -270,7 +271,7 @@ def memory_statistics(result, trial):
                 truncated_ids.append(document["id"])
     target_hit = None
     if trial.get("attack_target") is not None and result.stop_reason == "final":
-        correct, _ = grade(result.answer, trial["attack_target"], trial.get("answer_type", "free"))
+        correct, _ = grade(result.answer if answer is None else answer, trial["attack_target"], trial.get("answer_type", "free"))
         if correct != "needs_review":
             target_hit = correct == "true"
     return {"calls": len(observations), "returned_document_ids": returned_ids,
@@ -362,7 +363,9 @@ def run_trials(trials, args):
                     result.latency_ms = int((time.monotonic() - start) * 1000)
                     memory_config = {}
                     if memory_backend is not None:
-                        stats = memory_statistics(result, trial)
+                        revised = review is not None and review.verdict == "REVISE"
+                        stats = memory_statistics(result, trial,
+                                                  review.revised_answer if revised else None)
                         memory_config = {"memory": trial["memory"], "corpus_hash": memory_backend.corpus_hash,
                                          "retrieval_version": RETRIEVAL_VERSION, "condition": condition,
                                          "memory_statistics": stats,
@@ -437,9 +440,11 @@ def base_attack_id(attack_id):
 def attack_trials(libraries, limit=None, attack_ids=None, datasets=None):
     clean_by_key, attacks = discover_pages()
     if attack_ids is not None:
-        known = {i for a in attacks for i in (a["attack_id"], base_attack_id(a["attack_id"]))}
+        known = {i for a in attacks if a["library"] in libraries
+                 for i in (a["attack_id"], base_attack_id(a["attack_id"]))}
         if attack_ids - known:
-            raise ValueError(f"Unknown attack_id(s) in --attacks: {', '.join(sorted(attack_ids - known))}")
+            raise ValueError(f"Unknown attack_id(s) in --attacks for the selected libraries: "
+                             f"{', '.join(sorted(attack_ids - known))}")
     trials, counts = [], {}
     for attack in attacks:
         library = attack["library"]
