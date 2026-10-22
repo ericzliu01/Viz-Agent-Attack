@@ -160,7 +160,7 @@ class BrowserTests(unittest.TestCase):
         from browser_agent import chart_rendered
         from run_attack_suite import PAGES_DIR
         html_files = sorted(Path(PAGES_DIR).glob("*/*.html"))
-        self.assertEqual(len([f for f in html_files if "__" not in f.name]), 88)
+        self.assertEqual(len([f for f in html_files if "__" not in f.name]), 89)
         for html_file in html_files:
             with self.subTest(page=str(html_file.relative_to(PAGES_DIR))):
                 with serve_chart(html_file) as url:
