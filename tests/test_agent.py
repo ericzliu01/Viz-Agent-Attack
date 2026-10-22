@@ -278,7 +278,7 @@ class ReasoningAttackTests(unittest.TestCase):
                 persona = "optimist" in json.dumps(trial["memory"])
                 self.assertEqual(persona, not trial["attack_id"].endswith("__clean_baseline"))
             else:
-                self.assertNotIn("memory", trial)
+                self.assertIsNone(trial.get("memory"))
 
     def test_reasoning_tasks_are_capability_tasks_on_clean_revenue(self):
         tasks = [t for t in discover_tasks(["d3"]) if t["attack_id"] == "clean_revenue"]
@@ -480,7 +480,10 @@ class DatasetTests(unittest.TestCase):
 
     def test_every_dataset_has_clean_pages_tasks_and_every_attack(self):
         clean_by_key, attacks = discover_pages()
-        originals = {(a["library"], a["chart_type"], a["attack_id"]) for a in attacks if a["dataset"] is None}
+        # search_memory attacks (a "memory" corpus object) are hand-written for
+        # their page's data; build_dataset_pages.py does not copy them.
+        originals = {(a["library"], a["chart_type"], a["attack_id"]) for a in attacks
+                     if a["dataset"] is None and not isinstance(a.get("memory"), dict)}
         for chart_type in list(self.builder.CHART_TYPES) + ["revenue"]:
             ids = [ds["id"] for ds in self.datasets[chart_type]]
             self.assertGreaterEqual(len(ids), 1)
