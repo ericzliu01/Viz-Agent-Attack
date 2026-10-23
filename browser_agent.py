@@ -107,6 +107,7 @@ TOOL_NAMES = [t["function"]["name"] for t in TOOLS]
 TEXT_CALL_RE = re.compile(r'\{\s*"name"\s*:')
 CUT_NAME_RE = re.compile(r'([A-Za-z_]*)"\s*,\s*"arguments"\s*:\s*')
 CLOSE_TAG = "</tool_call>"
+OPEN_FENCE_RE = re.compile(r"^(?:<tool_call>\s*)?(?:```(?:json)?\s*)?")
 
 
 def _text_call(name, arguments, tool_names):
@@ -120,37 +121,48 @@ def _text_call(name, arguments, tool_names):
     return {"function": {"name": name, "arguments": arguments}}
 
 
-def recover_tool_call(text, tool_names):
+def recover_tool_call(text, tool_names, source="content"):
     """Parse a tool call the model wrote as text instead of a native tool call.
 
     qwen3-vl sometimes ends its thinking (or its answer) with
     `{"name": "dom", "arguments": {...}}</tool_call>`, which Ollama does not
-    parse, so the reply arrives with no content and no tool_calls. Accept only a
-    call that ends the text (optionally followed by </tool_call>), so calls the
-    model merely mentions while reasoning are not run. A call whose start was
-    cut off (`uate", "arguments": {...}`) is accepted when the remaining name
-    fragment ends exactly one tool name. Returns an Ollama-style tool call or None.
+    parse, so the reply arrives with no native tool call. From the thinking, a
+    call is taken only when it ends the text and is closed by </tool_call>, so a
+    call the model writes and then rejects is not run. From the content, the
+    call must be the whole content (allowing <tool_call> tags and a code fence),
+    so an answer followed by a call is kept as an answer. A call whose start was
+    cut off (`uate", "arguments": {...}}</tool_call>`) is accepted when the name
+    fragment ends exactly one tool name. Returns an Ollama-style call or None.
     """
     if not isinstance(text, str):
         return None
-    body = text.rstrip()
-    if body.endswith(CLOSE_TAG):
+    body = text.strip()
+    closed = body.endswith(CLOSE_TAG)
+    if source == "thinking" and not closed:
+        return None
+    if closed:
         body = body[:-len(CLOSE_TAG)].rstrip()
     if body.endswith("```"):
         body = body[:-3].rstrip()
     if not body.endswith("}"):
         return None
+    if source == "content":
+        body = OPEN_FENCE_RE.sub("", body, count=1)
     decoder = json.JSONDecoder()
     for match in TEXT_CALL_RE.finditer(body):
+        if source == "content" and match.start() != 0:
+            break
         try:
             value, end = decoder.raw_decode(body, match.start())
         except ValueError:
             continue
         if end == len(body) and isinstance(value, dict) and set(value) <= {"name", "arguments"}:
             return _text_call(value.get("name"), value.get("arguments", {}), tool_names)
-    if not text.rstrip().endswith(CLOSE_TAG):
+    if not closed:
         return None
     for match in CUT_NAME_RE.finditer(body):
+        if source == "content" and match.start() != 0:
+            break
         try:
             arguments, end = decoder.raw_decode(body, match.end())
         except ValueError:
@@ -242,10 +254,11 @@ def chart_rendered(page):
 
 
 class BrowserTools:
-    def __init__(self, page, console_logs, enabled_tools=None):
+    def __init__(self, page, console_logs, enabled_tools=None, legacy=False):
         self.page = page
         self.console_logs = console_logs
         self.enabled_tools = enabled_tools
+        self.legacy = legacy  # dom/evaluate as before 2026-10-23
 
     def execute(self, name, arguments):
         if self.enabled_tools is not None and name not in self.enabled_tools:
@@ -272,7 +285,9 @@ class BrowserTools:
         p = self.page
         if name == "screenshot":
             return "Current viewport screenshot (PNG).", [base64.b64encode(p.screenshot()).decode("ascii")]
-        if name == "dom":
+        if name == "dom" and self.legacy:
+            value = p.locator(arguments.get("selector", "html")).evaluate("el => el.outerHTML")
+        elif name == "dom":
             selector = arguments.get("selector") or "html"
             locator = p.locator(selector)
             count = locator.count()
@@ -291,9 +306,9 @@ class BrowserTools:
                 value = p.evaluate(script)
             except Exception as exc:
                 # A function body ("...; return x;") is not an expression; run it as one.
-                if "Illegal return statement" not in str(exc):
+                if self.legacy or "Illegal return statement" not in str(exc):
                     raise
-                value = p.evaluate(f"(() => {{\n{script}\n}})()")
+                value = p.evaluate(f"(async () => {{\n{script}\n}})()")
         elif name in ("click", "hover"):
             selector = arguments.get("selector")
             coordinates = "x" in arguments and "y" in arguments
@@ -331,7 +346,8 @@ class BrowserTools:
 
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
-              options=None, tools=None, system_prompt=None, memory=None, repair_tool_calls=True):
+              options=None, tools=None, system_prompt=None, memory=None, repair_tool_calls=True,
+              legacy_tools=False):
     """Run native tool calls; screenshots stay in role=tool messages with images.
 
     memory: optional list of {"title", "source", "text"} documents, appended to
@@ -340,6 +356,7 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     at the end of its thinking (see recover_tool_call), and when a reply has
     neither an answer nor a runnable call, ask once more (at most
     MAX_REPAIR_PROMPTS times per trial). Both are recorded on the result.
+    legacy_tools: dom/evaluate behave as before 2026-10-23 (see BrowserTools).
     """
     if max_steps < 1 or timeout <= 0:
         raise ValueError("max_steps and timeout must be positive")
@@ -351,7 +368,7 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     agent_tools = tools if tools is not None else TOOLS
     enabled_names = {t["function"]["name"] for t in agent_tools}
     browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page),
-                                 enabled_tools=enabled_names)
+                                 enabled_tools=enabled_names, legacy=legacy_tools)
     request_options = {"num_ctx": num_ctx, "temperature": temperature, "seed": seed, **(options or {})}
     for step in range(1, max_steps + 1):
         result.steps = step
@@ -383,13 +400,14 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             # Thinking is only read when there is no answer, so a final answer always wins.
             content = message.get("content")
             source = "content" if isinstance(content, str) and content.strip() else "thinking"
-            recovered = recover_tool_call(message.get(source), enabled_names)
+            recovered = recover_tool_call(message.get(source), enabled_names, source)
             if recovered:
                 calls = message["tool_calls"] = [recovered]
+                record = {"step": step, "source": source, "name": recovered["function"]["name"]}
                 if source == "content":
+                    record["text"] = message["content"]  # the trace keeps the raw answer here
                     message["content"] = ""
-                result.recovered_calls.append({"step": step, "source": source,
-                                               "name": recovered["function"]["name"]})
+                result.recovered_calls.append(record)
         if not calls:
             answer = message.get("content", "")
             answer = answer.strip() if isinstance(answer, str) else ""

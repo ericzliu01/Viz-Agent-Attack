@@ -248,16 +248,18 @@ thinking or makes up the whole answer, and when a reply has neither an answer
 nor a runnable call it sends one short user message asking for a tool call or
 the final answer (at most twice per trial, each counting as a step). `notes`
 records `recovered_calls=<n>; repair_prompts=<n>` and the trace stores which
-calls were recovered. `--no-tool-call-repair` restores the old behavior and
-records `tool_call_repair=off`. Results with and without repair are not
-comparable, so write them to a separate results file.
+calls were recovered. A tool call still left as the answer is graded
+`needs_review`. These rows get condition `react_browser_repair` (with
+`_defended` and `_critic` as before), so they never pool with earlier
+`react_browser` rows in summaries or resume keys.
 
 Two tool fixes came with it: `evaluate` reruns a script that fails with
 "Illegal return statement" (a function body such as `const x = ...; return x;`)
-as `(() => { ... })()`, and `dom` reports "No element matches selector" at once
+as `(async () => { ... })()`, and `dom` reports "No element matches selector" at once
 instead of waiting out the 10 s page timeout, returns the first element (with
 a count) when a selector matches several, and reads `html` for an empty
-selector.
+selector. `--no-tool-call-repair` turns all of this off (old agent, condition
+`react_browser`, `notes` records `tool_call_repair=off`).
 
 ### Memory and critic
 

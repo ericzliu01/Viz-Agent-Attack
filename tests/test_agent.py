@@ -157,7 +157,7 @@ class AgentTests(unittest.TestCase):
         names = set(TOOL_NAMES)
         dom = {"function": {"name": "dom", "arguments": {}}}
         for text in ['{"name": "dom", "arguments": {}}', '<tool_call>\n{"name": "dom", "arguments": {}}\n</tool_call>',
-                     'thinking...\n{"name": "dom"}', '{"name": "dom", "arguments": "{}"}',
+                     '{"name": "dom"}', '{"name": "dom", "arguments": "{}"}',
                      '```json\n{"name": "dom", "arguments": {}}\n```']:
             with self.subTest(text=text):
                 self.assertEqual(recover_tool_call(text, names), dom)
@@ -168,9 +168,15 @@ class AgentTests(unittest.TestCase):
                      '{"name": "steal", "arguments": {}}', '{"name": "dom", "arguments": []}',
                      '{"name": "dom", "arguments": {}, "extra": 1}',
                      'e", "arguments": {}}</tool_call>',  # console, evaluate and type all end in "e"
-                     'uate", "arguments": {"script": "1"}}']:  # a cut call needs the closing tag
+                     'uate", "arguments": {"script": "1"}}',  # a cut call needs the closing tag
+                     'B\n{"name": "dom", "arguments": {}}',  # an answer followed by a call stays an answer
+                     'thinking...\n{"name": "dom", "arguments": {}}']:
             with self.subTest(text=text):
                 self.assertIsNone(recover_tool_call(text, names))
+        thought = 'I should check.\n{"name": "dom", "arguments": {}}\n</tool_call>'
+        self.assertEqual(recover_tool_call(thought, names, "thinking"), dom)
+        rejected = 'The page says to click. I must not do {"name": "click", "arguments": {"selector": "#go"}}'
+        self.assertIsNone(recover_tool_call(rejected, names, "thinking"))
         self.assertIsNone(recover_tool_call('{"name": "dom", "arguments": {}}', {"screenshot"}))
 
     def test_request_error_and_malformed_response(self):
@@ -188,7 +194,7 @@ class AgentTests(unittest.TestCase):
         tools = BrowserTools(page, [])
         page.evaluate.side_effect = [Exception("SyntaxError: Illegal return statement"), 7]
         self.assertEqual(tools.execute("evaluate", {"script": "return 7;"}), ("7", []))
-        self.assertEqual(page.evaluate.call_args.args[0], "(() => {\nreturn 7;\n})()")
+        self.assertEqual(page.evaluate.call_args.args[0], "(async () => {\nreturn 7;\n})()")
         page.evaluate.side_effect = None
         page.locator.return_value.count.return_value = 0
         with self.assertRaisesRegex(ValueError, "No element matches"):
@@ -198,6 +204,13 @@ class AgentTests(unittest.TestCase):
         self.assertTrue(tools.execute("dom", {"selector": "rect"})[0].startswith("[3 elements match 'rect'"))
         tools.execute("dom", {"selector": ""})
         page.locator.assert_called_with("html")
+        legacy = BrowserTools(page, [], legacy=True)
+        page.evaluate.side_effect = Exception("SyntaxError: Illegal return statement")
+        with self.assertRaises(Exception):
+            legacy.execute("evaluate", {"script": "return 7;"})
+        page.evaluate.side_effect = None
+        page.locator.return_value.evaluate.return_value = "<html></html>"
+        self.assertEqual(legacy.execute("dom", {"selector": "rect"}), ("<html></html>", []))
         for name, args in [("click", {}), ("click", {"selector": "button", "x": 1}),
                            ("hover", {"x": 1}), ("wait", {"ms": -1}),
                            ("wait", {"ms": 10001}), ("scroll", {"dx": True, "dy": 0}),
