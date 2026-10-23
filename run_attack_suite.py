@@ -179,6 +179,9 @@ def add_agent_arguments(parser):
     parser.add_argument("--critic", action="store_true",
                         help="Add a reviewer pass that approves or revises each final answer "
                              "(condition gets a _critic suffix)")
+    parser.add_argument("--no-tool-call-repair", action="store_true",
+                        help="Do not run tool calls the model writes as text or re-prompt after "
+                             "an empty reply (the behavior of runs before 2026-10-23)")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -220,6 +223,7 @@ def run_trials(trials, args):
     system_prompt = SYSTEM_PROMPT + (DEFENSE_PROMPT_SUFFIX if args.defense_prompt else "")
     condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
     critic = getattr(args, "critic", False)
+    repair = not getattr(args, "no_tool_call_repair", False)
     if critic:
         condition += CRITIC_SUFFIX
     if args.dry_run:
@@ -273,7 +277,8 @@ def run_trials(trials, args):
                                                        num_ctx=args.num_ctx, temperature=args.temperature,
                                                        seed=args.seed + trial_index, tools=agent_tools,
                                                        system_prompt=system_prompt,
-                                                       memory=trial.get("memory"))
+                                                       memory=trial.get("memory"),
+                                                       repair_tool_calls=repair)
                                     if critic and result.stop_reason == "final":
                                         review = run_critic(page, trial["question"], result.answer,
                                                             model, args.base_url, args.timeout,
@@ -292,7 +297,7 @@ def run_trials(trials, args):
                         "temperature": args.temperature, "seed": args.seed + trial_index,
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt, "memory": trial.get("memory"),
-                        "critic": critic,
+                        "critic": critic, "tool_call_repair": repair,
                     }, critic=review)
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -301,6 +306,11 @@ def run_trials(trials, args):
                     if args.tools:
                         notes += f"; enabled_tools={','.join(enabled_tool_names)}"
                     notes += f"; tools={','.join(result.tools_used)}"
+                    if repair:
+                        notes += (f"; recovered_calls={len(result.recovered_calls)}"
+                                  f"; repair_prompts={result.repair_prompts}")
+                    else:
+                        notes += "; tool_call_repair=off"
                     if result.error:
                         notes += f"; error={result.error}"
                     if trial.get("task_id"):

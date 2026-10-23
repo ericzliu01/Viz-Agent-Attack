@@ -10,9 +10,9 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from browser_agent import (BrowserTools, DEFENSE_PROMPT_SUFFIX, SYSTEM_PROMPT, TEXT_LIMIT,
-                           TOOLS, check_model_capabilities, filter_tools, parse_critic, run_agent,
-                           run_critic, save_trace)
+from browser_agent import (BrowserTools, DEFENSE_PROMPT_SUFFIX, REPAIR_PROMPT, SYSTEM_PROMPT,
+                           TEXT_LIMIT, TOOL_NAMES, TOOLS, check_model_capabilities, filter_tools,
+                           parse_critic, recover_tool_call, run_agent, run_critic, save_trace)
 from run_attack_suite import (add_agent_arguments, already_done_keys, attack_trials,
                               discover_pages, grade, validate_arguments, PAGES_DIR)
 from run_capability_suite import discover_tasks, grade_task
@@ -33,11 +33,13 @@ def assistant(content="", calls=None):
 
 
 class AgentTests(unittest.TestCase):
-    def run_script(self, messages, max_steps=15, num_ctx=32768, prompt_eval_counts=None):
+    def run_script(self, messages, max_steps=15, num_ctx=32768, prompt_eval_counts=None,
+                   repair_tool_calls=True):
         page = Mock()
         page.screenshot.return_value = PNG
         page.evaluate.return_value = 310
-        page.locator.return_value.evaluate.return_value = '<canvas id="chart"></canvas>'
+        page.locator.return_value.count.return_value = 1
+        page.locator.return_value.first.evaluate.return_value = '<canvas id="chart"></canvas>'
         requests_seen = []
         counts = list(prompt_eval_counts) if prompt_eval_counts is not None else None
         def post(url, *, json, timeout):
@@ -49,7 +51,8 @@ class AgentTests(unittest.TestCase):
             response.json.return_value = data
             return response
         with patch("browser_agent.requests.post", side_effect=post):
-            result = run_agent(page, "How many?", "test-model", max_steps=max_steps, num_ctx=num_ctx)
+            result = run_agent(page, "How many?", "test-model", max_steps=max_steps, num_ctx=num_ctx,
+                               repair_tool_calls=repair_tool_calls)
         return result, requests_seen, page
 
     def test_multimodal_tool_result_and_final_only(self):
@@ -109,8 +112,66 @@ class AgentTests(unittest.TestCase):
     def test_limits_and_empty_response_never_grade_intermediate_content(self):
         result, _, _ = self.run_script([assistant("310", [call("screenshot")])], max_steps=1)
         self.assertEqual((result.answer, result.stop_reason), ("", "max_steps"))
-        result, _, _ = self.run_script([assistant()])
+        result, _, _ = self.run_script([assistant()], repair_tool_calls=False)
         self.assertEqual((result.answer, result.stop_reason), ("", "empty_response"))
+        result, seen, _ = self.run_script([assistant(), assistant(), assistant()])
+        self.assertEqual((result.answer, result.stop_reason, result.steps), ("", "empty_response", 3))
+        self.assertEqual(result.repair_prompts, 2)
+        self.assertEqual(seen[2]["messages"][-1], {"role": "user", "content": REPAIR_PROMPT})
+
+    def test_tool_call_written_in_thinking_is_run(self):
+        thinking = 'I should read the DOM.\n\n{"name": "dom", "arguments": {"selector": "svg"}}\n</tool_call>'
+        result, seen, page = self.run_script([
+            {"role": "assistant", "content": "", "thinking": thinking}, assistant("B")])
+        self.assertEqual((result.answer, result.stop_reason), ("B", "final"))
+        page.locator.assert_called_once_with("svg")
+        self.assertEqual(result.recovered_calls, [{"step": 1, "source": "thinking", "name": "dom"}])
+        self.assertEqual(seen[1]["messages"][2]["tool_calls"],
+                         [{"function": {"name": "dom", "arguments": {"selector": "svg"}}}])
+        self.assertEqual(seen[1]["messages"][3]["role"], "tool")
+        self.assertEqual(result.tools_used, ["dom"])
+
+    def test_tool_call_printed_as_answer_is_run_not_graded(self):
+        printed = '{"name": "evaluate", "arguments": {"script": "310"}}\n</tool_call>'
+        result, seen, page = self.run_script([assistant(printed), assistant("310")])
+        self.assertEqual((result.answer, result.stop_reason), ("310", "final"))
+        page.evaluate.assert_called_once_with("310")
+        self.assertEqual(seen[1]["messages"][2]["content"], "")
+        self.assertEqual(result.recovered_calls[0]["source"], "content")
+
+    def test_final_answer_wins_over_a_call_in_thinking(self):
+        thinking = '{"name": "dom", "arguments": {}}</tool_call>'
+        result, _, page = self.run_script([
+            {"role": "assistant", "content": "B", "thinking": thinking}])
+        self.assertEqual((result.answer, result.recovered_calls), ("B", []))
+        page.locator.assert_not_called()
+
+    def test_broken_tool_call_answer_gets_a_repair_prompt(self):
+        broken = '{"name": "evaluate", "arguments": {"script": "1"\n</tool_call>'
+        result, seen, _ = self.run_script([assistant(broken), assistant("C")])
+        self.assertEqual((result.answer, result.repair_prompts), ("C", 1))
+        result, _, _ = self.run_script([assistant(broken)], repair_tool_calls=False)
+        self.assertEqual((result.answer, result.stop_reason), (broken.strip(), "final"))
+
+    def test_recover_tool_call_shapes(self):
+        names = set(TOOL_NAMES)
+        dom = {"function": {"name": "dom", "arguments": {}}}
+        for text in ['{"name": "dom", "arguments": {}}', '<tool_call>\n{"name": "dom", "arguments": {}}\n</tool_call>',
+                     'thinking...\n{"name": "dom"}', '{"name": "dom", "arguments": "{}"}',
+                     '```json\n{"name": "dom", "arguments": {}}\n```']:
+            with self.subTest(text=text):
+                self.assertEqual(recover_tool_call(text, names), dom)
+        cut = 'uate", "arguments": {"script": "a.b"}}\n</tool_call>'
+        self.assertEqual(recover_tool_call(cut, names),
+                         {"function": {"name": "evaluate", "arguments": {"script": "a.b"}}})
+        for text in [None, "", "B", 'Let me call {"name": "dom", "arguments": {}} and then answer B.',
+                     '{"name": "steal", "arguments": {}}', '{"name": "dom", "arguments": []}',
+                     '{"name": "dom", "arguments": {}, "extra": 1}',
+                     'e", "arguments": {}}</tool_call>',  # console, evaluate and type all end in "e"
+                     'uate", "arguments": {"script": "1"}}']:  # a cut call needs the closing tag
+            with self.subTest(text=text):
+                self.assertIsNone(recover_tool_call(text, names))
+        self.assertIsNone(recover_tool_call('{"name": "dom", "arguments": {}}', {"screenshot"}))
 
     def test_request_error_and_malformed_response(self):
         with patch("browser_agent.requests.post", side_effect=requests.Timeout("timed out")):
@@ -125,6 +186,18 @@ class AgentTests(unittest.TestCase):
     def test_validation_and_truncation(self):
         page = Mock()
         tools = BrowserTools(page, [])
+        page.evaluate.side_effect = [Exception("SyntaxError: Illegal return statement"), 7]
+        self.assertEqual(tools.execute("evaluate", {"script": "return 7;"}), ("7", []))
+        self.assertEqual(page.evaluate.call_args.args[0], "(() => {\nreturn 7;\n})()")
+        page.evaluate.side_effect = None
+        page.locator.return_value.count.return_value = 0
+        with self.assertRaisesRegex(ValueError, "No element matches"):
+            tools.execute("dom", {"selector": ".missing"})
+        page.locator.return_value.count.return_value = 3
+        page.locator.return_value.first.evaluate.return_value = "<rect></rect>"
+        self.assertTrue(tools.execute("dom", {"selector": "rect"})[0].startswith("[3 elements match 'rect'"))
+        tools.execute("dom", {"selector": ""})
+        page.locator.assert_called_with("html")
         for name, args in [("click", {}), ("click", {"selector": "button", "x": 1}),
                            ("hover", {"x": 1}), ("wait", {"ms": -1}),
                            ("wait", {"ms": 10001}), ("scroll", {"dx": True, "dy": 0}),

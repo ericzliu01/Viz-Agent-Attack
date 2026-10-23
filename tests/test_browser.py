@@ -79,6 +79,12 @@ class BrowserTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 self.tools.execute("evaluate", {"script": "() => {throw Error('bad JS')}"})
             self.assertEqual(self.tools.execute("evaluate", {"script": "1+1"})[0], "2")
+            body = "const d = window.chartData; return d[0] + d[1];"
+            self.assertEqual(self.tools.execute("evaluate", {"script": body})[0], "490")
+            with self.assertRaisesRegex(ValueError, "No element matches"):
+                self.tools.execute("dom", {"selector": ".not-on-page"})
+            many, _ = self.tools.execute("dom", {"selector": "*"})
+            self.assertRegex(many, r"^\[\d+ elements match '\*'; showing the first\]\n<html")
 
     def test_vendor_files_served_sidecars_and_traversal_blocked(self):
         import urllib.error
