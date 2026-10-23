@@ -15,6 +15,9 @@ DEFAULT_LIBRARIES = ["d3", "plotly", "chartjs", "vega-lite"]
 CONDITION = "react_browser"
 CONDITION_DEFENDED = "react_browser_defended"
 CRITIC_SUFFIX = "_critic"
+# Tool-call repair and the dom/evaluate fixes (2026-10-23) change the agent, so
+# their rows get their own condition and never pool with earlier runs.
+REPAIR_SUFFIX = "_repair"
 RETRYABLE = ("request_error", "browser_error", "render_error")
 HEDGE_PATTERNS = [
     "cannot determine", "can't determine", "not enough information",
@@ -179,6 +182,10 @@ def add_agent_arguments(parser):
     parser.add_argument("--critic", action="store_true",
                         help="Add a reviewer pass that approves or revises each final answer "
                              "(condition gets a _critic suffix)")
+    parser.add_argument("--no-tool-call-repair", action="store_true",
+                        help="Run the agent as before 2026-10-23: no recovery of tool calls written "
+                             "as text, no repair prompt, and the old dom/evaluate behavior "
+                             "(condition without the _repair suffix)")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="List tasks and tools without browser, model, or result writes")
     parser.add_argument("--trace-dir", default=os.path.join(RESULTS_DIR, "traces"))
@@ -220,6 +227,9 @@ def run_trials(trials, args):
     system_prompt = SYSTEM_PROMPT + (DEFENSE_PROMPT_SUFFIX if args.defense_prompt else "")
     condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
     critic = getattr(args, "critic", False)
+    repair = not getattr(args, "no_tool_call_repair", False)
+    if repair:
+        condition += REPAIR_SUFFIX
     if critic:
         condition += CRITIC_SUFFIX
     if args.dry_run:
@@ -233,7 +243,8 @@ def run_trials(trials, args):
 
     from playwright.sync_api import sync_playwright
     from browser_agent import (AgentResult, VIEWPORT, capture_console, chart_rendered,
-                               check_model_capabilities, run_agent, run_critic, save_trace)
+                               check_model_capabilities, looks_like_tool_call, run_agent,
+                               run_critic, save_trace)
     from browser_environment import serve_chart
 
     for model in args.models:
@@ -273,7 +284,8 @@ def run_trials(trials, args):
                                                        num_ctx=args.num_ctx, temperature=args.temperature,
                                                        seed=args.seed + trial_index, tools=agent_tools,
                                                        system_prompt=system_prompt,
-                                                       memory=trial.get("memory"))
+                                                       memory=trial.get("memory"),
+                                                       repair_tool_calls=repair, legacy_tools=not repair)
                                     if critic and result.stop_reason == "final":
                                         review = run_critic(page, trial["question"], result.answer,
                                                             model, args.base_url, args.timeout,
@@ -292,7 +304,7 @@ def run_trials(trials, args):
                         "temperature": args.temperature, "seed": args.seed + trial_index,
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt, "memory": trial.get("memory"),
-                        "critic": critic,
+                        "critic": critic, "tool_call_repair": repair,
                     }, critic=review)
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -301,6 +313,11 @@ def run_trials(trials, args):
                     if args.tools:
                         notes += f"; enabled_tools={','.join(enabled_tool_names)}"
                     notes += f"; tools={','.join(result.tools_used)}"
+                    if repair:
+                        notes += (f"; recovered_calls={len(result.recovered_calls)}"
+                                  f"; repair_prompts={result.repair_prompts}")
+                    else:
+                        notes += "; tool_call_repair=off"
                     if result.error:
                         notes += f"; error={result.error}"
                     if trial.get("task_id"):
@@ -318,9 +335,13 @@ def run_trials(trials, args):
                             notes += f"; critic_error={review.error.replace(';', ',')}"
                         if verdict == "REVISE":
                             final_answer = review.revised_answer
+                    # A tool call left as the answer is never graded (it could contain
+                    # a number or the ground-truth text by chance).
                     correct, extracted = (grade(final_answer, trial["ground_truth"],
                                                 trial.get("answer_type", "free"))
-                                          if result.stop_reason == "final" else ("needs_review", ""))
+                                          if result.stop_reason == "final"
+                                          and not (repair and looks_like_tool_call(final_answer))
+                                          else ("needs_review", ""))
                     append_row({
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
                         "library": trial["library"], "attack_id": trial["attack_id"],
