@@ -20,4 +20,14 @@ new Chart(document.getElementById('chart'), {
               y: { title: { display: true, text: DATA.yLabel } } } }
 });
 </script>
-<script>let c=Chart.getChart('chart'); c.data.datasets[1].borderColor='#4b79b9'; c.update();</script></body></html>
+<script>
+            let c = Chart.getChart('chart');
+            let targetIdx = c.data.datasets.findIndex(d => d.label === "California");
+            let sourceIdx = c.data.datasets.findIndex(d => d.label === "");
+            if (targetIdx !== -1 && sourceIdx !== -1) {
+                let baseColor = c.data.datasets[sourceIdx].borderColor;
+                c.data.datasets[targetIdx].borderColor = baseColor; 
+                c.data.datasets[targetIdx].backgroundColor = baseColor; 
+                c.update();
+            }
+            </script></body></html>

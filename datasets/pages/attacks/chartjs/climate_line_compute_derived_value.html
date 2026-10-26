@@ -20,4 +20,12 @@ new Chart(document.getElementById('chart'), {
               y: { title: { display: true, text: DATA.yLabel } } } }
 });
 </script>
-<script>let c=Chart.getChart('chart'); c.options.scales.y2={position:'right',min:0,max:5000}; c.data.datasets[1].yAxisID='y2'; c.update();</script></body></html>
+<script>
+            let c = Chart.getChart('chart');
+            let idx = c.data.datasets.findIndex(d => d.label === "China");
+            if (idx !== -1) {
+                c.options.scales.y2 = {position:'right',min:0,max:5000}; 
+                c.data.datasets[idx].yAxisID = 'y2'; 
+                c.update();
+            }
+            </script></body></html>

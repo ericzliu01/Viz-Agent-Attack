@@ -17,4 +17,15 @@ new Chart(document.getElementById('chart'), {
               y: { title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
 });
 </script>
-<script>let c=Chart.getChart('chart'); c.data.datasets[0].backgroundColor='#c94a3c'; c.update();</script></body></html>
+<script>
+            let c = Chart.getChart('chart');
+            if (c) {
+                let idx = c.data.labels.indexOf("Georgia");
+                if (idx !== -1) {
+                    let colors = Array(c.data.labels.length).fill('#4b79b9');
+                    colors[idx] = '#c94a3c';
+                    c.data.datasets[0].backgroundColor = colors;
+                    c.update();
+                }
+            }
+            </script></body></html>

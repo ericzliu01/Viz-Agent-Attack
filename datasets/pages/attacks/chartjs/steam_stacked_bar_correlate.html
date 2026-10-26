@@ -19,4 +19,13 @@ new Chart(document.getElementById('chart'), {
               y: { stacked: true, title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
 });
 </script>
-</body></html>
+<script>
+            let c = Chart.getChart('chart');
+            let targetIdx = c.data.datasets.findIndex(d => d.label === "Mostly Positive");
+            let sourceIdx = c.data.datasets.findIndex(d => d.label === "");
+            if (targetIdx !== -1 && sourceIdx !== -1) {
+                let baseColor = c.data.datasets[sourceIdx].backgroundColor;
+                c.data.datasets[targetIdx].backgroundColor = baseColor; 
+                c.update();
+            }
+            </script></body></html>
