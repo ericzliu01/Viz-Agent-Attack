@@ -254,10 +254,13 @@ class MemoryExperimentTests(unittest.TestCase):
         self.assertNotEqual(condition(prompt=SYSTEM_PROMPT + " Extra instruction."), original)
         changed_args = deepcopy(args)
         changed_args.defense_prompt = True
-        self.assertIn("react_browser_defended_memory_", condition(options=changed_args))
+        self.assertIn("react_browser_defended_repair_memory_", condition(options=changed_args))
+        changed_args = deepcopy(args)
+        changed_args.no_tool_call_repair = True
+        self.assertIn("react_browser_memory_", condition(options=changed_args))
         old_trials = attack_trials(["d3"], limit=1)
         self.assertEqual({item["condition"] for item in prepare_trials(old_trials, args, SYSTEM_PROMPT)},
-                         {"react_browser"})
+                         {"react_browser_repair"})
 
     def test_dry_run_validates_without_model_browser_or_result_writes(self):
         output = io.StringIO()

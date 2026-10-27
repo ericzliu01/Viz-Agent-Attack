@@ -330,6 +330,31 @@ history preserves their original runnable environment. The SLURM scripts now
 run ReAct with explicit model tags supplied through the `MODELS` environment
 variable. Existing CSVs need no migration.
 
+### Tool-call repair
+
+qwen3-vl sometimes writes its next tool call as text, either at the end of its
+`thinking` (Ollama then returns no content and no tool call, logged as
+`stop=empty_response`) or as its answer (`{"name": ..., "arguments": ...}</tool_call>`,
+graded `needs_review`). In the 2026-10-20 jobs this was 347 of the 353
+`needs_review` trials. The agent now runs such a call when it ends the
+thinking or makes up the whole answer, and when a reply has neither an answer
+nor a runnable call it sends one short user message asking for a tool call or
+the final answer (at most twice per trial, each counting as a step). `notes`
+records `recovered_calls=<n>; repair_prompts=<n>` and the trace stores which
+calls were recovered. A tool call still left as the answer is graded
+`needs_review`. These rows get condition `react_browser_repair` (with
+`_defended`, `_critic` and the `search_memory` hash as before, e.g.
+`react_browser_repair_memory_<hash>`), so they never pool with earlier
+`react_browser` rows in summaries or resume keys.
+
+Two tool fixes came with it: `evaluate` reruns a script that fails with
+"Illegal return statement" (a function body such as `const x = ...; return x;`)
+as `(async () => { ... })()`, and `dom` reports "No element matches selector" at once
+instead of waiting out the 10 s page timeout, returns the first element (with
+a count) when a selector matches several, and reads `html` for an empty
+selector. `--no-tool-call-repair` turns all of this off (old agent, condition
+`react_browser`, `notes` records `tool_call_repair=off`).
+
 ### Memory and critic
 
 Two optional inputs exist for the reasoning attacks; neither is used by any
@@ -342,8 +367,9 @@ other trial.
   clean baseline gets `baseline_memory` instead: the same documents with the
   attack's claims removed, so both arms see the same amount of memory.
   `notes` records `memory_docs=<n>`; the trace config stores the documents.
-  This form keeps the plain `react_browser` condition, so earlier results
-  still resume; only `search_memory` attacks get a hashed condition.
+  This form keeps the plain condition (`react_browser_repair`, or
+  `react_browser` with `--no-tool-call-repair`); only `search_memory`
+  attacks get a hashed condition.
 - **Critic** (`--critic`). After a `final` answer, one more model call (no
   tools) receives the question, the agent's answer, the page's
   `document.body.innerText`, and a screenshot as a user-message image, and
