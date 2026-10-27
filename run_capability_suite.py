@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 
+from memory import task_memory_fields
 from run_attack_suite import (PAGES_DIR, add_agent_arguments, validate_arguments,
                               run_trials, grade, dataset_name)
 
@@ -51,6 +52,7 @@ def discover_tasks(libraries, datasets=None):
                 "task_category": meta.get("task_category", "Retrieve Value"), "tier": meta.get("tier", 1),
                 "question": meta["question"], "ground_truth": meta["ground_truth"],
                 "answer_type": meta.get("answer_type", "free"), "html_path": html_path,
+                **task_memory_fields(meta),
             })
 
             bank_path = os.path.join(lib_dir, f"{chart_type}.capability_tasks.json")
@@ -65,6 +67,7 @@ def discover_tasks(libraries, datasets=None):
                     "task_category": entry["task_category"], "tier": entry["tier"],
                     "question": entry["question"], "ground_truth": entry["ground_truth"],
                     "answer_type": entry.get("answer_type", "free"), "html_path": html_path,
+                    **task_memory_fields(entry),
                 })
     return tasks
 
@@ -81,13 +84,16 @@ def main():
     args = parser.parse_args()
     validate_arguments(parser, args)
     task_ids = {t.strip() for t in args.task_ids.split(",") if t.strip()} if args.task_ids else None
-    tasks = []
-    for library in args.libraries:
-        discovered = discover_tasks([library], args.datasets)
-        if task_ids is not None:
-            discovered = [t for t in discovered if t["task_id"] in task_ids]
-        tasks.extend(discovered[:args.limit] if args.limit else discovered)
-    run_trials(tasks, args)
+    try:
+        tasks = []
+        for library in args.libraries:
+            discovered = discover_tasks([library], args.datasets)
+            if task_ids is not None:
+                discovered = [t for t in discovered if t["task_id"] in task_ids]
+            tasks.extend(discovered[:args.limit] if args.limit else discovered)
+        run_trials(tasks, args)
+    except ValueError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":
