@@ -75,6 +75,12 @@ TOOLS = [
          {"ms": {"type": "integer", "minimum": 0, "maximum": 10000}}, ["ms"]),
 ]
 
+MEMORY_TOOL = tool(
+    "search_memory", "Search historical notes and dataset context when useful for the question.",
+    {"query": STRING}, ["query"],
+)
+AVAILABLE_TOOLS = [*TOOLS, MEMORY_TOOL]
+
 
 @dataclass
 class AgentResult:
@@ -102,7 +108,7 @@ def capture_console(page):
     return logs
 
 
-TOOL_NAMES = [t["function"]["name"] for t in TOOLS]
+TOOL_NAMES = [t["function"]["name"] for t in AVAILABLE_TOOLS]
 
 TEXT_CALL_RE = re.compile(r'\{\s*"name"\s*:')
 CUT_NAME_RE = re.compile(r'([A-Za-z_]*)"\s*,\s*"arguments"\s*:\s*')
@@ -182,7 +188,7 @@ def looks_like_tool_call(text):
 
 
 def filter_tools(names):
-    """Return the TOOLS subset matching names (preserving TOOLS order).
+    """Return known tools matching names (preserving registry order).
 
     Raises ValueError listing any name not in TOOL_NAMES.
     """
@@ -190,7 +196,17 @@ def filter_tools(names):
     if unknown:
         raise ValueError(f"Unknown tool name(s): {', '.join(unknown)}")
     wanted = set(names)
-    return [t for t in TOOLS if t["function"]["name"] in wanted]
+    return [t for t in AVAILABLE_TOOLS if t["function"]["name"] in wanted]
+
+
+def tools_for_memory(names, memory_backend):
+    """Resolve a trial's tool set without silently overriding explicit choices."""
+    if names is None:
+        return [*TOOLS, MEMORY_TOOL] if memory_backend is not None else list(TOOLS)
+    selected = filter_tools(names)
+    if ("search_memory" in names) != (memory_backend is not None):
+        raise ValueError("--tools must include search_memory exactly when task memory is enabled")
+    return selected
 
 
 def check_model_capabilities(model, base_url="http://localhost:11434", timeout=10):
@@ -346,12 +362,13 @@ class BrowserTools:
 
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
-              options=None, tools=None, system_prompt=None, memory=None, repair_tool_calls=True,
-              legacy_tools=False):
+              options=None, tools=None, system_prompt=None, memory=None, memory_backend=None,
+              repair_tool_calls=True, legacy_tools=False):
     """Run native tool calls; screenshots stay in role=tool messages with images.
 
     memory: optional list of {"title", "source", "text"} documents, appended to
     the system prompt as retrieved notes from earlier sessions.
+    memory_backend: optional memory.MemoryBackend served by the search_memory tool.
     repair_tool_calls: run a tool call the model wrote as text in its answer or
     at the end of its thinking (see recover_tool_call), and when a reply has
     neither an answer nor a runnable call, ask once more (at most
@@ -365,7 +382,9 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": question}]
     result = AgentResult(messages=messages)
-    agent_tools = tools if tools is not None else TOOLS
+    if tools is not None:
+        tools_for_memory([t["function"]["name"] for t in tools], memory_backend)
+    agent_tools = tools if tools is not None else tools_for_memory(None, memory_backend)
     enabled_names = {t["function"]["name"] for t in agent_tools}
     browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page),
                                  enabled_tools=enabled_names, legacy=legacy_tools)
@@ -426,7 +445,16 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             if isinstance(call, dict) and call.get("id"):
                 observation["tool_call_id"] = call["id"]
             try:
-                content, images = browser_tools.execute(name, function.get("arguments", {}))
+                arguments = function.get("arguments", {})
+                if name == "search_memory":
+                    if name not in enabled_names or memory_backend is None:
+                        raise ValueError("Tool not enabled for this run: search_memory")
+                    if not isinstance(arguments, dict) or set(arguments) != {"query"}:
+                        raise ValueError("search_memory requires exactly one argument: query")
+                    content = json.dumps(memory_backend.search(arguments["query"]), ensure_ascii=False)
+                    images = []
+                else:
+                    content, images = browser_tools.execute(name, arguments)
                 observation["content"] = content
                 if images:
                     observation["images"] = images
