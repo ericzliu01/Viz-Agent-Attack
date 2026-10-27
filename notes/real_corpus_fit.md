@@ -138,8 +138,8 @@ listed), per model.
 | Job | Pages | Trials per node | Change |
 |---|---|---|---|
 | `run_multimodal_suite.slurm` | the 14 original attacks on the hand-written pages and climate_core, public_health_core, steam_core | 172 attack, 212 capability | now a two-node array, limited to these attacks and datasets (it used to run every page, including the real-dataset and reasoning pages that have their own jobs); adds the clean pages' capability questions |
-| `run_reasoning_attacks.slurm` | the 3 reasoning attacks on the hand-written revenue chart and steam_core | 240 attack, 240 with critic, 40 capability | now a two-node array; adds steam_core |
-| `run_real_datasets.slurm` | the 54 real-dataset tasks (PR #8) | 216 attack, 216 with critic, 12 capability | unchanged |
+| `run_reasoning_attacks.slurm` | the 3 reasoning attacks on the hand-written revenue chart and steam_core | 240 attack, 40 capability | now a two-node array; adds steam_core; no critic pass for now (E, 2026-10-20) |
+| `run_real_datasets.slurm` | the 54 real-dataset tasks (PR #8) | 216 attack, 12 capability | no critic pass for now (E, 2026-10-20) |
 
 `--attacks` now also matches a hand-written attack's copies on every
 dataset (`revenue_biased_framing` picks `revenue_biased_framing__steam_core`

@@ -63,8 +63,8 @@ DATASETS=original,steam_core
 COMMON=(--models "$MODELS" --base-url "$BASE_URL" --libraries "$LIBRARIES" --datasets "$DATASETS"
         --timeout 180 --max-steps 15)
 python3 run_attack_suite.py "${COMMON[@]}" --attacks "$ATTACKS"
-# Same trials with the critic pass (condition react_browser_repair_critic).
-python3 run_attack_suite.py "${COMMON[@]}" --attacks "$ATTACKS" --critic
+# No critic pass for now (E, 2026-10-20): run_attack_suite.py --critic still
+# works, but this job runs condition react_browser_repair only.
 # The 10 tasks as capability questions on each clean chart (no attack, no
 # memory). Three task ids name the dip quarters/years, so they differ per dataset.
 TASKS=revenue_vs_quarter,lowest_quarter,top_region,any_decline,quarters_up,sort_quarters,trend_break

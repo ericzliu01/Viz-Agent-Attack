@@ -60,8 +60,8 @@ COMMON=(--models "$MODELS" --base-url "$BASE_URL" --libraries "$LIBRARIES" --dat
 
 # 54 attacked tasks per library, each with its clean baseline (216 trials per task here).
 python3 run_attack_suite.py "${COMMON[@]}"
-# Same trials with the critic pass (condition react_browser_repair_critic).
-python3 run_attack_suite.py "${COMMON[@]}" --critic
+# No critic pass for now (E, 2026-10-20): run_attack_suite.py --critic still
+# works, but this job runs condition react_browser_repair only.
 # The 6 steam line tasks have no attack page (one-series chart): ask them on
 # the clean chart only (12 trials per task here).
 STEAM_LINE=steam_line_retrieve_value,steam_line_find_extremum,steam_line_determine_range,steam_line_sort,steam_line_compute_derived_value,steam_line_correlate
