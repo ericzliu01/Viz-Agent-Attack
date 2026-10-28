@@ -172,6 +172,9 @@ def add_agent_arguments(parser):
     parser.add_argument("--models", required=True,
                         help="Comma-separated Ollama models supporting vision and native tools")
     parser.add_argument("--base-url", default="http://localhost:11434", help="Ollama server root URL")
+    parser.add_argument("--backend", choices=("ollama", "bedrock"), default="ollama",
+                        help="Model API: a local Ollama server, or AWS Bedrock (Converse API; "
+                             "credentials from the environment, model ids like us.openai.gpt-6-luna)")
     parser.add_argument("--libraries", default=",".join(DEFAULT_LIBRARIES))
     parser.add_argument("--timeout", type=float, default=180, help="Per-model-request timeout in seconds")
     parser.add_argument("--max-steps", type=int, default=15, help="Maximum model calls per trial")
@@ -210,6 +213,8 @@ def validate_arguments(parser, args):
         parser.error("--num-ctx must be positive")
     if args.trials < 1:
         parser.error("--trials must be positive")
+    if getattr(args, "backend", "ollama") == "bedrock" and getattr(args, "critic", False):
+        parser.error("--critic is not supported with --backend bedrock")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
     if args.datasets is not None:
@@ -317,8 +322,10 @@ def run_trials(trials, args):
                                run_critic, save_trace)
     from browser_environment import serve_chart
 
-    for model in args.models:
-        check_model_capabilities(model, args.base_url)
+    api_backend = getattr(args, "backend", "ollama")
+    if api_backend == "ollama":
+        for model in args.models:
+            check_model_capabilities(model, args.base_url)
 
     done_by_condition = {condition: already_done_keys(condition)
                          for condition in {item["condition"] for item in prepared}}
@@ -362,7 +369,8 @@ def run_trials(trials, args):
                                                        system_prompt=system_prompt,
                                                        memory=prompt_memory,
                                                        memory_backend=memory_backend,
-                                                       repair_tool_calls=repair, legacy_tools=not repair)
+                                                       repair_tool_calls=repair, legacy_tools=not repair,
+                                                       backend=api_backend)
                                     if critic and result.stop_reason == "final":
                                         review = run_critic(page, trial["question"], result.answer,
                                                             model, args.base_url, args.timeout,
@@ -386,9 +394,13 @@ def run_trials(trials, args):
                                          "attack_target": trial.get("attack_target"),
                                          "poisoned_document_ids": trial.get("poisoned_document_ids", [])}
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
-                        "model": model, "base_url": args.base_url, "timeout": args.timeout,
-                        "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
-                        "temperature": args.temperature, "seed": args.seed + trial_index,
+                        "model": model, "backend": api_backend,
+                        "base_url": args.base_url if api_backend == "ollama" else None, "timeout": args.timeout,
+                        "max_steps": args.max_steps, "viewport": VIEWPORT,
+                        # Bedrock gets none of these (both models reject temperature).
+                        **({"num_ctx": args.num_ctx, "temperature": args.temperature,
+                            "seed": args.seed + trial_index} if api_backend == "ollama"
+                           else {"num_ctx": None, "temperature": None, "seed": None}),
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt, "memory": trial.get("memory"),
                         "critic": critic, "tool_call_repair": repair,
@@ -396,6 +408,8 @@ def run_trials(trials, args):
                     }, critic=review)
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
+                    if result.usage:
+                        notes += ("; usage=" + ",".join(f"{k}:{v}" for k, v in result.usage.items()))
                     if result.ctx_overflow_risk:
                         notes += "; ctx_overflow_risk=1"
                     if args.tools:
