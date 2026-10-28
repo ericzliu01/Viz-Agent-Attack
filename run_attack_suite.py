@@ -396,8 +396,11 @@ def run_trials(trials, args):
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "backend": api_backend,
                         "base_url": args.base_url if api_backend == "ollama" else None, "timeout": args.timeout,
-                        "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
-                        "temperature": args.temperature, "seed": args.seed + trial_index,
+                        "max_steps": args.max_steps, "viewport": VIEWPORT,
+                        # Bedrock gets none of these (both models reject temperature).
+                        **({"num_ctx": args.num_ctx, "temperature": args.temperature,
+                            "seed": args.seed + trial_index} if api_backend == "ollama"
+                           else {"num_ctx": None, "temperature": None, "seed": None}),
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt, "memory": trial.get("memory"),
                         "critic": critic, "tool_call_repair": repair,

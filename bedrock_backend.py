@@ -13,9 +13,11 @@ import io
 import json
 import os
 
-MAX_IMAGE_SIDE = 1568  # Bedrock rejects larger images
+MAX_IMAGE_SIDE = 1568  # recommended maximum; larger images are downscaled first
 MAX_TOKENS = 4096
 CACHE_POINT = {"cachePoint": {"type": "default"}}
+# Replies cut short or blocked are request errors (retried on re-run), never graded.
+FAILED_STOPS = {"max_tokens", "content_filtered", "guardrail_intervened"}
 
 _clients = {}
 
@@ -82,7 +84,8 @@ def to_converse(messages, tools, cache, tool_images=True):
                        for i in message.get("images") or []]
             add("user", blocks or [{"text": "(empty)"}])
         elif role == "assistant":
-            blocks = [{"text": content}] if content.strip() else []
+            blocks = [reasoning_block(r) for r in message.get("reasoning_content") or []]
+            blocks += [{"text": content}] if content.strip() else []
             pending_ids = []
             for index, call in enumerate(message.get("tool_calls") or []):
                 function = call.get("function", {})
@@ -93,7 +96,6 @@ def to_converse(messages, tools, cache, tool_images=True):
                     except ValueError:
                         arguments = {}
                 call_id = call.get("id") or f"call_{len(converted)}_{index}"
-                call["id"] = call_id  # the matching tool message reuses it
                 pending_ids.append(call_id)
                 blocks.append({"toolUse": {"toolUseId": call_id, "name": function.get("name", ""),
                                            "input": arguments if isinstance(arguments, dict) else {}}})
@@ -128,6 +130,13 @@ def to_converse(messages, tools, cache, tool_images=True):
     return system, converted, ({"tools": tool_specs} if tool_specs else None)
 
 
+def reasoning_block(saved):
+    """A reasoningContent block from its JSON-safe trace form (see chat)."""
+    if "redactedContent_b64" in saved:
+        return {"reasoningContent": {"redactedContent": base64.b64decode(saved["redactedContent_b64"])}}
+    return {"reasoningContent": saved}
+
+
 def chat(model, messages, tools=None, timeout=180, max_tokens=MAX_TOKENS):
     """One Converse call. Returns (assistant message in Ollama format, usage dict)."""
     from botocore.exceptions import BotoCoreError, ClientError
@@ -144,19 +153,29 @@ def chat(model, messages, tools=None, timeout=180, max_tokens=MAX_TOKENS):
         raise BedrockError(f"Bedrock {error.get('Code', 'error')}: {error.get('Message', '')[:300]}") from None
     except BotoCoreError as exc:
         raise BedrockError(f"Bedrock {type(exc).__name__}") from None
-    texts, thinking, calls = [], [], []
+    if response.get("stopReason") in FAILED_STOPS:
+        raise BedrockError(f"Bedrock stopReason={response['stopReason']}")
+    # Reasoning blocks are kept unchanged (with signatures) and sent back on later turns.
+    texts, thinking, saved, calls = [], [], [], []
     for block in response["output"]["message"]["content"]:
         if "text" in block:
             texts.append(block["text"])
         elif "reasoningContent" in block:
-            thinking.append(block["reasoningContent"].get("reasoningText", {}).get("text", ""))
+            reasoning = block["reasoningContent"]
+            if "redactedContent" in reasoning:
+                saved.append({"redactedContent_b64": base64.b64encode(reasoning["redactedContent"]).decode("ascii")})
+            else:
+                saved.append(reasoning)
+                thinking.append(reasoning.get("reasoningText", {}).get("text", ""))
         elif "toolUse" in block:
             use = block["toolUse"]
             calls.append({"id": use["toolUseId"],
                           "function": {"name": use["name"], "arguments": use.get("input") or {}}})
     message = {"role": "assistant", "content": "\n".join(texts).strip()}
-    if thinking:
+    if any(thinking):
         message["thinking"] = "\n".join(thinking).strip()
+    if saved:
+        message["reasoning_content"] = saved
     if calls:
         message["tool_calls"] = calls
     usage = response.get("usage", {})

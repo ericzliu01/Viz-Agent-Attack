@@ -77,6 +77,46 @@ class ToConverseTest(unittest.TestCase):
         self.assertEqual(image_bytes(small), base64.b64decode(small))
 
 
+class ChatTest(unittest.TestCase):
+    def converse(self, content, stop="end_turn"):
+        return {"output": {"message": {"content": content}}, "stopReason": stop,
+                "usage": {"inputTokens": 1, "outputTokens": 1}}
+
+    def test_reasoning_blocks_round_trip(self):
+        signed = {"reasoningText": {"text": "", "signature": "sig"}}
+        fake = unittest.mock.Mock()
+        fake.converse.return_value = self.converse([
+            {"reasoningContent": signed}, {"reasoningContent": {"redactedContent": b"\x00x"}},
+            {"toolUse": {"toolUseId": "t", "name": "screenshot", "input": {}}}], "tool_use")
+        with patch.object(bedrock_backend, "client", return_value=fake):
+            message, _ = bedrock_backend.chat("us.anthropic.claude-sonnet-5-5",
+                                              [{"role": "user", "content": "q"}], TOOLS)
+        self.assertNotIn("thinking", message)
+        import json
+        json.dumps(message)  # trace-safe
+        _, converted, _ = to_converse([{"role": "user", "content": "q"}, message,
+                                       {"role": "tool", "tool_call_id": "t", "content": "ok"}],
+                                      TOOLS, cache=False)
+        blocks = converted[1]["content"]
+        self.assertEqual(blocks[0], {"reasoningContent": signed})
+        self.assertEqual(blocks[1], {"reasoningContent": {"redactedContent": b"\x00x"}})
+        self.assertIn("toolUse", blocks[2])
+
+    def test_truncated_reply_is_an_error(self):
+        fake = unittest.mock.Mock()
+        fake.converse.return_value = self.converse([{"text": "A"}], "max_tokens")
+        with patch.object(bedrock_backend, "client", return_value=fake):
+            with self.assertRaises(bedrock_backend.BedrockError):
+                bedrock_backend.chat("m", [{"role": "user", "content": "q"}], TOOLS)
+
+    def test_ids_are_not_written_into_messages(self):
+        messages = [{"role": "user", "content": "q"},
+                    {"role": "assistant", "content": "", "tool_calls": [
+                        {"function": {"name": "screenshot", "arguments": {}}}]}]
+        to_converse(messages, TOOLS, cache=False)
+        self.assertNotIn("id", messages[1]["tool_calls"][0])
+
+
 class RunAgentBedrockTest(unittest.TestCase):
     def test_final_answer_and_usage(self):
         replies = iter([
