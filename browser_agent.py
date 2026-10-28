@@ -95,6 +95,7 @@ class AgentResult:
     tools_used: list = field(default_factory=list)
     recovered_calls: list = field(default_factory=list)
     repair_prompts: int = 0
+    usage: dict = field(default_factory=dict)  # summed token counts (bedrock backend)
 
 
 def capture_console(page):
@@ -363,7 +364,7 @@ class BrowserTools:
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
               options=None, tools=None, system_prompt=None, memory=None, memory_backend=None,
-              repair_tool_calls=True, legacy_tools=False):
+              repair_tool_calls=True, legacy_tools=False, backend="ollama"):
     """Run native tool calls; screenshots stay in role=tool messages with images.
 
     memory: optional list of {"title", "source", "text"} documents, appended to
@@ -374,6 +375,8 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     neither an answer nor a runnable call, ask once more (at most
     MAX_REPAIR_PROMPTS times per trial). Both are recorded on the result.
     legacy_tools: dom/evaluate behave as before 2026-10-23 (see BrowserTools).
+    backend: "ollama" (base_url, num_ctx, seed apply) or "bedrock" (AWS Converse
+    API, see bedrock_backend; base_url, num_ctx, temperature and seed are ignored).
     """
     if max_steps < 1 or timeout <= 0:
         raise ValueError("max_steps and timeout must be positive")
@@ -392,20 +395,28 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     for step in range(1, max_steps + 1):
         result.steps = step
         try:
-            response = requests.post(base_url.rstrip("/") + "/api/chat", json={
-                "model": model, "messages": messages, "tools": agent_tools, "stream": False,
-                "options": request_options,
-            }, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-            if not isinstance(data, dict):
-                raise ValueError("Expected a JSON object from Ollama")
-            if data.get("error"):
-                raise ValueError(data["error"])
-            prompt_eval_count = data.get("prompt_eval_count")
-            if isinstance(prompt_eval_count, int) and not isinstance(prompt_eval_count, bool):
-                result.max_prompt_tokens = max(result.max_prompt_tokens, prompt_eval_count)
-            message = data["message"]
+            if backend == "bedrock":
+                import bedrock_backend
+                message, usage = bedrock_backend.chat(model, messages, agent_tools, timeout=timeout)
+                for name in ("input", "output", "cache_read", "cache_write"):
+                    result.usage[name] = result.usage.get(name, 0) + usage[name]
+                result.max_prompt_tokens = max(result.max_prompt_tokens, usage["input"]
+                                               + usage["cache_read"] + usage["cache_write"])
+            else:
+                response = requests.post(base_url.rstrip("/") + "/api/chat", json={
+                    "model": model, "messages": messages, "tools": agent_tools, "stream": False,
+                    "options": request_options,
+                }, timeout=timeout)
+                response.raise_for_status()
+                data = response.json()
+                if not isinstance(data, dict):
+                    raise ValueError("Expected a JSON object from Ollama")
+                if data.get("error"):
+                    raise ValueError(data["error"])
+                prompt_eval_count = data.get("prompt_eval_count")
+                if isinstance(prompt_eval_count, int) and not isinstance(prompt_eval_count, bool):
+                    result.max_prompt_tokens = max(result.max_prompt_tokens, prompt_eval_count)
+                message = data["message"]
             if not isinstance(message, dict) or message.get("role") != "assistant":
                 raise ValueError("Expected an assistant message")
             calls = message.get("tool_calls") or []
@@ -463,7 +474,7 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             except Exception as exc:
                 observation["content"] = json.dumps({"error": str(exc)})
             messages.append(observation)
-    if num_ctx and result.max_prompt_tokens >= 0.95 * num_ctx:
+    if backend != "bedrock" and num_ctx and result.max_prompt_tokens >= 0.95 * num_ctx:
         result.ctx_overflow_risk = True
     result.latency_ms = int((time.monotonic() - start) * 1000)
     return result
@@ -541,6 +552,8 @@ def save_trace(result, directory, config=None, critic=None):
               "steps": result.steps, "latency_ms": result.latency_ms,
               "error": result.error, "recovered_calls": result.recovered_calls,
               "repair_prompts": result.repair_prompts, "messages": messages}
+    if result.usage:
+        record["usage"] = result.usage
     if critic is not None:
         critic_messages = []
         for message in critic.messages:
