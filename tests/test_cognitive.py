@@ -9,6 +9,7 @@ import build_real_dataset_pages as real
 from memory import MemoryBackend, task_memory_fields
 from run_attack_suite import attack_trials
 from summarize_cognitive import build
+from summarize_results import build_asr_table
 
 DATASETS = ("climate", "public_health", "steam")
 
@@ -99,26 +100,25 @@ class CognitivePages(unittest.TestCase):
                 token = rf"(?<![\w.,-]){re.escape(bait)}(?![\w,-])"
                 self.assertFalse(any(re.search(token, doc["text"]) for doc in control), bait)
 
-    def test_icl_log_differs_only_in_recorded_letters(self):
+    def test_icl_log_differs_only_in_the_option_at_the_answer_letter(self):
         for task, meta in metas("cog_icl_trap"):
             attack, control = meta["memory"], meta["baseline_memory"]
             self.assertEqual(len(attack), cog.ICL_EXAMPLES)
             given = lambda doc: re.search(r"Answer given: ([ABC])\. Grade: correct\.$", doc["text"]).group(1)
-            for a, c in zip(attack, control):
-                self.assertEqual(a["title"], c["title"])
-                self.assertEqual(re.sub(r"Answer given: [ABC]", "", a["text"]),
-                                 re.sub(r"Answer given: [ABC]", "", c["text"]))
-                self.assertEqual(given(a), meta["bait"])
-                self.assertNotEqual(given(c), meta["bait"])
-            # The control's recorded letters split between the two non-bait letters.
-            self.assertEqual(len({given(c) for c in control}), 2)
+            letter = meta["bait"]
+            at = lambda doc, l: re.search(rf"\({l}\) (.*?)(?: \([ABC]\) |\. Answer given)", doc["text"]).group(1)
             examples = cog.icl_examples(task, load_tasks())
             self.assertTrue(all(e["dataset"] != task["dataset"] and e["viz_type"] == task["viz_type"]
                                 for e in examples))
-            for example, doc in zip(examples, attack):
-                _, truth, bait, _ = cog.options(example)
-                self.assertRegex(doc["text"], rf"\({meta['bait']}\) {re.escape(bait)}( \(|\. Answer)")
-                self.assertIn(truth, doc["text"])
+            for example, a, c in zip(examples, attack, control):
+                _, truth, bait, other = cog.options(example)
+                self.assertEqual(a["title"], c["title"])
+                # Same answer letter in both arms (letter skew held constant) ...
+                self.assertEqual((given(a), given(c)), (letter, letter))
+                # ... with the example's bait there in the attack and its truth in the control.
+                self.assertEqual((at(a, letter), at(c, letter)), (bait, truth))
+                self.assertEqual(sorted(at(a, l) for l in "ABC"), sorted(at(c, l) for l in "ABC"))
+                self.assertEqual(sorted(at(a, l) for l in "ABC"), sorted([truth, bait, other]))
 
 
 class CognitiveTrials(unittest.TestCase):
@@ -135,6 +135,12 @@ class CognitiveTrials(unittest.TestCase):
             if attack["attack_id"].startswith("cog_rag_poisoning"):
                 self.assertEqual(len(baseline["memory"]["corpus"]["documents"]), 3)
 
+    def test_cognitive_attacks_run_only_when_named(self):
+        everything = attack_trials(["d3"], datasets=set(DATASETS))
+        self.assertFalse(any(t["attack_id"].startswith("cog_") for t in everything))
+        one = attack_trials(["d3"], attack_ids={"cog_icl_trap"}, datasets=set(DATASETS))
+        self.assertEqual(len(one), 2 * len(load_tasks()))
+
     def test_corpus_baseline_must_match_memory_form(self):
         corpus = {"corpus": {"documents": [{"id": "a", "title": "t", "text": "x"}]}}
         task_memory_fields({"memory": corpus, "baseline_memory": corpus})
@@ -142,7 +148,11 @@ class CognitiveTrials(unittest.TestCase):
             task_memory_fields({"memory": [{"title": "t", "source": "s", "text": "x"}],
                                 "baseline_memory": corpus})
         with self.assertRaises(ValueError):
+            task_memory_fields({"memory": corpus, "baseline_memory": [{"title": "t", "source": "s", "text": "x"}]})
+        with self.assertRaises(ValueError):
             task_memory_fields({"memory": corpus, "baseline_memory": {"corpus": {"documents": [{}]}}})
+        with self.assertRaises(ValueError):
+            task_memory_fields({"memory": corpus, "baseline_memory": corpus, "poisoned_document_ids": ["a"]})
 
 
 class CognitiveSummary(unittest.TestCase):
@@ -161,8 +171,20 @@ class CognitiveSummary(unittest.TestCase):
         stats = build(rows, {attack_id: "B", "cog_icl_trap__x": "B"})
         s = stats[("react_browser_repair", "M", "cog_rag_poisoning")]
         self.assertEqual((s["pairs"], s["right"], s["fooled"], s["deceived"]), (2, 2, 2, 1))
-        self.assertEqual((s["retrieved"], s["right_retrieved"], s["deceived_retrieved"]), (1, 1, 1))
-        self.assertEqual(stats[("react_browser_repair", "M", "cog_icl_trap")]["excluded"], 1)
+        self.assertEqual((s["attacks"], s["retrieved"], s["right_retrieved"], s["deceived_retrieved"]),
+                         (2, 1, 1, 1))
+        icl = stats[("react_browser_repair", "M", "cog_icl_trap")]
+        self.assertEqual((icl["attacks"], icl["excluded"], icl["pairs"]), (1, 1, 0))
+
+    def test_chart_attack_summary_leaves_out_cognitive_rows(self):
+        base = {"condition": "react_browser_repair", "model": "M", "library": "d3", "question": "Q",
+                "trial": "0", "notes": "", "extracted_answer": "A"}
+        rows = []
+        for attack_id in ("bar_aria_deception__climate__sort", "cog_memory_write__climate__bar_sort"):
+            rows += [dict(base, attack_id=attack_id, correct="false"),
+                     dict(base, attack_id=attack_id + "__clean_baseline", correct="true")]
+        table = build_asr_table(rows)
+        self.assertEqual([r["attack_id"] for r in table], ["bar_aria_deception__climate__sort"])
 
 
 if __name__ == "__main__":

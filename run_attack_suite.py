@@ -81,6 +81,8 @@ def discover_pages():
                 clean_by_key[(library, chart_type, entry["dataset"])] = entry
                 continue
             entry["chart_type"] = meta["chart_type"]
+            if meta.get("family"):
+                entry["family"] = meta["family"]
             if meta.get("bait"):
                 entry["bait"] = meta["bait"]
             for key in ("memory", "baseline_memory"):
@@ -490,6 +492,9 @@ def attack_trials(libraries, limit=None, attack_ids=None, datasets=None):
         library = attack["library"]
         if attack_ids is not None and not ({attack["attack_id"], base_attack_id(attack["attack_id"])}
                                            & attack_ids):
+            continue
+        # The cognitive attacks (memory, not page) run only when named in --attacks.
+        if attack_ids is None and attack.get("family") == "cognitive":
             continue
         if datasets is not None and dataset_name(attack["dataset"]) not in datasets:
             continue

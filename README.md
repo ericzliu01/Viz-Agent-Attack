@@ -162,9 +162,11 @@ that differs only in the poisoned element:
 |---|---|---|
 | `cog_rag_poisoning` | `search_memory` corpus: three benign dataset notes and one analyst note stating the bait as the corrected answer | the three benign notes |
 | `cog_memory_write` | prompt memory: two benign records and one record, in the agent's own voice, stating the bait as the answer it checked earlier | the same record without the answer |
-| `cog_icl_trap` | prompt memory: four graded questions on the same chart type from the other datasets, each recorded with its own bait (at this task's bait letter) and "graded correct" | the same log with the true answers |
+| `cog_icl_trap` | prompt memory: four graded questions on the same chart type from the other datasets, each answered with this task's bait letter, where the example's own bait sits (flipped labels), and "graded correct" | the same log and answer letters, with each example's truth at that letter (so the letter skew is held constant) |
 
-`baseline_memory` may be a corpus object when `memory` is one. The metas
+They run only when named in `--attacks` (so `run_real_datasets.slurm` and
+other runs without `--attacks` skip them), and `summarize_results.py` leaves
+them out. `baseline_memory` may be a corpus object when `memory` is one. The metas
 carry `bait` and `attack_target` (both the bait letter), so
 `memory_target_hit` is logged for `cog_rag_poisoning`.
 `summarize_cognitive.py` writes `results/cognitive_summary.md`, kept apart
@@ -176,7 +178,7 @@ retrieval rate and deception rate given retrieval. Design and sources:
 ```sh
 python run_attack_suite.py --models YOUR_MODEL --libraries d3 --datasets climate,public_health,steam \
     --attacks cog_rag_poisoning,cog_memory_write,cog_icl_trap
-MODELS=qwen3-vl:8b sbatch run_cognitive_attacks.slurm   # the d3 pilot, one node
+MODELS=qwen3-vl:8b sbatch run_cognitive_attacks.slurm   # the d3 pilot, one node per attack
 ```
 
 ### Vision sanity check

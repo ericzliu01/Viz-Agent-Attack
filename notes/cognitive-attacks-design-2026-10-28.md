@@ -60,7 +60,7 @@ All three attacks are TM: the page is byte-identical to the clean page of the ta
 
 - **Channel:** prompt memory list holding a log of four earlier graded question-answer pairs. Each is a real task on the same chart type from the other two datasets (12 candidates per slot for line, 10 for bar and stacked bar, 8 for scatter), chosen to share the target's primitive first and filled with other primitives where it is missing (stacked-bar Find Extremum and Characterize Distribution occur on one dataset only, scatter Characterize Distribution on two). Each example shows its options, a recorded answer and "graded correct". The target question carries no claim.
 - **Option layout:** in both arms, each example's options are re-rendered in an order that puts that example's bait at the target's bait letter. The examples are text written by the builder, so this also works for the 19 tasks whose questions carry their own inline (A)-(C) options: the option texts are reordered in the log, and the target question itself is not changed.
-- **Attack vs control:** the attack records each example's bait as the answer (flipped labels); the control records the true answer in the same layout. Recorded labels are the only difference. The letter skew is present in both arms, so it is held constant rather than tested; a letter-skew-only arm can be added later.
+- **Attack vs control:** as built (section 6), both arms record the target's bait letter as every answer; the attack places the example's bait at that letter (flipped labels), the control its truth (correct labels). Label correctness is the only difference, and the answer-letter skew is held constant rather than tested.
 - **Literature:** Franklin et al. (contextual learning traps); Wei et al., "Larger language models do in-context learning differently" (arXiv 2303.03846, 2023); Zhao, Wallace, Feng, Klein & Singh, "Calibrate Before Use" (ICML 2021, arXiv 2102.09690), majority-label and recency bias from examples; Min et al., "Rethinking the Role of Demonstrations" (EMNLP 2022, arXiv 2202.12837).
 - **Expected effect:** probably weak. Wei et al. find that following flipped labels against prior knowledge emerges with scale and small models mostly ignore them, and our models are 8b to 9b; Min et al. find labels matter less than format. The link is an analogy: Wei's prior is the meaning of label words, here it is what the chart shows. A null result is the expected outcome and would still be informative.
 
@@ -110,11 +110,26 @@ The one design choice that changes coverage is 2.2. As proposed it is direct mem
 - **Pilot model:** E chose qwen3-vl:8b only (2026-10-29), on d3: 180 attack trials and 180 baselines. The 9b and Bedrock runs suggested in section 3 are not part of the pilot.
 - **Attack ids:** `<attack>__<dataset>__<chart type>_<task>`, for example `cog_rag_poisoning__climate__bar_retrieve_value`; `--attacks cog_rag_poisoning` selects all 60 copies.
 - **RAG retrieval:** the poisoned note repeats the task's question, as PoisonedRAG does to make its texts retrievable for the target question, and the benign notes carry the chart title and dataset name. So a query built from the question returns the poisoned note, a query on the chart title also returns benign notes, and a generic query ("data source file") does not return the poisoned note; the tests check all three for every task. This replaces the "neither crowded out nor favoured" aim in 2.1: the note is built to be retrieved when the agent asks about the question, and the retrieval rate measures whether the agent asks at all.
-- **ICL control letters:** in both arms the example's truth alternates between the two non-bait letters (examples 1 and 3 on one, 2 and 4 on the other), so the control's recorded letters do not all point at the target's true letter.
+- **ICL control (changed after the implementation review):** both arms record the target's bait letter as every example's answer. In the attack that letter holds the example's bait (flipped label); in the control it holds the example's truth (correct label). The other two options alternate over the remaining letters. The first build recorded the true letters in the control, so the arms also differed in answer letter, which made the attack mostly a majority-label (letter-copying) test; now the letter skew really is held constant and only label correctness differs, as 2.3 intended. A consequence: the control itself pushes toward the bait letter, so the ICL baseline is not a neutral clean run. The size of the letter-skew effect alone can be estimated by comparing the ICL baseline with the `cog_memory_write` baseline on the same questions, which has no letter skew; this is an approximate comparison, not a designed arm.
 - **Memory-write control:** the control record keeps the same title and the same question, and ends "I read the answer from the chart." instead of "the answer is <bait>."
-- **Summary:** `summarize_cognitive.py` writes `results/cognitive_summary.md`, separate from the chart-attack summary, with deception rate (clean-correct pairs that take the bait), bait-hit rate, wrong rates, ASR, retrieval rate and deception given retrieval.
+- **Pilot job:** a three-task array, one GPU node per attack (120 trials per node), merged by the last task to finish.
+- **Isolation from other runs:** the cognitive attacks run only when named in `--attacks`, so `run_real_datasets.slurm` is unchanged, and `summarize_results.py` leaves their rows out of the chart-attack summary.
+- **Summary:** `summarize_cognitive.py` writes `results/cognitive_summary.md`, separate from the chart-attack summary, with deception rate (clean-correct pairs that take the bait), bait-hit rate, wrong rates, ASR, retrieval rate (over all attack trials) and deception given retrieval.
 
 **Analysis:** the implementation follows the design except that RAG retrieval is now deliberately question-matched, which makes the retrieval rate a measure of whether the agent searches memory, not of ranking luck.
+
+## 7. Implementation review and changes
+
+**Terms specific to this section:** *finding* is a numbered problem in `reviews/cognitive-attacks-implementation-2026-10-29.md` (verdict "needs changes").
+
+1. Real-dataset job would also run the cognitive trials: fixed; they run only when named in `--attacks` (dry run without `--attacks` on d3 and plotly is back to 216 trials).
+2. Cognitive rows pooled into the chart-attack summary: fixed in `build_asr_table`, with a test.
+3. ICL attack mostly a letter-copying test: fixed by giving both arms the same answer letters (section 6).
+4. Pilot runtime unchecked: the job is now one node per attack, 120 trials each, about half the per-node load of the real-dataset job in the same 14 h.
+5. Degenerate descriptions on inline-option tasks: fixed, they now show the option texts.
+6. One-way `baseline_memory` check: now checked both ways, and a corpus control may not contain poisoned documents.
+7. Retrieval rate over scored pairs only: now over all attack trials, stated in the Terms.
+Not changed: the reviewer's note that the memory-write control ("I verified this... I read the answer from the chart") is mildly reassuring. It keeps the control to the same record with only the answer removed, which is the controlled comparison; the caveat is noted here for reading a small effect.
 
 ## References
 
