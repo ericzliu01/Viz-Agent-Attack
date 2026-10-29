@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Total CO2 Emissions by Country (2022)</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Total CO2 Emissions by Country (2022)</h2>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "bar", "x_title": "Country", "y_title": "CO2 (million tonnes)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": ["China", "India", "Russia", "Japan"], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": null, "right_max": null, "auto_max": 12297.398400000002, "labels": ["China", "Germany", "India", "Indonesia", "Iran", "Japan", "Russia", "Saudi Arabia", "South Korea", "United States"], "values": [11711.808, 667.843, 2831.132, 758.021, 767.178, 1029.645, 1675.461, 666.994, 606.877, 5055.403]};
+const series = CFG.series || [];
+const yScale = {type: CFG.y_log ? "log" : "linear", zero: !CFG.y_log && CFG.y_min === null};
+if (CFG.y_min !== null || CFG.y_max !== null) {
+  yScale.domain = [CFG.y_min !== null ? CFG.y_min : 0, CFG.y_max !== null ? CFG.y_max : CFG.auto_max];
+  yScale.nice = false;
+}
+const xOrdinal = {field: "label", type: "ordinal", sort: CFG.labels, title: CFG.x_title, axis: {labelAngle: -35}};
+let spec;
+if (CFG.kind === "bar") {
+  spec = {data: {values: CFG.labels.map((l, i) => ({label: l, value: CFG.values[i]}))},
+    mark: {type: "bar", clip: true}, encoding: {x: xOrdinal,
+      y: {field: "value", type: "quantitative", title: CFG.y_title, scale: yScale},
+      color: {condition: {test: `indexof(${JSON.stringify(CFG.highlight)}, datum.label) >= 0`, value: CFG.highlight_color},
+              value: CFG.colors[0]}, tooltip: [{field: "label"}, {field: "value"}]}};
+} else if (CFG.kind === "scatter") {
+  spec = {data: {values: CFG.points.map(p => ({x: p[0], y: p[1]}))}, mark: {type: "point", filled: true, clip: true},
+    encoding: {x: {field: "x", type: "quantitative", title: CFG.x_title},
+      y: {field: "y", type: "quantitative", title: CFG.y_title, scale: yScale},
+      color: {value: CFG.colors[0]}, tooltip: [{field: "x"}, {field: "y"}]}};
+} else {
+  const rows = series.flatMap(s => s.values.map((v, i) => ({label: CFG.labels[i], series: s.name, value: v})));
+  const color = {field: "series", type: "nominal", title: null,
+    scale: {domain: series.map(s => s.name), range: series.map((_, k) => CFG.colors[k % CFG.colors.length])}};
+  const tooltip = [{field: "label"}, {field: "series"}, {field: "value"}];
+  if (CFG.kind === "stacked_bar") {
+    spec = {data: {values: rows}, mark: {type: "bar", clip: true}, encoding: {x: xOrdinal,
+      y: {field: "value", type: "quantitative", aggregate: "sum", stack: "zero", title: CFG.y_title, scale: yScale},
+      color, tooltip}};
+  } else if (CFG.right) {
+    const layer = (filter, title, scale, orient) => ({transform: [{filter}], mark: {type: "line", point: true},
+      encoding: {x: xOrdinal, y: {field: "value", type: "quantitative", title, scale, axis: {orient}}, color, tooltip}});
+    spec = {data: {values: rows}, layer: [
+      layer(`datum.series !== ${JSON.stringify(CFG.right)}`, CFG.y_title, yScale, "left"),
+      layer(`datum.series === ${JSON.stringify(CFG.right)}`, `${CFG.right} (right axis)`, {domain: [0, CFG.right_max], nice: false}, "right")],
+      resolve: {scale: {y: "independent"}}};
+  } else {
+    spec = {data: {values: rows}, mark: {type: "line", point: true}, encoding: {x: xOrdinal,
+      y: {field: "value", type: "quantitative", title: CFG.y_title, scale: yScale}, color, tooltip}};
+  }
+}
+spec.$schema = "https://vega.github.io/schema/vega-lite/v5.json";
+spec.width = 600; spec.height = 320; spec.background = "#fcfcfb";
+vegaEmbed("#chart", spec, {actions: false, renderer: "svg"});
+</script>
+</body>
+</html>

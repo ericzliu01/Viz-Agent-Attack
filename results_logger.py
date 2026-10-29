@@ -3,7 +3,9 @@ import csv
 import os
 import threading
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+# VIS_RESULTS_DIR lets parallel jobs (one per node) write separate files;
+# merge_results.py combines them into results/results.csv.
+RESULTS_DIR = os.environ.get("VIS_RESULTS_DIR") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 RESULTS_CSV = os.path.join(RESULTS_DIR, "results.csv")
 
 # condition: "react_browser" for current runs; historical conditions stay readable.

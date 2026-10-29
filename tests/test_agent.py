@@ -11,9 +11,10 @@ from unittest.mock import Mock, patch
 import requests
 
 from browser_agent import (BrowserTools, DEFENSE_PROMPT_SUFFIX, SYSTEM_PROMPT, TEXT_LIMIT,
-                           TOOLS, check_model_capabilities, filter_tools, run_agent, save_trace)
+                           TOOLS, check_model_capabilities, filter_tools, parse_critic, run_agent,
+                           run_critic, save_trace)
 from run_attack_suite import (add_agent_arguments, already_done_keys, attack_trials,
-                              grade, validate_arguments, PAGES_DIR)
+                              discover_pages, grade, validate_arguments, PAGES_DIR)
 from run_capability_suite import discover_tasks, grade_task
 from summarize_results import build_asr_table, build_tool_usage_breakdown, tool_flags
 
@@ -201,6 +202,114 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(result.messages, original)
 
 
+class ReasoningAttackTests(unittest.TestCase):
+    REASONING = ("revenue_biased_framing", "revenue_critic_evasion", "revenue_persona_hyperstition")
+
+    def test_memory_documents_are_appended_to_the_system_prompt(self):
+        page = Mock()
+        seen = []
+        def post(url, *, json, timeout):
+            seen.append(deepcopy(json))
+            response = Mock()
+            response.json.return_value = {"message": assistant("B")}
+            return response
+        memory = [{"title": "Team wiki", "source": "wiki", "text": "The agent is an optimist."}]
+        with patch("browser_agent.requests.post", side_effect=post):
+            run_agent(page, "Q?", "m", memory=memory)
+            run_agent(page, "Q?", "m")
+        with_memory, without = seen[0]["messages"][0]["content"], seen[1]["messages"][0]["content"]
+        self.assertTrue(with_memory.startswith(SYSTEM_PROMPT))
+        self.assertIn("[1] Team wiki (wiki)\nThe agent is an optimist.", with_memory)
+        self.assertEqual(without, SYSTEM_PROMPT)
+
+    def test_parse_critic_verdicts(self):
+        self.assertEqual(parse_critic("APPROVE"), ("APPROVE", ""))
+        self.assertEqual(parse_critic("approve."), ("APPROVE", ""))
+        self.assertEqual(parse_critic("REVISE: C"), ("REVISE", "C"))
+        self.assertEqual(parse_critic("REVISE"), ("unparsed", ""))
+        self.assertEqual(parse_critic("The answer looks fine"), ("unparsed", ""))
+
+    def test_run_critic_sends_page_text_and_screenshot(self):
+        page = Mock()
+        page.evaluate.return_value = "Quarterly Revenue by Region"
+        page.screenshot.return_value = PNG
+        seen = []
+        def post(url, *, json, timeout):
+            seen.append(deepcopy(json))
+            response = Mock()
+            response.json.return_value = {"message": {"role": "assistant", "content": "REVISE: C"}}
+            return response
+        with patch("browser_agent.requests.post", side_effect=post):
+            review = run_critic(page, "Which region?", "B", "m")
+        self.assertEqual((review.verdict, review.revised_answer), ("REVISE", "C"))
+        user = seen[0]["messages"][1]
+        self.assertIn("Agent's answer: B", user["content"])
+        self.assertIn("Quarterly Revenue by Region", user["content"])
+        self.assertEqual(user["images"], [base64.b64encode(PNG).decode()])
+        self.assertNotIn("tools", seen[0])
+        with patch("browser_agent.requests.post", side_effect=requests.ConnectionError("down")):
+            self.assertEqual(run_critic(page, "Q", "A", "m").verdict, "error")
+
+    def test_reasoning_attacks_expand_to_ten_tasks_per_library(self):
+        libraries = ["d3", "plotly", "chartjs", "vega-lite"]
+        trials = attack_trials(libraries, attack_ids=set(self.REASONING), datasets={"original"})
+        attacks = [t for t in trials if not t["attack_id"].endswith("__clean_baseline")]
+        self.assertEqual(len(attacks), 3 * 10 * 4)
+        # Without --datasets, the hand-written ids also select their dataset copies.
+        everywhere = attack_trials(libraries, attack_ids=set(self.REASONING))
+        self.assertTrue({t["attack_id"] for t in everywhere} > {t["attack_id"] for t in trials})
+        self.assertEqual(len(trials), 2 * len(attacks))
+        for attack_id in self.REASONING:
+            task_ids = {t["task_id"] for t in attacks if t["attack_id"] == attack_id and t["library"] == "d3"}
+            self.assertEqual(len(task_ids), 10)
+        for attack, baseline in zip(trials[::2], trials[1::2]):
+            self.assertEqual(baseline["question"], attack["question"])
+            self.assertTrue(Path(baseline["html_path"]).name == "clean_revenue.html")
+            self.assertEqual(attack["answer_type"], "choice")
+            self.assertIn(attack["ground_truth"], "ABC")
+            if attack["bait"] is not None:
+                self.assertNotEqual(attack["bait"], attack["ground_truth"])
+
+    def test_persona_baseline_gets_neutral_memory_and_others_get_none(self):
+        trials = attack_trials(["d3"], attack_ids=set(self.REASONING))
+        for trial in trials:
+            if "persona" in trial["attack_id"]:
+                self.assertEqual(len(trial["memory"]), 5)
+                persona = "optimist" in json.dumps(trial["memory"])
+                self.assertEqual(persona, not trial["attack_id"].endswith("__clean_baseline"))
+            else:
+                self.assertNotIn("memory", trial)
+
+    def test_reasoning_tasks_are_capability_tasks_on_clean_revenue(self):
+        tasks = [t for t in discover_tasks(["d3"]) if t["attack_id"] == "clean_revenue"]
+        self.assertEqual(len(tasks), 11)
+        self.assertEqual(sum(t["answer_type"] == "choice" for t in tasks), 10)
+
+    def test_reasoning_summary_counts_bait_pairing_and_critic(self):
+        from summarize_reasoning import build, reasoning_meta
+        meta = reasoning_meta()
+        question = next(q for q, t in meta["revenue_critic_evasion"]["tasks"].items()
+                        if t["task_id"] == "top_region")
+        base = {"condition": "react_browser_critic", "model": "M", "library": "d3",
+                "question": question, "trial": "0"}
+        rows = [
+            dict(base, attack_id="revenue_critic_evasion", correct="false", extracted_answer="B",
+                 notes="stop=final; critic=APPROVE; agent_correct=false; agent_extracted=B"),
+            dict(base, attack_id="revenue_critic_evasion__clean_baseline", correct="true",
+                 extracted_answer="C", notes="stop=final; critic=APPROVE; agent_correct=true"),
+        ]
+        stats = build(rows, meta)[("react_browser_critic", "revenue_critic_evasion", "top_region")]
+        self.assertEqual((stats["n"], stats["wrong"], stats["bait"], stats["bait_n"]), (1, 1, 1, 1))
+        self.assertEqual((stats["fooled"], stats["paired_right"], stats["b_wrong"]), (1, 1, 0))
+        self.assertEqual((stats["agent_wrong"], stats["wrong_approved"]), (1, 1))
+
+    def test_persona_page_is_identical_to_clean(self):
+        for library in ("d3", "plotly", "chartjs", "vega-lite"):
+            clean = (Path(PAGES_DIR) / library / "clean_revenue.html").read_text()
+            persona = (Path(PAGES_DIR) / library / "attack_revenue_persona_hyperstition.html").read_text()
+            self.assertEqual(clean, persona)
+
+
 class ExperimentTests(unittest.TestCase):
     def test_pairing_and_task_grading(self):
         trials = attack_trials(["d3", "plotly", "chartjs", "vega-lite"], limit=1)
@@ -345,11 +454,84 @@ class PageLeakTests(unittest.TestCase):
             meta = json.loads(meta_path.read_text())
             chart_type = meta.get("chart_type") or html_path.stem[len("clean_"):]
             title = re.search(r'<title>(.*?)</title>', html_path.read_text()).group(1)
-            key = (library, chart_type)
+            key = (library, chart_type, meta.get("dataset"))
             titles_by_library_and_type.setdefault(key, set()).add(title)
         for key, titles in titles_by_library_and_type.items():
             with self.subTest(library_chart_type=key):
                 self.assertEqual(len(titles), 1, f"titles differ within {key}: {titles}")
+
+
+class DatasetTests(unittest.TestCase):
+    """Pages generated by build_dataset_pages.py from datasets/corpus_datasets.json."""
+
+    def setUp(self):
+        import build_dataset_pages
+        self.builder = build_dataset_pages
+        self.templates = json.loads(Path(build_dataset_pages.TEMPLATES_PATH).read_text())
+        self.datasets = json.loads(Path(build_dataset_pages.DEFAULT_DATASETS).read_text())
+
+    def test_generator_reproduces_hand_written_tasks_from_templates(self):
+        for chart_type in self.builder.CHART_TYPES:
+            for library in self.builder.LIBRARIES:
+                with self.subTest(chart_type=chart_type, library=library):
+                    _, bank = self.builder.generate_tasks(chart_type, self.templates[chart_type], library)
+                    path = Path(PAGES_DIR) / library / f"clean_{chart_type}.capability_tasks.json"
+                    self.assertEqual(bank, json.loads(path.read_text()))
+
+    def test_every_dataset_has_clean_pages_tasks_and_every_attack(self):
+        clean_by_key, attacks = discover_pages()
+        originals = {(a["library"], a["chart_type"], a["attack_id"]) for a in attacks if a["dataset"] is None}
+        for chart_type in list(self.builder.CHART_TYPES) + ["revenue"]:
+            ids = [ds["id"] for ds in self.datasets[chart_type]]
+            self.assertGreaterEqual(len(ids), 1)
+            for library in self.builder.LIBRARIES:
+                base = {a for (lib, ct, a) in originals if lib == library and ct == chart_type}
+                for ds_id in ids:
+                    with self.subTest(chart_type=chart_type, library=library, dataset=ds_id):
+                        self.assertIn((library, chart_type, ds_id), clean_by_key)
+                        bank = Path(PAGES_DIR) / library / f"clean_{chart_type}__{ds_id}.capability_tasks.json"
+                        self.assertTrue(bank.is_file())
+                        generated = {a["attack_id"] for a in attacks if a["library"] == library
+                                     and a["chart_type"] == chart_type and a["dataset"] == ds_id}
+                        self.assertEqual(generated, {f"{a}__{ds_id}" for a in base})
+
+    def test_dataset_attacks_pair_with_their_own_dataset_baseline(self):
+        trials = attack_trials(["d3"], datasets={"steam_core"})
+        self.assertTrue(trials)
+        for attack, baseline in zip(trials[::2], trials[1::2]):
+            self.assertTrue(attack["attack_id"].endswith("__steam_core"))
+            self.assertEqual(baseline["question"], attack["question"])
+            stem = Path(baseline["html_path"]).stem
+            self.assertTrue(stem.startswith("clean_") and stem.endswith("__steam_core"), stem)
+        originals = attack_trials(["d3"], datasets={"original"})
+        self.assertTrue(all("_core" not in t["attack_id"] for t in originals))
+
+    def test_capability_tasks_cover_every_dataset(self):
+        tasks = discover_tasks(["chartjs"])
+        pages = {t["attack_id"] for t in tasks}
+        for chart_type in list(self.builder.CHART_TYPES) + ["revenue"]:
+            self.assertIn(f"clean_{chart_type}", pages)
+            for ds in self.datasets[chart_type]:
+                self.assertIn(f"clean_{chart_type}__{ds['id']}", pages)
+        only = discover_tasks(["chartjs"], datasets={"climate_core"})
+        self.assertTrue(only and all(t["attack_id"].endswith("__climate_core") for t in only))
+
+    def test_ground_truths_follow_the_dataset_values(self):
+        ds = deepcopy(self.datasets["bar"][0])
+        ds["values"] = [500, 120, 140, 160, 180]
+        (_, truth), bank = self.builder.generate_tasks("bar", ds, "chartjs")
+        answers = {t["task_id"]: t["ground_truth"] for t in bank}
+        self.assertEqual(truth, "500")
+        self.assertEqual(answers["find_anomalies"], ds["categories"][0])
+        self.assertEqual(answers["find_extremum"], ds["categories"][1])
+        self.assertEqual(answers["determine_range"], "380")
+        self.assertEqual(answers["compute_derived_value"], "1100")
+
+    def test_dataset_that_breaks_a_task_premise_is_rejected(self):
+        ds = deepcopy(self.datasets["line"][0])
+        ds["series"][1]["values"] = sorted(ds["series"][1]["values"])
+        with self.assertRaises(ValueError):
+            self.builder.generate_tasks("line", ds, "d3")
 
 
 if __name__ == "__main__":

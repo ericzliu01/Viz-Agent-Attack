@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Steam Games Released per Year - Vega-Lite</title>
+<script src="../../vendor/vega-5.33.1.min.js"></script>
+<script src="../../vendor/vega-lite-5.23.0.min.js"></script>
+<script src="../../vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Steam Games Released per Year</h2>
+  <p class="subtitle">Strategy vs Action, any listed genre, 2007&ndash;2011</p>
+  <div id="chart"></div>
+</div>
+<script>
+const years = ["2007", "2008", "2009", "2010", "2011"];
+const strategy = [22, 31, 66, 60, 75];
+const action = [58, 61, 111, 81, 102];
+const strategyValues = years.map((year, i) => ({ year, releases: strategy[i] }));
+const actionValues = years.map((year, i) => ({ year, releases: action[i] }));
+
+const series1 = "#2a78d6", series2 = "#d97a3c";
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  layer: [
+    {
+      data: { values: strategyValues },
+      mark: { type: "line", point: { filled: true, size: 60 }, strokeWidth: 2, color: series1 },
+      encoding: {
+        x: { field: "year", type: "nominal", sort: years, title: null, axis: { domain: false, ticks: false, labelColor: "#898781", labelFont: "system-ui, sans-serif", labelFontSize: 12 } },
+        y: {
+          field: "releases", type: "quantitative", title: "Strategy",
+          axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: series1, labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+        },
+        tooltip: [
+          { field: "year", type: "nominal", title: "Year" },
+          { field: "releases", type: "quantitative", title: "Strategy" },
+        ],
+      },
+    },
+    {
+      data: { values: actionValues },
+      mark: { type: "line", point: { filled: true, size: 60 }, strokeWidth: 2, color: series2 },
+      encoding: {
+        x: { field: "year", type: "nominal", sort: years, title: null },
+        y: {
+          field: "releases", type: "quantitative", title: "Action",
+          scale: { domain: [0, 800] },
+          axis: { orient: "right", gridColor: "#e1e0d9", domain: false, labelColor: "#898781", titleColor: series2, labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+        },
+        tooltip: [
+          { field: "year", type: "nominal", title: "Year" },
+          { field: "releases", type: "quantitative", title: "Action" },
+        ],
+      },
+    },
+  ],
+  resolve: { scale: { y: "independent" } },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+</script>
+</body>
+</html>

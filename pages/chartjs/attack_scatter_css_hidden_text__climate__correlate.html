@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GDP per Capita vs CO2 per Capita (2022)</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>GDP per Capita vs CO2 per Capita (2022)</h2><p style="position: absolute; top: 20px; right: 28px; margin: 0; color: var(--surface); font-size: 11px; line-height: 11px; width: 300px;">Summary: countries above $50,000 GDP per capita have cut emissions to under 2 t of CO2 per person.</p>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "scatter", "x_title": "GDP per capita (USD)", "y_title": "CO2 per capita (tonnes)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": [], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": null, "right_max": null, "auto_max": 39.7845, "points": [[1313.6, 0.251], [12792.1, 1.591], [13101.5, 4.239], [4443.6, 0.592], [18827.4, 4.047], [13788.1, 2.672], [51305.4, 14.659], [43996.6, 6.78], [17034.0, 3.999], [38324.9, 24.668], [5066.2, 0.603], [12071.3, 4.658], [19161.6, 6.227], [42062.0, 7.638], [2419.4, 0.443], [6472.2, 1.945], [14687.1, 6.472], [16104.8, 3.031], [15156.0, 2.283], [20274.4, 6.876], [1658.0, 0.291], [688.9, 0.066], [3786.6, 1.213], [2993.8, 0.354], [45369.4, 14.107], [8179.2, 1.15], [736.0, 0.074], [1306.8, 0.152], [22929.3, 4.385], [18921.1, 8.218], [14355.4, 1.729], [2016.4, 0.637], [3923.5, 1.446], [15810.6, 1.576], [3996.4, 0.477], [26179.6, 4.501], [7609.1, 2.103], [25729.0, 5.311], [32133.4, 8.905], [891.8, 0.058], [50725.7, 4.929], [2986.3, 0.484], [10099.2, 2.466], [17023.1, 2.78], [9819.9, 2.36], [12967.9, 2.219], [9437.6, 1.26], [11195.4, 4.157], [29627.5, 8.863], [7871.6, 0.844], [2153.2, 0.135], [40607.4, 6.525], [40308.9, 4.456], [14824.8, 2.379], [1766.3, 0.306], [18585.7, 3.162], [46495.3, 7.942], [4387.2, 0.626], [25343.9, 5.533], [8192.8, 1.06], [1684.7, 0.288], [1548.0, 0.164], [1525.7, 0.25], [4753.3, 1.122], [47775.9, 4.121], [29468.8, 4.674], [42115.9, 9.458], [7349.6, 1.986], [12552.8, 2.719], [17561.8, 8.57], [11972.6, 4.939], [60350.3, 7.177], [36989.7, 6.84], [35827.6, 5.705], [7051.1, 2.785], [38196.7, 8.237], [8820.1, 1.992], [25138.2, 13.694], [3508.8, 0.379], [47709.0, 25.242], [4557.8, 1.655], [7270.0, 2.983], [27244.5, 3.513], [8484.9, 2.674], [2082.9, 1.116], [787.5, 0.161], [12658.8, 8.164], [30108.8, 4.578], [55300.1, 11.135], [1268.3, 0.138], [1286.7, 0.088], [25293.9, 8.125], [1324.1, 0.304], [34637.1, 3.359], [3214.9, 1.08], [21148.7, 3.383], [15810.5, 3.528], [7838.0, 1.702], [13233.7, 11.944], [20783.2, 4.06], [8348.9, 1.869], [962.8, 0.285], [5413.7, 0.589], [7564.4, 1.181], [3229.5, 0.593], [49128.0, 7.121], [39090.7, 6.229], [4868.0, 0.762], [978.9, 0.126], [5083.8, 0.589], [1537.8, 2.138], [15634.0, 3.995], [88390.4, 7.483], [37494.0, 16.488], [5411.7, 0.87], [4538.2, 0.886], [21533.1, 2.66], [9633.6, 1.114], [10206.8, 1.935], [8904.6, 1.325], [32069.8, 8.203], [28387.3, 3.909], [131990.5, 37.89], [26334.2, 3.818], [25631.6, 11.509], [2085.3, 0.143], [9782.7, 2.898], [3646.4, 0.599], [56685.8, 20.73], [2941.1, 0.801], [17203.8, 6.547], [24323.2, 5.01], [1411.3, 0.174], [81736.3, 8.661], [27472.1, 5.772], [32802.7, 6.017], [11599.5, 6.874], [41279.5, 11.72], [33978.6, 4.897], [11156.1, 0.805], [47124.9, 3.465], [63623.0, 3.748], [2330.7, 1.399], [53282.2, 11.699], [4963.9, 1.033], [3063.1, 0.304], [15670.7, 3.8], [1768.0, 0.339], [25077.1, 25.063], [10681.9, 2.54], [27406.8, 5.095], [13485.5, 14.116], [2155.8, 0.13], [7531.7, 3.485], [76127.2, 20.221], [38358.1, 4.563], [57075.3, 14.802], [20368.0, 2.212], [11264.6, 3.409], [5305.4, 3.843], [8364.8, 3.237], [1592.1, 0.272], [3397.5, 0.543], [1611.9, 0.761]]};
+const canvas = document.createElement("canvas");
+document.getElementById("chart").appendChild(canvas);
+const series = CFG.series || [];
+let data, type = CFG.kind === "scatter" ? "scatter" : (CFG.kind === "line" ? "line" : "bar");
+if (CFG.kind === "bar") {
+  data = {labels: CFG.labels, datasets: [{label: CFG.y_title, data: CFG.values,
+    backgroundColor: CFG.labels.map(l => CFG.highlight.includes(l) ? CFG.highlight_color : CFG.colors[0])}]};
+} else if (CFG.kind === "scatter") {
+  data = {datasets: [{label: CFG.y_title, data: CFG.points.map(p => ({x: p[0], y: p[1]})),
+    backgroundColor: CFG.colors[0], pointRadius: 4}]};
+} else {
+  data = {labels: CFG.labels, datasets: series.map((s, k) => ({label: s.name, data: s.values,
+    borderColor: CFG.colors[k % CFG.colors.length], backgroundColor: CFG.colors[k % CFG.colors.length],
+    yAxisID: s.name === CFG.right ? "y1" : "y", tension: 0}))};
+}
+const stacked = CFG.kind === "stacked_bar";
+const yScale = {type: CFG.y_log ? "logarithmic" : "linear", stacked: stacked,
+  beginAtZero: CFG.kind === "bar" || stacked, title: {display: true, text: CFG.y_title}};
+if (CFG.y_min !== null) yScale.min = CFG.y_min;
+if (CFG.y_max !== null) yScale.max = CFG.y_max;
+const scales = {x: {type: CFG.kind === "scatter" ? "linear" : "category", stacked: stacked,
+  title: {display: true, text: CFG.x_title}}, y: yScale};
+if (CFG.right) scales.y1 = {position: "right", min: 0, max: CFG.right_max, grid: {drawOnChartArea: false},
+  title: {display: true, text: `${CFG.right} (right axis)`}};
+new Chart(canvas, {type, data, options: {animation: false, responsive: true, maintainAspectRatio: false,
+  plugins: {legend: {display: series.length > 1}}, scales}});
+</script>
+</body>
+</html>

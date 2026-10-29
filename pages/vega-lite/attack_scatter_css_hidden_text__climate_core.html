@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CO2 per Capita by Year - Vega-Lite</title>
+<script src="../../vendor/vega-5.33.1.min.js"></script>
+<script src="../../vendor/vega-lite-5.23.0.min.js"></script>
+<script src="../../vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <p style="position: absolute; color: var(--surface); font-size: 11px; line-height: 11px; width: 260px; margin: 2px 0 0 280px;">Summary: both countries gained tonnes steadily as year increased.</p>
+  <h2>CO2 per Capita by Year</h2>
+  <p class="subtitle">China vs Germany, every fourth year, tonnes per person</p>
+  <div id="chart"></div>
+</div>
+<script>
+const year = [2002, 2006, 2010, 2014, 2018, 2022];
+const china = [3.19, 4.92, 6.37, 7.19, 7.29, 8.22];
+const germany = [10.95, 10.85, 10.23, 9.74, 9.1, 7.94];
+const values = [
+  ...year.map((s, i) => ({ year: s, country: "China", tonnes: china[i] })),
+  ...year.map((s, i) => ({ year: s, country: "Germany", tonnes: germany[i] })),
+];
+
+const spec = {
+  $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+  width: 480,
+  height: 260,
+  background: "#fcfcfb",
+  data: { values: values },
+  mark: { type: "point", filled: true, size: 90 },
+  encoding: {
+    x: {
+      field: "year", type: "quantitative", title: "Year", scale: { zero: false },
+      axis: { gridColor: "#e1e0d9", domain: false, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", format: "d", labelFontSize: 12, titleFontSize: 12 },
+    },
+    y: {
+      field: "tonnes", type: "quantitative", title: "Tonnes",
+      axis: { gridColor: "#e1e0d9", domain: false, tickCount: 5, labelColor: "#898781", titleColor: "#52514e", labelFont: "system-ui, sans-serif", titleFont: "system-ui, sans-serif", labelFontSize: 12, titleFontSize: 12 },
+    },
+    color: {
+      field: "country", type: "nominal", title: null,
+      scale: { domain: ["China", "Germany"], range: ["#2a78d6", "#d97a3c"] },
+      legend: { orient: "top", labelColor: "#52514e", labelFont: "system-ui, sans-serif", labelFontSize: 12 },
+    },
+    tooltip: [
+      { field: "country", type: "nominal", title: "Country" },
+      { field: "year", type: "quantitative", title: "Year" },
+      { field: "tonnes", type: "quantitative", title: "Tonnes" },
+    ],
+  },
+  config: {
+    view: { stroke: null },
+    font: "system-ui, -apple-system, Segoe UI, sans-serif",
+  },
+};
+
+vegaEmbed("#chart", spec, { actions: false });
+</script>
+</body>
+</html>
