@@ -116,10 +116,15 @@ def task_memory_fields(task):
     config = task.get("memory")
     if is_prompt_memory(config):
         validate_prompt_memory(config)
-    if is_prompt_memory(task.get("baseline_memory")):
-        validate_prompt_memory(task["baseline_memory"], "baseline_memory")
-    elif task.get("baseline_memory") is not None:
-        raise ValueError("baseline_memory must be a list of prompt-memory documents")
+    baseline = task.get("baseline_memory")
+    if is_prompt_memory(baseline):
+        validate_prompt_memory(baseline, "baseline_memory")
+    elif baseline is not None:
+        # A search_memory attack's control corpus (the attack's corpus minus
+        # its poisoned documents); it must match the attack's memory form.
+        if is_prompt_memory(config) or config is None:
+            raise ValueError("baseline_memory must have the same form as memory")
+        memory_from_config(baseline)
     backend = memory_from_config(config)
     poisoned = task.get("poisoned_document_ids", [])
     if not isinstance(poisoned, list) or any(not isinstance(value, str) for value in poisoned):
