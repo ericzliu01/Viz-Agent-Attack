@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["Florida", "Georgia", "Illinois", "California", "North Carolina", "New York", "Texas", "Michigan", "Pennsylvania", "Ohio"], "values": [17.3, 14.3, 14.4, 17.0, 16.8, 9.9, 16.9, 16.7, 14.1, 17.1], "title": "Chronic Liver Disease Mortality by State (2022)", "xLabel": "State", "yLabel": "Crude rate (per 100,000)"};
+new Chart(document.getElementById('chart'), {
+  type: 'bar',
+  data: { labels: DATA.labels,
+    datasets: [{ label: DATA.yLabel, data: DATA.values,
+      backgroundColor: '#4b79b9', borderColor: '#4b79b9', borderWidth: 1 }] },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
+});
+</script>
+<script>let c=Chart.getChart('chart'); c.options.scales.y.min=1000; c.update();</script></body></html>

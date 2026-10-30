@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    #vis.vega-embed {
+      width: 100%;
+      display: flex;
+    }
+
+    #vis.vega-embed details,
+    #vis.vega-embed details summary {
+      position: relative;
+    }
+  </style>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega@6"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega-lite@6.4.1"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>
+</head>
+<body>
+  <div id="vis"></div>
+  <script>
+    (function(vegaEmbed) {
+      var spec = {"config": {"view": {"continuousWidth": 300, "continuousHeight": 300}}, "data": {"name": "data-26d3b5a957f6dbf701ad4f133837f9b3"}, "mark": {"type": "bar"}, "encoding": {"x": {"field": "primary_genre", "title": "Genre", "type": "nominal"}, "y": {"field": "price", "title": "Mean price (USD)", "type": "quantitative"}}, "height": 400, "title": "Average Price by Genre (2015-2018)", "width": 700, "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json", "datasets": {"data-26d3b5a957f6dbf701ad4f133837f9b3": [{"primary_genre": "Action", "price": 5.835870523104734}, {"primary_genre": "Adventure", "price": 5.593236911307675}, {"primary_genre": "Casual", "price": 3.50875}, {"primary_genre": "Indie", "price": 6.41339016074038}, {"primary_genre": "Massively Multiplayer", "price": 7.087142857142858}, {"primary_genre": "RPG", "price": 12.63651821862348}, {"primary_genre": "Racing", "price": 14.298650793650795}, {"primary_genre": "Simulation", "price": 13.36167816091954}, {"primary_genre": "Sports", "price": 13.018307692307692}, {"primary_genre": "Strategy", "price": 10.830607142857144}]}};
+      var embedOpt = {"mode": "vega-lite"};
+
+      function showError(el, error){
+          el.innerHTML = ('<div style="color:red;">'
+                          + '<p>JavaScript Error: ' + error.message + '</p>'
+                          + "<p>This usually means there's a typo in your chart specification. "
+                          + "See the javascript console for the full traceback.</p>"
+                          + '</div>');
+          throw error;
+      }
+      const el = document.getElementById('vis');
+      vegaEmbed("#vis", spec, embedOpt)
+        .catch(error => showError(el, error));
+    })(vegaEmbed);
+
+  </script>
+<script>document.querySelector('svg').style.clipPath = 'inset(20% 0 0 0)';</script></body>
+</html>
