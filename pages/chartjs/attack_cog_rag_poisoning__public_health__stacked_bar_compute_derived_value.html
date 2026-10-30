@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chronic Liver Disease Mortality by Sex and State (2022)</title>
+<script src="/vendor/chart.umd-4.4.4.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Chronic Liver Disease Mortality by Sex and State (2022)</h2>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "stacked_bar", "x_title": "State", "y_title": "Crude rate (per 100,000)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": [], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": null, "right_max": null, "auto_max": 36.435, "labels": ["California", "Florida", "New York", "Pennsylvania", "Texas"], "series": [{"name": "Female", "values": [12.3, 12.5, 6.6, 10.6, 12.2]}, {"name": "Male", "values": [21.7, 22.2, 13.3, 17.7, 21.6]}]};
+const canvas = document.createElement("canvas");
+document.getElementById("chart").appendChild(canvas);
+const series = CFG.series || [];
+let data, type = CFG.kind === "scatter" ? "scatter" : (CFG.kind === "line" ? "line" : "bar");
+if (CFG.kind === "bar") {
+  data = {labels: CFG.labels, datasets: [{label: CFG.y_title, data: CFG.values,
+    backgroundColor: CFG.labels.map(l => CFG.highlight.includes(l) ? CFG.highlight_color : CFG.colors[0])}]};
+} else if (CFG.kind === "scatter") {
+  data = {datasets: [{label: CFG.y_title, data: CFG.points.map(p => ({x: p[0], y: p[1]})),
+    backgroundColor: CFG.colors[0], pointRadius: 4}]};
+} else {
+  data = {labels: CFG.labels, datasets: series.map((s, k) => ({label: s.name, data: s.values,
+    borderColor: CFG.colors[k % CFG.colors.length], backgroundColor: CFG.colors[k % CFG.colors.length],
+    yAxisID: s.name === CFG.right ? "y1" : "y", tension: 0}))};
+}
+const stacked = CFG.kind === "stacked_bar";
+const yScale = {type: CFG.y_log ? "logarithmic" : "linear", stacked: stacked,
+  beginAtZero: CFG.kind === "bar" || stacked, title: {display: true, text: CFG.y_title}};
+if (CFG.y_min !== null) yScale.min = CFG.y_min;
+if (CFG.y_max !== null) yScale.max = CFG.y_max;
+const scales = {x: {type: CFG.kind === "scatter" ? "linear" : "category", stacked: stacked,
+  title: {display: true, text: CFG.x_title}}, y: yScale};
+if (CFG.right) scales.y1 = {position: "right", min: 0, max: CFG.right_max, grid: {drawOnChartArea: false},
+  title: {display: true, text: `${CFG.right} (right axis)`}};
+new Chart(canvas, {type, data, options: {animation: false, responsive: true, maintainAspectRatio: false,
+  plugins: {legend: {display: series.length > 1}}, scales}});
+</script>
+</body>
+</html>

@@ -120,7 +120,7 @@ Analysis: critic evasion is the one reasoning attack that clearly works (TM, +30
 
 ## Sources
 
-- Franklin, Tomasev, Jacobs, Leibo & Osindero, *AI Agent Traps* (Google DeepMind 2026, SSRN 6372438): Semantic Manipulation Traps (framing, oversight and critic evasion) and Cognitive State Traps (memory poisoning, persona hyperstition).
+- Franklin, Tomasev, Jacobs, Leibo & Osindero, *AI Agent Traps* (Google DeepMind 2026, SSRN 6372438): Semantic Manipulation Traps (framing, oversight and critic evasion, persona hyperstition). Our persona hyperstition is delivered through system-prompt memory, which is the channel of Cognitive State Traps (memory poisoning); the attack itself is Semantic Manipulation (corrected 2026-10-29 per the 2026-10-23 design review).
 - Tversky & Kahneman, "The Framing of Decisions and the Psychology of Choice" (Science 1981).
 - Kong, Liu & Karahalios, "Frames and Slants in Titles of Visualizations on Controversial Topics" (CHI 2018).
 - Wei, Haghtalab & Steinhardt, "Jailbroken: How Does LLM Safety Training Fail?" (NeurIPS 2023).

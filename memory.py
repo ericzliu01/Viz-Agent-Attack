@@ -116,16 +116,24 @@ def task_memory_fields(task):
     config = task.get("memory")
     if is_prompt_memory(config):
         validate_prompt_memory(config)
-    if is_prompt_memory(task.get("baseline_memory")):
-        validate_prompt_memory(task["baseline_memory"], "baseline_memory")
-    elif task.get("baseline_memory") is not None:
-        raise ValueError("baseline_memory must be a list of prompt-memory documents")
+    baseline = task.get("baseline_memory")
+    baseline_backend = None
+    if baseline is not None and is_prompt_memory(baseline) != is_prompt_memory(config):
+        raise ValueError("baseline_memory must have the same form as memory")
+    if is_prompt_memory(baseline):
+        validate_prompt_memory(baseline, "baseline_memory")
+    elif baseline is not None:
+        # A search_memory attack's control corpus (the attack's corpus minus
+        # its poisoned documents).
+        baseline_backend = memory_from_config(baseline)
     backend = memory_from_config(config)
     poisoned = task.get("poisoned_document_ids", [])
     if not isinstance(poisoned, list) or any(not isinstance(value, str) for value in poisoned):
         raise ValueError("poisoned_document_ids must be a list of document IDs")
     if set(poisoned) - (backend.document_ids if backend is not None else set()):
         raise ValueError("poisoned_document_ids must refer to documents in this task's corpus")
+    if baseline_backend is not None and set(poisoned) & baseline_backend.document_ids:
+        raise ValueError("baseline_memory must not contain poisoned documents")
     target = task.get("attack_target")
     if target is not None and (not isinstance(target, str) or not target.strip()):
         raise ValueError("attack_target must be a non-empty string")

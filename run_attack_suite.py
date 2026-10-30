@@ -46,8 +46,9 @@ def discover_pages():
 
     A reasoning attack's meta.json lists several questions under "tasks";
     it yields one entry per task (same attack_id, its own question, task_id
-    and bait). "memory"/"baseline_memory" carry retrieved documents for the
-    attack trial and for its clean baseline respectively.
+    and bait). Other metas carry a top-level "bait" letter when they have one.
+    "memory"/"baseline_memory" carry the memory (prompt list or search_memory
+    corpus) for the attack trial and for its clean baseline respectively.
     """
     clean_by_key = {}
     attacks = []
@@ -80,6 +81,10 @@ def discover_pages():
                 clean_by_key[(library, chart_type, entry["dataset"])] = entry
                 continue
             entry["chart_type"] = meta["chart_type"]
+            if meta.get("family"):
+                entry["family"] = meta["family"]
+            if meta.get("bait"):
+                entry["bait"] = meta["bait"]
             for key in ("memory", "baseline_memory"):
                 if meta.get(key):
                     entry[key] = meta[key]
@@ -488,6 +493,9 @@ def attack_trials(libraries, limit=None, attack_ids=None, datasets=None):
         if attack_ids is not None and not ({attack["attack_id"], base_attack_id(attack["attack_id"])}
                                            & attack_ids):
             continue
+        # The cognitive attacks (memory, not page) run only when named in --attacks.
+        if attack_ids is None and attack.get("family") == "cognitive":
+            continue
         if datasets is not None and dataset_name(attack["dataset"]) not in datasets:
             continue
         if library not in libraries or (limit is not None and counts.get(library, 0) >= limit):
@@ -502,7 +510,8 @@ def attack_trials(libraries, limit=None, attack_ids=None, datasets=None):
             if attack.get("baseline_memory"):
                 baseline["memory"] = attack["baseline_memory"]
             elif attack.get("memory") is not None and not is_prompt_memory(attack["memory"]):
-                # A search_memory attack's baseline keeps the tool with an empty corpus.
+                # A search_memory attack without a control corpus keeps the tool
+                # with an empty corpus.
                 baseline["memory"] = {"corpus": {"documents": []}}
             trials.append(baseline)
     return trials

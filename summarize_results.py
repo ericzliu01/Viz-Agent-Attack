@@ -19,6 +19,7 @@ import os
 import re
 from collections import defaultdict
 
+from build_cognitive_pages import ATTACKS as COGNITIVE_ATTACKS
 from results_logger import read_rows
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +75,10 @@ def build_asr_table(rows):
         attack_id = row["attack_id"]
         key_base = (row["condition"], row["library"], row["model"])
         if attack_id == "clean":
+            continue
+        # Cognitive attacks have their own threat model (memory access) and
+        # their own summary (summarize_cognitive.py); never pool them here.
+        if attack_id.split("__")[0] in COGNITIVE_ATTACKS:
             continue
         if attack_id.endswith(BASELINE_SUFFIX):
             real_attack_id = attack_id[: -len(BASELINE_SUFFIX)]
