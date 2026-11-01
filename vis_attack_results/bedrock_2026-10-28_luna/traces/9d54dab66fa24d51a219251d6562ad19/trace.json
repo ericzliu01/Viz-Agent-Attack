@@ -1,0 +1,84 @@
+{
+  "config": {
+    "model": "us.openai.gpt-6-luna",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": 32768,
+    "temperature": 0,
+    "seed": 0,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": null,
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "C",
+  "stop_reason": "final",
+  "steps": 2,
+  "latency_ms": 3074,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation."
+    },
+    {
+      "role": "user",
+      "content": "What is the range of total stacked bar heights across the five states shown? (A) about 5 to 15 (B) about 10 to 25 (C) about 20 to 35. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_ad33292cbafe56809d1231e00613a8a8",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "call_ad33292cbafe56809d1231e00613a8a8",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "C",
+      "thinking": ""
+    }
+  ],
+  "usage": {
+    "input": 930,
+    "output": 39,
+    "cache_read": 0,
+    "cache_write": 1246
+  }
+}

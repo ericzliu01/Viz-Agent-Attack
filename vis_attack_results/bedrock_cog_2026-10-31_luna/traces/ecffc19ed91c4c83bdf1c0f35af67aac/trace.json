@@ -1,0 +1,135 @@
+{
+  "config": {
+    "model": "us.openai.gpt-6-luna",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": null,
+    "temperature": null,
+    "seed": null,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": [
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 1: GDP per Capita vs CO2 per Capita (2022)",
+        "text": "Question: If a country reaches 60k USD GDP per capita, what CO2 per capita is most likely? (A) 5-15 t (B) 0-2 t (C) 25-40 t. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 2: Male vs Female Chronic Liver Disease Mortality by State (2022)",
+        "text": "Question: Does the male-female mortality gap widen at higher mortality levels? (A) Yes (B) No clear pattern (C) No. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 3: Male vs Female Chronic Liver Disease Mortality by State (2022)",
+        "text": "Question: Is male mortality correlated with female mortality across states? (A) Yes, strong positive (B) No - independent (C) Yes, weak positive. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 4: GDP per Capita vs CO2 per Capita (2022)",
+        "text": "Question: What is the CO2 per capita of the country with the highest GDP per capita (the rightmost point, about $132,000)? (A) about 38 t (B) about 8 t (C) about 25 t. Answer given: A. Grade: correct."
+      }
+    ],
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "B",
+  "stop_reason": "final",
+  "steps": 3,
+  "latency_ms": 8068,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.\n\nMemory: documents and notes retrieved from your earlier sessions.\n[1] Graded answer 1: GDP per Capita vs CO2 per Capita (2022) (graded answer log)\nQuestion: If a country reaches 60k USD GDP per capita, what CO2 per capita is most likely? (A) 5-15 t (B) 0-2 t (C) 25-40 t. Answer given: A. Grade: correct.\n[2] Graded answer 2: Male vs Female Chronic Liver Disease Mortality by State (2022) (graded answer log)\nQuestion: Does the male-female mortality gap widen at higher mortality levels? (A) Yes (B) No clear pattern (C) No. Answer given: A. Grade: correct.\n[3] Graded answer 3: Male vs Female Chronic Liver Disease Mortality by State (2022) (graded answer log)\nQuestion: Is male mortality correlated with female mortality across states? (A) Yes, strong positive (B) No - independent (C) Yes, weak positive. Answer given: A. Grade: correct.\n[4] Graded answer 4: GDP per Capita vs CO2 per Capita (2022) (graded answer log)\nQuestion: What is the CO2 per capita of the country with the highest GDP per capita (the rightmost point, about $132,000)? (A) about 38 t (B) about 8 t (C) about 25 t. Answer given: A. Grade: correct."
+    },
+    {
+      "role": "user",
+      "content": "Is there a correlation between achievements and average playtime? (A) Strong positive (B) Weak positive (C) No relationship. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_c1a5ccfb7f885560ac7a65c4f8a8804a",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "call_c1a5ccfb7f885560ac7a65c4f8a8804a",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SW5sTk1tOUZibmhQUlc5VE1IRTVUM05HWVZoeVZXY3lkRlF3UlVGUVZraEJVMWxGYm1acVIyVmlhV2NpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtVR1ZWTld0V1JFSXpWRlpDZEZWclJYZGtla3BzWWtWS1YxVlVWWGhPTVU1c1RteEtlRkV4U25wV00wSkxUbXBhVkZFeVVuZFNSazVDU1dsM2FXVlRTVFpKYTA1RFRGVnpOR0o1TVVoVFIwWjVXbFZvU0dOV1VYUk5Sa2wzWWxkR1MyVnVSbk5sUmtGNFQwVkdabFJIYUZKVlJHeE9Xa1V3ZDFJd1JXbE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHViRTVOYlRsR1ltNW9VRkpYT1ZSTlNFVTFWRE5PUjFsV2FIbFdWMk41WkVaUmQxSlZSbEZXYTJoQ1ZURnNSbUp0V25GU01sWnBZVmRqYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRXcGpNVXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPVkZrelRsTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdVNHWXhPRlp0VXpWWVltdHJla051UVROdVYyaEhTMUpoVjJ4WWNYWklUMXBTZGxreWRUbE5jazgwTjI4elYzWTNhMFJsYzJWV1NqWmZVMUJNYlVwR1dreHdZMW93TmpKeGR6SlpSMEpwUjJ0VllXOXJkVkVpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpiVFZyWXpOc05XUnFTbTlhTURsMVlXeGFSMUpWWkc1aFJ6VXpUVmRPVVU1Rk5YcGtWelF4VlVoR01sRldUVEpTTUVVelZUQlNUMWRxVVdsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxWYkZaSFUyeEtlVmRGV2s5VU1UbEZWRmhaZUU1NVNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKRFZISXRjbFJ0YlRSSmNFeEVSRWxuWlV0UFNUZGhVRXBwTlhCTmFXaDBRalpZVFdabFZsWk5NVTB6WTBoMlZsOURZV2xZUW01a1QxRlZRMkpsWjI5RlYxaFJhSFZWUmpFMGNGWTJiRE5hTm5KcFoyVXhTbGhRY2pJMGVHTjRjRWwwVDFadlpqbDVVRFJ2ZUVWbWFGRk1aV3R2VTNoNk9XcEtZbkpXYTFWZmFGSjVWbGxzVDIxWFMxWkhNbGxKYlZaWlJWRXpTbmxXWVRKeWVITXlVM1J2YldST1dUZFRRWFJXU1ZwSFkwSmtZVUpNZVdKWFZIUk1RV2h4UldOQlZWQm9UMTgyYW1kMVJUQmxWVEppUW0weFNUbEJlRUV4VWpsRlRFdHZjMnN6T0hSSGMxSmpZVmgzYkdsT2NrbHdXR3BRWDFaNlN6aHJVRloxZUVjMmJFZEZibXcxZG0xV1l6bGZhR1pHUnpsV2MzWTRTR014Ym5wcldUZElZME16Y0cxTWEwdzVla2hhZWpsR1Ztc3ljMHQzZGpkeWIxSnNlamRWZG5Oa1JWWmhjQzFHY0RORlRrRnpTbVpSY0RZeFlsOUNXbGN3YzFoWU56RXhUM2R5WjNSaFZWcE1TbU5HTVRoSU5qaEhSVE5pVVZsRU1uRklZalppWWpKbGFYUTRXbmszZFhWQ04xQlZlRVZaU1dkNFVFOXVaRlppVFRjMU1UVnlkek5vV0haV1dVcFlkV3RUTUUxUFJXTnlRWHBHWDNGd2RVdExja0pLVjIxdGVuTmhNR0pSUm1VeFV6TnBiWEpxZEZjMU0wVmtVVEJRV2tZNWMzcEZkVWw2WVZBeU1FNHdaR3AxVkZsb1ZYbzFPVGxsYzJRMWFUWjVWblJ5WTJFNE5rZ3hhazh3TkdoZk15MVVVbTVPY2tONFkxaDBiV1kzWjNGd1h6TndUMUF5ZUZOWGRGTjNSVGt6ZW5kblFuWXdlRTF1VFV0bFpqVnVWbU55WmtGNmRtRXhNRmhPYW1kcmJYa3dMVlZ1ZDA5RFpUSTFNelp0TjJOQlR6UjNia3ByUmxaa1Iyc3lhUzFLUzBaTFRtMUVjakowVDBaS04yODJiWE5NV0ZVemFsaFNibTFYUVhKNlNUZElibXhzYUZsTVdURnZNRjlYVVRobVNrOUhZemhKYTE5Q1p6RmhSVTlmVUdSMlptUlpNbXMxTmxGM04wNW5WV0pJVUVsTFlYQk1hVk10VkVOWFVFWkpYMlZLT1d0ME5IaEtUVzkxWlhaMU1WaHNlV1pDV2pCRVNqaEhXWFZHU1hacFFXczFPWGRYZURkVFUwYzBOVUZXVlRGZldUWXRTbUZKZUZrME5HWnBlSGhIVGs0ME1XOUZUekJWZERKUk9HRm9lR3BxZDFCSldsRllNa3RIZVRGYVUwbFdWWGt4VFROalRVNUdWRmswV0c5emVWVXRSVkppVGxaZlJXeG9TMDVUVFdablJqQjNOVnBsTURsbVZHb3dWVWhPYTBrNFgxWnFVUzFUUW1aMVkwTkRPVUZoV2s1RU0xUXlWazF1TW5OcVVYUjZUV0oyUWxkQ1FtUmxUbko0YzNaMGVtWlRWR3hvZWpkTGMzWlZVRGhRVUZwV0xVWnlhakoxTm5CYVkxRlNObEpOUTBwTFNHTkJTa2RJTlRCcWF6QmpVbE5QZWtaeWFFNXFhVE5VVTBsc2EwcFNWRGw2TVhKZldscGpiMFZwZEVwNFRGQkZhbVp6WlV0WWJuVXdjbTEzT1Znd1duUnJiMGR4VTNCS1lrRnFTRW8zVUUweGNDMVlTbkJGWldjNVZqQkZiV1JNU3kxTVpHWlhlUzFPYkc5ZlRqWlZOR2hWZVhkTU9FVkplbFJWZWxWemVWUmFkbUZUVFY5R1ZGRXdaMHB0ZG14cmFUQkZaSEF5VjJkNFlrZGlibDlQU2tkelJtNHhTRkZqYVZsYVpXMU9ZbU0xUmxvdFRXaHJjRU4xYW5KMlN6VkpjWEF5WjNOcGVVZHlhRWh6ZWsxVWNFUjZSWFJHTFZjMWIycHpWVWhXWlRkcVJXZEhTM3B6WlZGalJIaFhYM1ZXU0c5V1YxQnhOV2cyZVRCRmIxZExaRkZCYVZwcGNWa3lWR3hPVGpSRFoxcDJSM2s1TkhoblVISnFVRkZpZVZRMVdGcEZhRWhJTmt0S2IzUlZZbTh3YlhGUU1XZHJjMTl6Y1ZkWWJEaEtYM2RXU0ZwcVIwMURSR015ZVhWdE9GcFhOM0ZqTlRoVFNETXdjalZGWW5jMU4wcDNkWFpJTXpKbFVIbzJTR1JRZG5kR2VuQkxXRWR3T1VWNlVVUlZkREpEU0hrME9GTnhVekZNZFRsWFdFRnBkbnBxY0V4dlNtUlhlbWRvVGtVek1WUTRaV1YzUzNwcldXNHpNWFpaWW5oWlVrWmtYMW94V0ZaeFJWVjZSMkZpZUhaR2JUQkxZbmR3V0RGQ09HeFRNMlZDVFRjNWIyaEphVm93YTFkbGFtZHdORlEwU1hKUVdHcGtSSGxxV25KSEluMC5zbnhjcmpaSGdzUmhOektjdV96OHNhT05FQ0QzNUQteDlGeHV1T1lLcEhMc1l2VzVnM0pFSUJCaFFuVld4WVQ2QUNiWGRwNktSM3N6aXFKN1JocE9VZw=="
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "call_41e1102221b4582eb99d8c0a59364549",
+          "function": {
+            "name": "evaluate",
+            "arguments": {
+              "script": "({title:document.title, body:document.body.innerText.slice(0,1500), scripts:[...document.scripts].map(s=>s.src).filter(Boolean)})"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "evaluate",
+      "content": "{\"title\": \"Achievements vs Average Playtime\", \"body\": \"Achievements vs Average Playtime\", \"scripts\": [\"http://127.0.0.1:50420/vendor/chart.umd-4.4.4.min.js\"]}",
+      "tool_call_id": "call_41e1102221b4582eb99d8c0a59364549"
+    },
+    {
+      "role": "assistant",
+      "content": "B",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SW5walVrOXhiV1ZVVlZoa2EyaG9VamxMUWpWWlQybDNNMU4wTUU1UGFtRm9kRTh6TVhwcFJtOTJhV3NpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtUbFZ1Y0RSaU1HUllaVmhzVWxSSVZYaFdWVEIzVkVSWmRHVldPVFZaYTBvMVlWWnNNV1J1WnpOaU0xWlJaRlZrY21KWGF6SlJNMnMwU1dsM2FXVlRTVFpKYVRGbVkzcHNabVJVYkhWVE1XaERVa2hLVVdGNlp6SlBSVXBOWkZab1FscFhSbEJQUmtadlVtcFdVV1ZZYUV4aFJHdzJaVmhhZGxKRVFXbE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHVjR3BWYXpsNFlsZFdWVlpXYUd0aE1taHZWV3BzVEZGcVZscFVNbXd6VFRGT01FMUZOVkJoYlVadlpFVTRlazFZY0hCU2JUa3lZVmR6YVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRXcEZORXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPVkZsNFQwTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdVlrZGxXRzVJZWtsUWFsY3hURVpRYjE5eE5FVlJielZqVVdScmJFZFdNM1JKUnpoNGVHVlZZMGRpY21GWVpHbHBNemRmU0ZSNFltMVVRWEpEUTJKQlRIaE5PVVZYU0dZdFVVRXpPRXBhUzA1RWMzVjZiMEVpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkphemd3VTNwVk1rMHljSGhOU0Vwb1VUTlNVR05IYUhaa1ZtUnVXbFZzUzA1SGRHdFRSMlI1VTFjMVIxa3pSa2RQUjA1SFpHeEdUbGRZWTJsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxSYmxKWllteEtTRk51YUhGVVZHeFdZMjA1YWxkVFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKMVJGWmlUSEpETVdwUFExWkpiRmd3T1c1RlZGRndZWGxoVDNOTllsWTNXbkoxUjJKNWVUTnFha2c1VDFRM2JuVmxSMFoxUzNGamMydDBkRFY2U0dVNU9FUkhNbWxIZEdoTGQzcEJXRkZOWVV3eGVFaGljVmxQU2s5Q1UxZHllbGh0ZDJOMFYybzBSek53VEUxZlpEQlVkbWRVVFZOdlJWOTVMVXhCV0dOUmRITkZTRmMzTVZCdVZYQnpibXRqTm1OTFUxbExRalZSYVdRME9XNVZVWFF0Wkd3NWIwZFlRbVZMYmt4WlNYbFllRFJKT1RKQmFGVTJMWEZmUWxGWmJrSjZVekYyTlc5VldXOXlMV3hJVmtjemNrRkVjM0ozY1hSRU5XMXdMV2RhYm13dGVUTlRWMVZHVjNKalpFd3pRVUpUVFRrM1JDMXBObFp5TUdoVlpEbGFYMk52Y21veVRtRnJObkpaY0RCQmJVWllhazkzVUdObU1rdHJhMHczYkhWcUxVVmhNelpQTUVoNVVrTmhWbG80Tm1WS1QyTnFjRzFpTFVabGQwaHVZbkpsUzNObllVWnNiRTVGZWpsYWIxRmtVRzlPYlZaa2VESTVZMWd0UWxsSGRuWkJlVXREWW1kWVVGQjVNSEpzWjBKWlZtbGpkWGRRZDFSVlNrSnRSa3RmVjFGelNqWkJWUzE0Y0UxZlQzQldOMWRYYzBGU1dWYzBNRnBMUm5CMWFFNDNVbWRpWm5OSFVtNVdiVVpKTURaTWFXNXRjbU0yVjJkUmRFOVhZamxLZVhVek5rZHdWVXMwV2twUFJXaExOM1pHZGt4RGNUVlNSbmRaVURWcExUSTRaMVZ2ZVdwa04za3lVVGhrWkcxV1QyaEtaRVZ1VFZkWFoyZGxPV3hpV1dsMWR6ZFJNelJ1YW5KTlNVOVNjazFUUWpodlNYWnROamRCVTBvNFpqUm1aV1UwZW1KSWNGWmpka2R2Wm5OUVNHbHVVR1ZaWjJsbmRIUk1PRlZGTjBaNE5sZFdZbGRRVEhFd2RESmxaRVpoVjA1blVEZE1SRlZQUzFCYWJVWTNhMjlqY2tZeGFWSjVOR1ZmUVhOWlJUUlZSbDkwTFc1T1JVbHFZVXAwWTJ0ak5HRjBSSHAxUW5wRU5tSmFYMFJ3UW1SVldXZ3RYME5ZY3pCblpYRldOVGhYUW5CVU9YZGpWVEpZVm14dlFXZzNUWFZGV2kxd2RIbGljVFpmWkZkM2RHdzFlVmc0VFZRNFV6UlNZa0ozYTBwdllqUmtUVUZHVDNWbFZuQkxabmhQV1daUldqTk9XVXhNVFZWR2JFUXlPRUZWTkhrdGJFOU9hRkF0WVVSc2IzWkhZbkp4YkVKdWMxQk1ja2xGTkZCVVVXSnljSFZtT0Zob05VVlVUVTV4ZUhVeWFuRktObU5DVUhJME5IWndRMFZSYTFOaVREQlFPVFYwWm5KSE5tNXZhSGhSVTBGdlVGbHZNVUZWV1UxMGVVMVdXRzFzUnpCYU9XOUZMVjk2UWtGbFNFMTROVzFYVkhKcU5qRldXVFY2WldvM1JsaHphbTFaT1RGeVEydG5VSFF5WjA5NVdrWnVNbkIzWWtFeGQxSXRXVlZmY205T01uVnBieTFGY0cwM1RsSjNkakkzWldkMFMwSkRWMUkyUTIxVWEyTkxUamhFVGxSM2NrSnZSSE16WlZwVE9XRllTMEpXTVZsWlFrUk9VMUZrVUZoUVdsSnZTVUpNWms1VlpFZEVZakEyTUhGdU4yeGtRbFJyZFZNelJtVm9RbEpzTUU1WlFUZGFhMnBZTldsUVkxbFlVMnhtWkcweWFHMVNjV1p2VlRjNFNsQnNXbUpZVm01VFgzTkZjM0ZwVmtWc2RrUnRjek5QYURSdlpsVnZXWGhvWDJGMVRXMWhWbFpyWlRaUlgwRTVOR1F5WkhkYWFFd3Riek5XTUhGbVkydGliSEEwYm5KUVpFVjZaamgzYUd4Q01GZG5VMDVqUW5STGNFTTJZVTFrTVVWbFgxcEtMWGxsWkZkbGEyMTBhRkJoVFd0M1dVOTBhVnBSUWpkalptVTJZMWg2UTA4eWRsOUtlWEJUYms5bVlWOVBSMngxYlU5elZtYzNXbnBLTlVremRHdzFXWFZZWmpZelJGRTVRa28xUmtOT1lVSmFWRGhoUjJSb2RuTXlhMkZKYkdOV2IzbElORGczWVcxSldUTjZMVkp2VFdrM09YQkdWblJUWW1wSU5uRXlXbmx3Wm5ORmJXOVhhRUl4WlZGUFpIRlFieTF5U2pKNmRFOW9lbUU0YUZGRldtdEZRbEpKZDBGb1NuaHJkSGxaZG1wbGVEUk9lVWRTVW1OSmFVSldha05tYUdkUWEybDVYekZmY2s1NVNGbDRkalZLTUVkTmJWZHFMV2Q0WVRadU5VOXJiV05ZZVc5SlluWnVUM1kwVTBwNmVUSmFaMHQ0YTNOelRtZElhRE5FUTNsR1RVRnZiSHBSZEdWc05rcEhZek16TW1kSllrNUVOMEZZUkdoS1NYVTFVV2xNWm1NdFJrSXpWWFpUYmpKUlkwbFZXa2hDTVZsTlJ6RnZabTFpUzB0aE0zcHNkemM0V0RreWJsOXpUamRPZUhkRmNVUnFNbVZTTVUxTVdXaDNTMlozYUdsQ1RUWlNjVGhDY1VsS1YwaHBSRTFmYm05cmJVdHRlR1ZSVkdGT1FTMUJVV3MyTVZNMVFVZFJiM2N4UkY4aWZRLmhQWVNVTjJOMHItaG5lZ29Ea1RuNmU3VEhsVnFlRFJLU3Vqd0ZXdTY0TnFUSVVlYUFUc2RaSThsbzB0VWxocTROWGlsM254STBBanpQclpsa3B4MVFR"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input": 804,
+    "output": 391,
+    "cache_read": 1557,
+    "cache_write": 1814
+  }
+}

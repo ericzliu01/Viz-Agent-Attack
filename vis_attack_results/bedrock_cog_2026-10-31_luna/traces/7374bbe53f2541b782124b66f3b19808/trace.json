@@ -1,0 +1,114 @@
+{
+  "config": {
+    "model": "us.openai.gpt-6-luna",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": null,
+    "temperature": null,
+    "seed": null,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": [
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 1: CO2 per Capita Over Time (1990-2022)",
+        "text": "Question: What is the combined US + China CO2 per capita in 2022? (A) ~23 t (B) ~30 t (C) ~18 t. Answer given: C. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 2: Average Positive Ratings per Game by Release Year",
+        "text": "Question: What is the total average positive ratings across 2010-2013? (A) about 40,000 (B) about 28,600 (C) about 18,000. Answer given: C. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 3: CO2 per Capita Over Time (1990-2022)",
+        "text": "Question: What is Brazil's co2 per capita in 2022? (A) 2.3 t (B) 2.1 t (C) 1.9 t. Answer given: C. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 4: CO2 per Capita Over Time (1990-2022)",
+        "text": "Question: Which country had the lowest CO2 per capita in 2022? (A) Germany (B) India (C) Brazil. Answer given: C. Grade: correct."
+      }
+    ],
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "B",
+  "stop_reason": "final",
+  "steps": 2,
+  "latency_ms": 4064,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.\n\nMemory: documents and notes retrieved from your earlier sessions.\n[1] Graded answer 1: CO2 per Capita Over Time (1990-2022) (graded answer log)\nQuestion: What is the combined US + China CO2 per capita in 2022? (A) ~23 t (B) ~30 t (C) ~18 t. Answer given: C. Grade: correct.\n[2] Graded answer 2: Average Positive Ratings per Game by Release Year (graded answer log)\nQuestion: What is the total average positive ratings across 2010-2013? (A) about 40,000 (B) about 28,600 (C) about 18,000. Answer given: C. Grade: correct.\n[3] Graded answer 3: CO2 per Capita Over Time (1990-2022) (graded answer log)\nQuestion: What is Brazil's co2 per capita in 2022? (A) 2.3 t (B) 2.1 t (C) 1.9 t. Answer given: C. Grade: correct.\n[4] Graded answer 4: CO2 per Capita Over Time (1990-2022) (graded answer log)\nQuestion: Which country had the lowest CO2 per capita in 2022? (A) Germany (B) India (C) Brazil. Answer given: C. Grade: correct."
+    },
+    {
+      "role": "user",
+      "content": "What is the combined mortality rate across all five states in 2022? (A) about 95 per 100k (B) about 75 per 100k (C) about 55 per 100k. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SWpZMGJIaGFaRUppYlZsV2MxaEtabU5ZYUd4VVJtWmtRMHhCZUVOUFpsQlZZM1ZPZUZGU1MwOTRVbEVpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtTMU5ZVWpKTmEzaElUVVpLYVZkck9EVlNNVW96VFZWT1RWRXhUazVVVkVabVkwVldibFpXVWtsV1ZFNUVZVmN4UzFVeVVrcGtlbVI2U1dsM2FXVlRTVFpKYlRsWllXcGFVVmx1Umt4VE1qUXhaREZzVVdGVldtbE5NVnBzVkZSYVJXTXhjRU5SYTFaNFkyeENUbVZXVG5KVU1UbGFZMFpHV1ZSWVkybE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHFXVEJpU0doaFdrVkthV0pXYkZkak1XaExXbTFPV1dGSGVGVlNiVnByVVRCNFFtVkZUbEJhYkVKV1dUTldUMlZHUmxOVE1EazBWV3hGYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRucFJNVXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPYWtVd1RsTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdVduVktSMGhuY0hGWVZIUlJVRWQ2Y210WVJXNURlbVZrZDNaUVkwUmlXV2s1ZDNaQloxSkxja0p0VFdkSmRIcEdhRGg0TVVwVlUxbGplVGs0TjBwTWFtUjJkeTFHZVhGUlFUVnRiM05zVUdoM1ZHYzFSMUVpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpiRXBTVlZoa1ZWRXhjRlZZTWpGdVYwZFJlbFZGV25oTk1EVkxXVmhPZEdKVVRsWk9iRlpSVW1wbmQxTlVWbWxTUlhCQ1VXcEdkRTR5T0dsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxXVjBaRVltMU9iMk5YZURCYVNGSm9UVmN4VEZWcFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lJMFNWOVdZM1ptZVhoU0xWSm9aMVpXYkVodmJXaFlUVlpPWVdoeGVYbDJiWFpXTUV0a2VFMXRWVlZJWVRSVWJrOVplVmd3YlV0SVFWUkdUMEkzUzBWdFUyWkZlSEZRZGtOcVNERnFXSEpyVURZM05uRkxNMDFSV25kU2JFRTJWakJYTVU1VGVqWnZUWFZWVFRWSVdGaEZaRVZ6TVVGdWJVUXpOMVJRZGs1cmNEUldjVGhVUzJZMGNHWkNaM2hDTlRaclVVaGxRMmxHYTBsQ1JFbEdia1pRVjJKdWIyUjBPRll6TmtORVNuQllRblZXWld4WlYwbzFZMmhRYVV4blNIRmhXalJyV1hocFNIWktXREZzVkUxTVpIaEdNVkIxV1ZwWWRrTjNjamRITlRabVRGaGpTbUpwVjNkdkxVZ3hiMnhXV0RoMWVtMWpXR2hZTTFrdFIyZHFaM1ZxYlhKSFp6bG5kMGhxYkVKMWNXYzFRM0ZYTldOc1owSmtkbUpmWTJWMldqaHplQzFCTXpkVkxWSXRabmRrVFdVNWVXTk5aSEZTYVVOV1QxQlRTR0ZCVG1JNFRsQlBXV2hVWkdodVZsTTViV1ZFWW00NWVEYzVRM0o2UzBzMFRtbzRXbmMxV25KR05XcFBUUzFvYmpCdFFXWk5XRzh5Tm5OaU0yOW1WbFpYVFVsU2FXaHFPVTlZYzNkMGJYcFNURlZJY2s4elZtWlpkSEpWTTNZNVp6VnFlbU5DV214aWMxcFJYMHRqTm5wNmMxOWtaVFZOVVMwNGFURndZMVJTVHpRMGRTMWlWRFpaVVRGSVdqQjZYMWh0V1U5UGFFbFNhbE5aZEVGSlpGaG1WMnhzTWxGT2RVSnBhbTFDTlU5emNrOTBRVGs1ZVhOcWVVdFdUSEZLYTFCclZYRkpObWRSYzNCYWJqUXpWWE5JVTBzdE1FMVFWRXhqUm5aNWJFTjRlbWQ0WXpoRFYyRnZOR05SVjFaM1VUWjBOVXRITVVWdmFYWnhhelp3Wkc5NFMzaHlUR1Y2VTBKQllXWTBWSE01VldkWFVVVk1TSGswVFZBd1owMWtjbVl4VEVoWFdXbFViWHBSY25ac1owOUxSRWsxVjBFMlh5MURZVUV0ZUVGd1ptZEdkVXd3TVhaUk1sOWxURTl2WDJsallsbGhWekYwZUZwck9GcGFZalZUUzJVeldFaDRPVWt4V0VwT05XdDRlWGQ2YzFaNlJqWTJkWFpsYUcweGJsY3RiVFZLVjBsNVFtdEZSRmhPT0VkVFlUTnNNR1IxTW01NGVrSk9RbkJhZFhsR1VVZDNSRklpZlEuMlQ5dndLX0NJQmk3bFhxTk1UM3piQ291TzFuUE95UjRaazZMdlI5WWVnendDWFFqM3Fqd0pxaVNnUEwwTXdpR3J4UzNZcTVCc2gycE1QY0hBWnRUeVE="
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "call_3ffcfd6a9255544a8cc4d345eb873f5f",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "call_3ffcfd6a9255544a8cc4d345eb873f5f",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "B",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SWkxcVREazFaMmRDTkcxU1RHcHdSa1ZGYXpObVRUWmtZa2hFWlRSRFUxcEpPRkF6VlhCQ1RrcDJXWGNpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtUbFF5ZEhwU01taFVVbnBCTlU0eVdtWmhWV3hMV210a1UyTkZVbmRWTVZaNFUxaEdhMDF1VG5WU1ZrWldXREZPTlZWV1RtOWFWRUoyU1dsM2FXVlRTVFpKYlZaMVdrZFdabFI1TURGT00xSXdXakp2ZWxWdVdrUmllbHBtVTFka01GZ3hhelJTVlhoMVlWWlNNazFIUlhwT2FrWk5XREZHVFZWdFkybE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHBNWEZVUkdzeFdqSmtRMDVITVZOVVIzQjNVbXRXUm1GNlRtMVVWRnByV1d0b1JWcFVVa1JWTVhCS1QwWkJlbFpZUWtOVWEzQXlWMWhqYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRYcEZNMHhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPVkdONFRubDNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdU9GaG1aM2xaYW5Gc2NDMDBUbVJ5Tm1kRVkzTnNXR2hTUTI1TVNWWlVPVzFtUmtSbU5reEZPR055ZGs1U1JIZG1NbWh3VTNsUGRqWlhRbDlXUVVod1ZWSmFWVE5OYmpOc1kza3dZMHhTVkVsdmFVWlFTMUVpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpibVJ2VWtWYVJsWXljR3ROUmxKQ1RqQk9WbU42VG5WUk1ERjNZbXN4VjFGVVVqVmxSRkUwWWpCYVZHTkZiRWRhUjJoNVZGaFdTMUp0WTJsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxhTUZaMlZHeFNjRTVHYUVKVGJHUllZbGRGZWs5RFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKVVdsUktjRUV5T0Y5dlV6RlViSGRKYlMxSlZETnJiVTluVW5nNGRuUkJXVTFSYVVkcE9USnBRalJ6U0daWFUwNDNlWEpVWVVWRlFYUmZOVEJoWldsV1kzSjZlSEpaYkZBNVdIWmxlRXhRTFY4d09GaDBXWHBaYUZoRGFtMWtXa2RQV2xNek5WUjJOSFp1VTBWYU9IRnhTbUYzT1VZeFJUTlhNRXQ0ZVhvMWEzbDZPR0ZWYWtvdExXbEVhRVJCTlVSQmJsTmZMVmhJVFRaU1VUUjZaRmhRZWkxb1NEQnRjMHB5WlRCWWFreGlOakJMWmt0SFVuZEdhVTFTY3pSclNVSTBiVTAwWkRSWllqUm9hRzl6V1VwUGFuSjVRbmRyYlVsQ1NVRldTaTFrVmpOMlVrbzVjWEZSZGpaSFFubHRWMEZPTXpkSFgxRndlbEUwTFhKMFh5MXFTR2h5ZUUwM016TjZlakEwU0d4cWExOXpUMnhZV0dGNVdYb3pWMVp3WTNOdVdrNXZiM0Z4V1VOcldUTjRlREJKYTFReWFtZGpiVVV0YVRselkxUk9kM2hMYTFOQ1ptNUZiV3RQVTBsa2RGcDVlVkJ6WDJGbGIwUnBjekpFUkhoamEwTllUM0JUTkZaek1VWXdWRTVuWWt3MllVSTBkbXhsVUVaTFNIYzFSa1JMU0U1aGQzZENUMUpVYzBKWlZqUlNiVmxLUWpCRFVGVTFVVU5ZWmkwM1QyeFBOak52U1VSbVdsTXlVME5TWVRKUk5EaHdPRVpSWXpWSlpXTk9WMGRuZW1Wb2FWUkVTRVowVERGWVJteEVlVEZMZDNGeU5tOWZORk5RUTNsUlN6WnZla05aTVdKa1EzTmhhalUzVEVWR1kwSkRiSEZ2Um5OdlRsRkdOWGR6ZG5SdWJqbDNTV04wUnpSeGFHWXlWV3N5YjNkcVRURk1jVEJRTFcxc1FrMDBXWEZvU0VvellXSnZOMjB0Y2pjdGNXODJUMVZZTFd4NFJWbGxRbDlFYTNoRFJ6QnZjMjVXV1dOamQwdGFkamROY0VKYWVqRnBWVVpyWldwbmMzSndObEl6ZGxkUWJERkZaVGMxVURGM2RsRktTa3RGWVRCMGFUUktZUzF5YUdzeVl6Vk1Yek5mV2xnelgydDFTMWx4TWpKR1dtbGhhRTFUYkdreWQydHVTSEIxU0hSRWRtUk5TMEZZV0dsR2QzbHdUa3BuUmpCaVQzZFBkMUJFT0RSRVYwdERSSE5CVlVabVVGOXNZbk5KYjJWalJXaENPRzkwU0ZST05GcEtkWGd4U1daU09ERk9lWGR3ZWw5Vk5sVTRVRk5WVkVOVVdYWnZUVlF3YjJGalkwOUxPV2h6ZGtsR1drUlBlRWN6VmpoeU0zSjVhalIyWW1oNVJteGtZVzgyTmt3eVdWbGtTbTlYYkVNNWRrOWFRbk5uWmtsV1kwbzBVR3gxZW5sVFEwcE1jelpKWTNoR1JWaHJVMVJGVURGNE1FNTNOMmt6UlhKMVpqZ3lZMnBrY1ZOR1VXZGZhVzlmUzJWemVIZzBablZMTTJndGNEWjBWR3AyY0RoUGIzQnlTbkEyU25wa2REZ3plVXBqWW1Gb2RWUjBUREZZZWtVMlZVODFjVEJsZVRSU01IbEhRalJOUlZsTlp6UkJabHBxY1V0RkxWbzNja3BwVEZObk5sRklTWE56WlRWbEluMC45aVVxNE9WYTlrMEFpMmgwVDBMOVNtaU9tLWlXR21XWjJIZHR3LXhrN21TLWhQSGIxNHhWcE8zOTJsU3BvTjFndGQyZzVtVzVpYXBaNGprZnZpWGZNdw=="
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input": 800,
+    "output": 92,
+    "cache_read": 0,
+    "cache_write": 1564
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "config": {
+    "model": "us.openai.gpt-6-luna",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": null,
+    "temperature": null,
+    "seed": null,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": [
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 1: Chronic Liver Disease Mortality Over Time (Top 5 States)",
+        "text": "Question: What is the range of mortality rates across all five states from 2019 to 2022? (A) about 5 to 12 per 100k (B) about 8.6 to 18.1 per 100k (C) about 12 to 25 per 100k. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 2: Average Positive Ratings per Game by Release Year",
+        "text": "Question: What is the range of average positive ratings per game across 2010-2018? (A) about 250 to 8,000 (B) about 1,000 to 12,700 (C) about 300 to 12,800. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 3: Chronic Liver Disease Mortality Over Time (Top 5 States)",
+        "text": "Question: What was New York's chronic liver disease mortality rate in 2019? (A) 10.5 per 100k (B) 8.6 per 100k (C) 12.0 per 100k. Answer given: A. Grade: correct."
+      },
+      {
+        "source": "graded answer log",
+        "title": "Graded answer 4: Chronic Liver Disease Mortality Over Time (Top 5 States)",
+        "text": "Question: Which state had the lowest chronic liver disease mortality rate in 2022? (A) Pennsylvania (B) California (C) New York. Answer given: A. Grade: correct."
+      }
+    ],
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "C",
+  "stop_reason": "final",
+  "steps": 3,
+  "latency_ms": 5063,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.\n\nMemory: documents and notes retrieved from your earlier sessions.\n[1] Graded answer 1: Chronic Liver Disease Mortality Over Time (Top 5 States) (graded answer log)\nQuestion: What is the range of mortality rates across all five states from 2019 to 2022? (A) about 5 to 12 per 100k (B) about 8.6 to 18.1 per 100k (C) about 12 to 25 per 100k. Answer given: A. Grade: correct.\n[2] Graded answer 2: Average Positive Ratings per Game by Release Year (graded answer log)\nQuestion: What is the range of average positive ratings per game across 2010-2018? (A) about 250 to 8,000 (B) about 1,000 to 12,700 (C) about 300 to 12,800. Answer given: A. Grade: correct.\n[3] Graded answer 3: Chronic Liver Disease Mortality Over Time (Top 5 States) (graded answer log)\nQuestion: What was New York's chronic liver disease mortality rate in 2019? (A) 10.5 per 100k (B) 8.6 per 100k (C) 12.0 per 100k. Answer given: A. Grade: correct.\n[4] Graded answer 4: Chronic Liver Disease Mortality Over Time (Top 5 States) (graded answer log)\nQuestion: Which state had the lowest chronic liver disease mortality rate in 2022? (A) Pennsylvania (B) California (C) New York. Answer given: A. Grade: correct."
+    },
+    {
+      "role": "user",
+      "content": "What is the range of US CO2 per capita across 1990-2022? (A) ~5.5 t (B) ~3.0 t (C) ~7.6 t. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_50559db57f0a53869a0b11828e15693c",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "call_50559db57f0a53869a0b11828e15693c",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SWkweU5qWldhek4wUVhVM00wRklUMEZ6V1VWVVFtbFhlRmhrZWt0alRFcFZha2hCTkhKU1oydFhSMmNpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtkRkpIZUdwVGVtYzFXbFpvU21GWFVuUldSbWcwWXpCNFNWTkhPWEpqV0doWVZqRnNSbVJzVWtsVWFsWnlZbXh3VmxVeU1VOVRia0p5U1dsM2FXVlRTVFpKYm1SYVZsZDBiRTB6Y0daaE1qVk5VMjA1YzFOcVJrTlhiV3hPWWpKS1MyRjZaelZWVlRSNldtdFdVRkZzYkVwVVZrNXlWMWRXUmxKNloybE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHBNSGxPYWxwWFlYcE9NRkZZVlROTk1FWkpWREJHZWxkVlZsVlJiV3hZWlVab2EyVnJkR3BVUlhCV1lXdG9RazVJU2xOYU1uUllVakpqYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRXcEpNVXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPVkZsNVRsTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdVdHdzVha2xRYjJNelpUWkJTSGN6Y1haTmRsa3dibVJPYVRkWmRtRTFiak5WYXpGTlNuVnpaazV5WlhNNGNuYzVTRzAzV0ZkUldVSnRXRU5uY2taVlJFMHhRbDlJU0hkWWNsZ3RUVWMyZW0xRVIyTkxOWGNpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpibkJEWlcxa2RsSkhjM2RqTVdoeFYwVTFSVk42Vm5oak1GRjZWWHBDYVdORVFqRmxSRlowWVc1b1NsZHFhR0ZXVmtaRVdXcFNWMW95T0dsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxOV0hCNVVXNWtTRk5zVmxka1JYTXpaREE1Ym1WRFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKblREZGZWV0ZWZWxoeE1tUjRUWFUzTnpSM1IxTlpUQzFCWWtWNmJtNU9aMHRXVjNwVmFXczRVREo0VldGVWNtMWZabEp0Y1c1bmExZHdWRTVzTjFvelNqQlFRMHcxU21oMGRrVkdXRVZ2YXkxSGQyVnhPVEZQVkRBMFkwNWliWEkyWVhOT2FtaDBhM0l4ZDJoNGQydGliRlZ2VkhGNGFFZFpZM1JZYkY4M1pXaDNjbkpJTFVnelJuZGlVbTFaTm1wdlMzTXhORlp5TjBVeWNVWlVjbUZ6UlRkalJIcENWVlF6VW1Sa2RrdFdaSEZhYkUxVmRYZEdZUzFVUWtSTmMza3RNVlE1TkZkNFpUa3phM2RhVG5sYU1WcGhVbDlwTkRoQ1JUZFZWSGhYVkU5SVpUQlFURVZUVjFkV2MzTjFYMngzUmtRd1NqYzBkekphZFhoSlZrSlZVWGRFY1ZkNVoyOW5hbTEwY1VGdVlVbzRTRWRxUVdodE1tSmhZMTl6WVhZdGJFcEpRVzF3VEdoeVkzZEpTMVZEYUdRMGVGVkdhbFJ1Um5kSFZVWm9NWEZNWW1kWVVFSkhOMmhoYzFOWmJVSkZUbUkwTkVaWVNXY3pSalZ1TWxZd2IyeDNPRE5DV2pNMFNTMW1hR3g0TFhoT1VVUTVYM0pJWDJsWFlsWlNjR2xOYTJOc2VuQmliV0pKWTI5UWNURXhNRkpyZEhaSVoweDFNME52UlVaNFoxSTNWV2hCZW1aUmRrODVjR3RwWm5rMVRVMUNRVEE0ZURKbGFHVmhNVUV4V0daTlVVMVVYM0Y1U1RSdVVHSlhVMXB3Vld0eGJtYzRUVXN4VDI1dVpsaDBNRGd5VGkxd1JUaHNjV1p1UldKR1gwaHhiVWhZU0dWbWIyRTVPVzQzUlZKMlFWY3lURW81WlRoVU1ucFlVbWRqVkU5d1ZWOUhjblJUVnpObldHMU5OMk5mTFcxR1JqaFVOVE5yWW1JellsVklTRFJhWVZCcFRuRnBZVlE0VlZGdk5USkxObmRmYW14Q1FtRllaMjlRVEV4ck5rSXdUMUZxU21oc1NsbHhkV3R3TXpVeFYxbHdSMU5DWjNKWFVrZHRXRnBUY0ZSME1XMW5OVkZrTFU1U1ZsOXNURTVDYUZFMGIzcERhV1pIVEcxdVNuQlliMmxmUjFwek5HUkRSRTVUUWxoTmMxaDZURnAwTWxvMVNFZHphRUV5VVdoaFJYRlhXV0pqVFZsUWFFTklka1JSVUV4blRXazJkbXBLVDI1cVoyZExPV1ZWUW1kM2JGaFJZM2hPUjA1NU1VOUVRV0UzTkV4Zk5rWlNaMnRmVmpkaFlWOWlNemhwZDNaMllURmtXblV3TTE5cU4ybE9WVmRWUnpKc1pHbHVUM2d5V2xOblFsTnhNMFJJYTIwNVUzZFNRa3hOVFhGMVlqRTRVbmw0YTFwSFRYRm9Za3hRTUU1UVJFUTNaakI0VmtGUVVISnNSRXREUVRKWFZVeHJiMjFZYTJkelEwRXRjRkJPZVhSSU5HWlVNWE4xUmtjM1JuSnFlVkp3YWsxNk5YRXpiREE0WTFnNVJXSkdPR1k0VWpsRlVrdzFZMlYxUzA5eWJWWlVjRUUyTlUxdmJIbzBNVGhoTm5kVFNFb3pXbTVrU1U1NWREQkpPRkJmV21WRVRXSndYMWhrUkZocGNXWldkV0kyTjNCWmNHdFJhamxvVmtscWVEUlBZbDlKYmtGNlpHczBSSE5rY1V0RGNsSktkMkoxTkdKeVFUUXlhMmd6TURJd2FIaFpTbGRvYjBSUlMwTmxVMlpRYzJGQ1N6RldabUpJV0dSUFRuRXhRVXhTYjNGak1EQWlmUS4xMVl1YjhHNlFKMDVGcE9KZTBpUi1RSG1aZ2VSX0toUkhGd3RSNXpqbGdmTGw5TmtJM2FWOUtlZUJFamduR2F6LVR1VjEzb1lBUEIwMHZJaGE0QWVLZw=="
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "call_48df76c6003054d2b6c361fa156ee10e",
+          "function": {
+            "name": "dom",
+            "arguments": {
+              "selector": "canvas, svg, body"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "dom",
+      "content": "[2 elements match 'canvas, svg, body'; showing the first]\n<body>\n<div class=\"card\">\n  <h2>CO2 per Capita Over Time (1990-2022)</h2>\n  <div><div id=\"chart\"><canvas width=\"700\" height=\"420\" style=\"display: block; box-sizing: border-box; height: 420px; width: 700px;\"></canvas></div></div>\n</div>\n<script>\nconst CFG = {\"kind\": \"line\", \"x_title\": \"Year\", \"y_title\": \"CO2 per capita (tonnes)\", \"colors\": [\"#2a78d6\", \"#d97a3c\", \"#4fa17a\", \"#8a5cc2\", \"#c94f6d\", \"#3a9fb0\"], \"highlight\": [], \"highlight_color\": \"#c94a3c\", \"y_min\": null, \"y_max\": null, \"y_log\": false, \"right\": null, \"right_max\": null, \"auto_max\": 22.4679, \"labels\": [\"1990\", \"1991\", \"1992\", \"1993\", \"1994\", \"1995\", \"1996\", \"1997\", \"1998\", \"1999\", \"2000\", \"2001\", \"2002\", \"2003\", \"2004\", \"2005\", \"2006\", \"2007\", \"2008\", \"2009\", \"2010\", \"2011\", \"2012\", \"2013\", \"2014\", \"2015\", \"2016\", \"2017\", \"2018\", \"2019\", \"2020\", \"2021\", \"2022\"], \"series\": [{\"name\": \"Brazil\", \"values\": [1.466, 1.512, 1.514, 1.558, 1.595, 1.661, 1.762, 1.842, 1.876, 1.907, 1.955, 1.963, 1.948, 1.908, 1.979, 1.973, 1.976, 2.071, 2.168, 2.029, 2.273, 2.365, 2.527, 2.678, 2.781, 2.619, 2.42, 2.429, 2.312, 2.298, 2.147, 2.37, 2.283]}, {\"name\": \"China\", \"values\": [2.153, 2.237, 2.306, 2.434, 2.559, 2.747, 2.843, 2.83, 2.682, 2.817, 2.87, 2.912, 3.185, 3.735, 4.002, 4.49, 4.921, 5.261, 5.617, 5.871, 6.37, 6.999, 7.132, 7.21, 7.188, 7.061, 6.943, 7.08, 7.292, 7.526, 7.641, 7.911, 8.218]}, {\"name\": \"Germany\", \"values\": [13.233, 12.664, 11.978, 11.774, 11.535, 11.46, 11.666, 11.306, 11.261, 10.963, 10.99, 11.171, 10.952, 10.894, 10.678, 10.578, 10.85, 10.408, 10.561, 9.761, 10.228, 9.95, 10.061, 10.263, 9.74, 9.757, 9.642, 9.441, 9.101, 8.481, 7.739, 8.101, 7.942]}, {\"name\": \"India\", \"values\": [0.668, 0.696, 0.726, 0.734, 0.759, 0.792, 0.841, 0.859, 0.86, 0.926, 0.933, 0.929, 0.941, 0.957, 0.999, 1.035, 1.103, 1.17, 1.234, 1.316, 1.35, 1.4, 1.507, 1.54, 1.637, 1.681, 1.75, 1.784, 1.888, 1.88, 1.727, 1.892, 1.986]}, {\"name\": \"United States\", \"values\": [20.254, 19.793, 19.949, 20.102, 20.197, 20.23, 20.679, 20.745, 20.775, 20.806, 21.398, 20.767, 20.718, 20.718, 20.874, 20.719, 20.237, 20.28, 19.409, 17.811, 18.225, 17.634, 16.812, 17.099, 17.119, 16.461, 15.935, 15.639, 16.001, 15.5, 13.817, 14.758, 14.802]}]};\nconst canvas = document.createElement(\"canvas\");\ndocument.getElementById(\"chart\").appendChild(canvas);\nconst series = CFG.series || [];\nlet data, type = CFG.kind === \"scatter\" ? \"scatter\" : (CFG.kind === \"line\" ? \"line\" : \"bar\");\nif (CFG.kind === \"bar\") {\n  data = {labels: CFG.labels, datasets: [{label: CFG.y_title, data: CFG.values,\n    backgroundColor: CFG.labels.map(l => CFG.highlight.includes(l) ? CFG.highlight_color : CFG.colors[0])}]};\n} else if (CFG.kind === \"scatter\") {\n  data = {datasets: [{label: CFG.y_title, data: CFG.points.map(p => ({x: p[0], y: p[1]})),\n    backgroundColor: CFG.colors[0], pointRadius: 4}]};\n} else {\n  data = {labels: CFG.labels, datasets: series.map((s, k) => ({label: s.name, data: s.values,\n    borderColor: CFG.colors[k % CFG.colors.length], backgroundColor: CFG.colors[k % CFG.colors.length],\n    yAxisID: s.name === CFG.right ? \"y1\" : \"y\", tension: 0}))};\n}\nconst stacked = CFG.kind === \"stacked_bar\";\nconst yScale = {type: CFG.y_log ? \"logarithmic\" : \"linear\", stacked: stacked,\n  beginAtZero: CFG.kind === \"bar\" || stacked, title: {display: true, text: CFG.y_title}};\nif (CFG.y_min !== null) yScale.min = CFG.y_min;\nif (CFG.y_max !== null) yScale.max = CFG.y_max;\nconst scales = {x: {type: CFG.kind === \"scatter\" ? \"linear\" : \"category\", stacked: stacked,\n  title: {display: true, text: CFG.x_title}}, y: yScale};\nif (CFG.right) scales.y1 = {position: \"right\", min: 0, max: CFG.right_max, grid: {drawOnChartArea: false},\n  title: {display: true, text: `${CFG.right} (right axis)`}};\nnew Chart(canvas, {type, data, options: {animation: false, responsive: true, maintainAspectRatio: false,\n  plugins: {legend: {display: series.length > 1}}, scales}});\n</script>\n\n\n</body>",
+      "tool_call_id": "call_48df76c6003054d2b6c361fa156ee10e"
+    },
+    {
+      "role": "assistant",
+      "content": "C",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SWpSa2VYaE9XR0YxZG01MmJIVnpabWhqTUdabk1XWlliRmg0ZWpSallYcHljazU2TTFKcVFWVTFNRkVpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtUMVJWZUZCWk0xcFhWbXM0ZEZsVmJGUlplbFpHVVROT1YwNVZVa1JZZWxaVVYydHplVnA2VWtkUFdFWTFWbFk0TVZSVmJ6RlhhbGt3U1dsM2FXVlRTVFpKYTJoRlYwVndXbFJWTlhST1dHd3lWVEp2TTJJeWRGVlNSWGQwV1ZjNWVFOVdXa3hPUjFKMFVWZEtTR0ZxVWtoTlIyaEVZVzVHVkdScVFXbE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHFVbXRsV0doUFYwZEdNV1J0TlRKaVNGWjZXbTFvYWsxSFdtNU5WMXBaWWtab05HVnFVbXBaV0hCNVkyczFOazB4U25GUlZsVXhUVVpGYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRucE5NRXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPYWtWNlRrTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdWRISTJWV1pYTlZkWGFuSTJOMWwxT0ZsWVEzZEhOems0UmtOTmIxQmFVMlJtTWpoUU1GSkJiVlJuYVZkVFJqUnNkalZWV1ZKNVRtMVpTRGRUVDBnMFNsRlliWEZZYlU1VFV6WXpUSFIzY1U1NmVFaHpUMUVpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpiRUl6VkcxS1JFNVhTbVpVVlc4MVltdHZkMk5WYkhwU1ZYZDNVMWRXTldJd1VucFZTRlpWVlZab2VrMHdPV1ppTTJSc1pGZE9RMVZIWTJsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxOYkVaelVsWlNZVTFJVW5wU01ITjRXakpzUTFWVFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKaVZuRkdVamMxYzJ4aWJUbHhkamxTZUZKS1J6SXlSbUZMVkc1alZUVkRZalpuV0hkTFNFUk5WMGRrTlZCa1luVlVVVlJKVUdsZldHSTRlak5yVlhabVowaFVWSFYyWW1SdU5tWnBXR3hzY21aR2FqSTNlamd0WjFwbk9TMUphRGhvUjBSaFFWSjVWV1pCZHpFNE1qWjNWbU55WkhSblYzb3hjR2h6VmpKdlJscE5WMVl6ZG1jdFozUkNjek5UWW1oalNXUXRPRjlWU1VKVFNUQlBaRlJLVFZaR1NEZExObGxqVm05V1JFeHJkRTk0TW5KUVkzSlhWR0pVVG05cFluZHBRVzU1WVZoUmFsQm9VMlpGVWtKNVNWZGtRakpqV205aE1tSkNYM1pyTWpaWWNHdEpOVXRQYUVOcFduSlphRFpaYzFwYVRqbGZjbEpzY0ZOT1pVRkJMVFJPYUhkUVYySk5PRzEwUTBKSWNITXpaa0Z6WkhGSFJYcGlObE51YmxaeFVVOXhiMVJQTVRSemMxaDBja2R2UkZWelZUTjVTakJvUVhoek1HSnRlRFUzTWpScWFIWmxNbFZsZUZKRFdrbDNNM2x3ZDJ0S1ZFeHFUbmN5YUZoQk1VNWhibTV0UWtZM1NUYzBTa2xTYVc0d00zRktlRUpGY1U1T09HTjRXRk5RY2pONU9FSkVjM00yV2xjdFJIRnVOMnRIY1ZNdGRTMWZRMjVEUlV4cllYaDNkMjV1VDBGak5uSlplbGMxZVVWM1VqSXdORXRNUmpKSFUySTBTamwwZVd0QlQwbzViMjR0T0ZaUFJtZHdNbFZRZURGak5YazBNWEZIY0hKU1Yzb3lkRjgzVjJSck1XY3dNbmhKZDNvd1YwdG9TMjFLV2pseWExQXdVbmxpZGxCMFlVOVJNRFIwZFVseVozbGhTV05VTTBRMVRVWmxSRk54YUUxSWFYRnBWRTQxVEhkRVNEbEVXSFpSYXpaWWVURkVhMDU0VEVodGFWZDViRWd6ZVVKVFdWOVFjMWx6UTFOMFdVNW9TblpIUTNKc1NuQmFSM2Q1T0hWYWNWWlRZbXd4UTFscWNHVnFaRFJaT1dkdVVXWkZUVTlxYmxaQmNXVjNRV1JoVEZOa09FaDBNbWhsUm5GaVFWUjRURVp4U25GT0xVbExhemRPUW1sTFpGUnVkMlZFZUhnM1JuSTNNMFpJWDNCNVFrcGpWMkpUUmpOek5rRkpOVVZNYjBkRlRHdHNkVlJRTmxSRmQyZGFRamxaV1hodFFtSjFWR2xFZUVkc2Rsb3ROak5CUkhGc2RWaDZaemxKYjJoQ00zaHVWV3hLTUVFd1V6TkRNMHczZWtWVGNXSnRUVVl6TkVkamVHRk5iRWxQYVd0cWFXMWZTRWhxWWxSNU4wWjJMVmRQVEVsNE9GOXZPWE1pZlEuR0Noc1B0VjdLajk1TzhpOUg4VUVYZ3dlVGRMczgtZ2s4V3c0cm9zOXItcHFPMUg2MWhBNFVSVUJydGE4M0NvRGs3YzlWRmRCNDVVX3JtMEtod2M3QlE="
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input": 852,
+    "output": 164,
+    "cache_read": 1602,
+    "cache_write": 3468
+  }
+}

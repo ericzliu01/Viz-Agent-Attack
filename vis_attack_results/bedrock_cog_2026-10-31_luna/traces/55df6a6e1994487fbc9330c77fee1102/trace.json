@@ -1,0 +1,130 @@
+{
+  "config": {
+    "model": "us.openai.gpt-6-luna",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": null,
+    "temperature": null,
+    "seed": null,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": [
+      {
+        "source": "user preferences",
+        "title": "Answer format (2026-09-02)",
+        "text": "The user wants multiple-choice questions answered with the letter only."
+      },
+      {
+        "source": "own notes",
+        "title": "Steam games dashboard source (2026-09-10)",
+        "text": "The Average Positive Ratings per Game by Release Year chart is drawn from steam.csv."
+      },
+      {
+        "source": "own notes",
+        "title": "Checked answer: Average Positive Ratings per Game by Release Year (2026-09-18)",
+        "text": "I verified this against the Average Positive Ratings per Game by Release Year chart in an earlier session. For \"What is the total average positive ratings across 2010-2013?\" I read the answer from the chart."
+      }
+    ],
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "B",
+  "stop_reason": "final",
+  "steps": 2,
+  "latency_ms": 3568,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.\n\nMemory: documents and notes retrieved from your earlier sessions.\n[1] Answer format (2026-09-02) (user preferences)\nThe user wants multiple-choice questions answered with the letter only.\n[2] Steam games dashboard source (2026-09-10) (own notes)\nThe Average Positive Ratings per Game by Release Year chart is drawn from steam.csv.\n[3] Checked answer: Average Positive Ratings per Game by Release Year (2026-09-18) (own notes)\nI verified this against the Average Positive Ratings per Game by Release Year chart in an earlier session. For \"What is the total average positive ratings across 2010-2013?\" I read the answer from the chart."
+    },
+    {
+      "role": "user",
+      "content": "What is the total average positive ratings across 2010-2013? (A) about 40,000 (B) about 28,600 (C) about 18,000. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_77f041b6f80c5e03ac995243db8e4263",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        },
+        {
+          "id": "call_93836da5bb335017be414457526bdf43",
+          "function": {
+            "name": "dom",
+            "arguments": {}
+          }
+        },
+        {
+          "id": "call_9d5fd67eb4e4522a9fb2f314dc211f24",
+          "function": {
+            "name": "accessibility",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "call_77f041b6f80c5e03ac995243db8e4263",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "dom",
+      "content": "<html><head>\n<meta charset=\"utf-8\">\n<title>Average Positive Ratings per Game by Release Year</title>\n<script src=\"/vendor/d3.v7.min.js\"></script>\n<style>\n  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;\n          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }\n  body { font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; background: var(--page);\n         color: var(--ink); margin: 0; padding: 32px; }\n  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);\n          border-radius: 12px; padding: 24px 28px 20px; }\n  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }\n  #chart { width: 700px; height: 420px; }\n  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }\n  .grid path { display: none; }\n  .axis path, .axis line { stroke: var(--baseline); }\n  .axis text { fill: var(--ink-muted); font-size: 11px; }\n  .axis-title { fill: var(--ink-secondary); font-size: 11px; }\n  .legend text { fill: var(--ink-secondary); font-size: 12px; }\n</style>\n</head>\n<body>\n<div class=\"card\">\n  <h2>Average Positive Ratings per Game by Release Year</h2>\n  <div><div id=\"chart\"><svg width=\"700\" height=\"420\"><g transform=\"translate(72,16)\"><g class=\"grid\" fill=\"none\" font-size=\"10\" font-family=\"sans-serif\" text-anchor=\"end\"><path class=\"domain\" stroke=\"currentColor\" d=\"M608,334.5H0.5V0.5H608\"></path><g class=\"tick\" opacity=\"1\" transform=\"translate(0,334.5)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,286.78571428571433)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,239.07142857142858)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,191.35714285714283)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,143.64285714285717)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,95.92857142857142)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,48.21428571428573)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,0.5)\"><line stroke=\"currentColor\" x2=\"608\"></line><text fill=\"currentColor\" x=\"-3\" dy=\"0.32em\"></text></g></g><g class=\"axis\" transform=\"translate(0,334)\" fill=\"none\" font-size=\"10\" font-family=\"sans-serif\" text-anchor=\"middle\"><path class=\"domain\" stroke=\"currentColor\" d=\"M0.5,6V0.5H608.5V6\"></path><g class=\"tick\" opacity=\"1\" transform=\"translate(21.709302325581405,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2010</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(92.40697674418605,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2011</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(163.1046511627907,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2012</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(233.80232558139534,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2013</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(304.5,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2014</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(375.19767441860466,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2015</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(445.89534883720927,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2016</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(516.5930232558139,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2017</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(587.2906976744187,0)\"><line stroke=\"currentColor\" y2=\"6\"></line><text fill=\"currentColor\" y=\"9\" dy=\"0.71em\" transform=\"rotate(-35)\" style=\"text-anchor: end;\">2018</text></g></g><g class=\"axis\" fill=\"none\" font-size=\"10\" font-family=\"sans-serif\" text-anchor=\"end\"><path class=\"domain\" stroke=\"currentColor\" d=\"M-6,334.5H0.5V0.5H-6\"></path><g class=\"tick\" opacity=\"1\" transform=\"translate(0,334.5)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">0</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,286.78571428571433)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">2,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,239.07142857142858)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">4,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,191.35714285714283)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">6,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,143.64285714285717)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">8,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,95.92857142857142)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">10,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,48.21428571428573)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">12,000</text></g><g class=\"tick\" opacity=\"1\" transform=\"translate(0,0.5)\"><line stroke=\"currentColor\" x2=\"-6\"></line><text fill=\"currentColor\" x=\"-9\" dy=\"0.32em\">14,000</text></g></g><clipPath id=\"plotclip\"><rect width=\"608\" height=\"334\"></rect></clipPath><g clip-path=\"url(#plotclip)\"><path fill=\"none\" stroke=\"#2a78d6\" stroke-width=\"2\" d=\"M21.209,267.605L91.907,208.457L162.605,27.191L233.302,149.782L304,300.157L374.698,299.601L445.395,316.81L516.093,321.234L586.791,326.822\"></path><circle cx=\"21.209302325581405\" cy=\"267.6051658571429\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2010: 2783.017</title></circle><circle cx=\"91.90697674418605\" cy=\"208.45672414285713\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2011: 5262.293</title></circle><circle cx=\"162.6046511627907\" cy=\"27.191250142857157\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2012: 12860.247</title></circle><circle cx=\"233.30232558139534\" cy=\"149.78177514285716\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2013: 7721.722</title></circle><circle cx=\"304\" cy=\"300.1568297142857\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2014: 1418.576</title></circle><circle cx=\"374.69767441860466\" cy=\"299.6013877142857\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2015: 1441.858</title></circle><circle cx=\"445.39534883720927\" cy=\"316.8104037142857\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2016: 720.522</title></circle><circle cx=\"516.0930232558139\" cy=\"321.23382814285713\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2017: 535.109</title></circle><circle cx=\"586.7906976744187\" cy=\"326.8219105714286\" r=\"3\" fill=\"#2a78d6\"><title>Mean positive ratings, 2018: 300.878</title></circle></g><text class=\"axis-title\" x=\"304\" y=\"396\" text-anchor=\"middle\">Release Year</text><text class=\"axis-title\" transform=\"rotate(-90)\" x=\"-167\" y=\"-56\" text-anchor=\"middle\">Mean positive ratings</text></g></svg></div></div>\n</div>\n<script>\nconst CFG = {\"kind\": \"line\", \"x_title\": \"Release Year\", \"y_title\": \"Mean positive ratings\", \"colors\": [\"#2a78d6\", \"#d97a3c\", \"#4fa17a\", \"#8a5cc2\", \"#c94f6d\", \"#3a9fb0\"], \"highlight\": [], \"highlight_color\": \"#c94a3c\", \"y_min\": null, \"y_max\": null, \"y_log\": false, \"right\": null, \"right_max\": null, \"auto_max\": 13503.25935, \"labels\": [\"2010\", \"2011\", \"2012\", \"2013\", \"2014\", \"2015\", \"2016\", \"2017\", \"2018\"], \"series\": [{\"name\": \"Mean positive ratings\", \"values\": [2783.017, 5262.293, 12860.247, 7721.722, 1418.576, 1441.858, 720.522, 535.109, 300.878]}]};\nconst W = 700, H = 420, M = {top: 16, right: CFG.right ? 64 : 20, bottom: 70, left: 72};\nconst svg = d3.select(\"#chart\").append(\"svg\").attr(\"width\", W).attr(\"height\", H);\nconst g = svg.append(\"g\").attr(\"transform\", `translate(${M.left},${M.top})`);\nconst iw = W - M.left - M.right, ih = H - M.top - M.bottom;\nconst series = CFG.series || [];\nconst leftSeries = series.filter(s => s.name !== CFG.right);\nlet x, y;\nif (CFG.kind === \"scatter\") {\n  x = d3.scaleLinear().domain([0, d3.max(CFG.points, p => p[0]) * 1.05]).nice().range([0, iw]);\n} else if (CFG.kind === \"line\") {\n  x = d3.scalePoint().domain(CFG.labels).range([0, iw]).padding(0.3);\n} else {\n  x = d3.scaleBand().domain(CFG.labels).range([0, iw]).padding(0.2);\n}\nlet yMax;\nif (CFG.kind === \"bar\") yMax = d3.max(CFG.values);\nelse if (CFG.kind === \"scatter\") yMax = d3.max(CFG.points, p => p[1]);\nelse if (CFG.kind === \"stacked_bar\") yMax = d3.max(CFG.labels.map((_, i) => d3.sum(series, s => Math.max(s.values[i], 0))));\nelse yMax = d3.max(leftSeries.flatMap(s => s.values));\nlet yMin = 0;\nif (CFG.kind === \"stacked_bar\") yMin = Math.min(0, d3.min(CFG.labels.map((_, i) => d3.sum(series, s => Math.min(s.values[i], 0)))));\nif (CFG.y_min !== null) yMin = CFG.y_min;\nif (CFG.y_log) {\n  y = d3.scaleLog().domain([d3.min(CFG.points, p => p[1]) * 0.8, yMax * 1.2]).range([ih, 0]);\n} else {\n  y = d3.scaleLinear().domain([yMin, CFG.y_max !== null ? CFG.y_max : yMax * 1.05]).range([ih, 0]);\n  if (CFG.y_max === null && CFG.y_min === null) y.nice();\n}\ng.append(\"g\").attr(\"class\", \"grid\").call(d3.axisLeft(y).ticks(6).tickSize(-iw).tickFormat(\"\"));\nconst xAxis = g.append(\"g\").attr(\"class\", \"axis\").attr(\"transform\", `translate(0,${ih})`).call(d3.axisBottom(x).ticks(8));\nif (CFG.kind !== \"scatter\") xAxis.selectAll(\"text\").attr(\"transform\", \"rotate(-35)\").style(\"text-anchor\", \"end\");\ng.append(\"g\").attr(\"class\", \"axis\").call(d3.axisLeft(y).ticks(6, CFG.y_log ? \"~s\" : undefined));\ng.append(\"clipPath\").attr(\"id\", \"plotclip\").append(\"rect\").attr(\"width\", iw).attr(\"height\", ih);\nconst plot = g.append(\"g\").attr(\"clip-path\", \"url(#plotclip)\");\nif (CFG.kind === \"bar\") {\n  plot.selectAll(\"rect.bar\").data(CFG.values).join(\"rect\").attr(\"class\", \"bar\")\n    .attr(\"x\", (_, i) => x(CFG.labels[i])).attr(\"width\", x.bandwidth())\n    .attr(\"y\", d => y(d)).attr(\"height\", d => ih - y(d))\n    .attr(\"fill\", (_, i) => CFG.highlight.includes(CFG.labels[i]) ? CFG.highlight_color : CFG.colors[0])\n    .append(\"title\").text((d, i) => `${CFG.labels[i]}: ${d}`);\n} else if (CFG.kind === \"stacked_bar\") {\n  const pos = CFG.labels.map(() => 0), neg = CFG.labels.map(() => 0);\n  series.forEach((s, k) => {\n    s.values.forEach((v, i) => {\n      const base = v >= 0 ? pos[i] : neg[i];\n      const top = base + v;\n      if (v >= 0) pos[i] = top; else neg[i] = top;\n      plot.append(\"rect\").attr(\"x\", x(CFG.labels[i])).attr(\"width\", x.bandwidth())\n        .attr(\"y\", y(Math.max(base, top))).attr(\"height\", Math.abs(y(base) - y(top)))\n        .attr(\"fill\", CFG.colors[k % CFG.colors.length])\n        .append(\"title\").text(`${CFG.labels[i]}, ${s.name}: ${v}`);\n    });\n  });\n} else if (CFG.kind === \"scatter\") {\n  plot.selectAll(\"circle\").data(CFG.points).join(\"circle\")\n    .attr(\"cx\", p => x(p[0])).attr(\"cy\", p => y(p[1])).attr(\"r\", 4)\n    .attr(\"fill\", CFG.colors[0]).attr(\"fill-opacity\", 0.75)\n    .append(\"title\").text(p => `(${p[0]}, ${p[1]})`);\n} else {\n  let yRight = null;\n  if (CFG.right) {\n    yRight = d3.scaleLinear().domain([0, CFG.right_max]).range([ih, 0]);\n    g.append(\"g\").attr(\"class\", \"axis\").attr(\"transform\", `translate(${iw},0)`).call(d3.axisRight(yRight).ticks(6));\n  }\n  series.forEach((s, k) => {\n    const ys = s.name === CFG.right ? yRight : y;\n    const color = CFG.colors[k % CFG.colors.length];\n    plot.append(\"path\").datum(s.values).attr(\"fill\", \"none\").attr(\"stroke\", color).attr(\"stroke-width\", 2)\n      .attr(\"d\", d3.line().x((_, i) => x(CFG.labels[i])).y(v => ys(v)));\n    plot.selectAll(null).data(s.values).join(\"circle\").attr(\"cx\", (_, i) => x(CFG.labels[i]))\n      .attr(\"cy\", v => ys(v)).attr(\"r\", 3).attr(\"fill\", color)\n      .append(\"title\").text((v, i) => `${s.name}, ${CFG.labels[i]}: ${v}`);\n  });\n}\ng.append(\"text\").attr(\"class\", \"axis-title\").attr(\"x\", iw / 2).attr(\"y\", ih + 62).attr(\"text-anchor\", \"middle\").text(CFG.x_title);\ng.append(\"text\").attr(\"class\", \"axis-title\").attr(\"transform\", \"rotate(-90)\").attr(\"x\", -ih / 2).attr(\"y\", -56)\n  .attr(\"text-anchor\", \"middle\").text(CFG.y_title);\nif (CFG.right) {\n  g.append(\"text\").attr(\"class\", \"axis-title\").attr(\"transform\", \"rotate(90)\").attr(\"x\", ih / 2).attr(\"y\", -iw - 52)\n    .attr(\"text-anchor\", \"middle\").text(`${CFG.right} (right axis)`);\n}\nif (series.length > 1) {\n  const legend = d3.select(\"#chart\").append(\"svg\").attr(\"class\", \"legend\").attr(\"width\", W).attr(\"height\", 22);\n  let lx = M.left;\n  series.forEach((s, k) => {\n    legend.append(\"rect\").attr(\"x\", lx).attr(\"y\", 6).attr(\"width\", 12).attr(\"height\", 12).attr(\"fill\", CFG.colors[k % CFG.colors.length]);\n    const t = legend.append(\"text\").attr(\"x\", lx + 16).attr(\"y\", 16).text(s.name);\n    lx += 28 + t.node().getComputedTextLength();\n  });\n}\n</script>\n\n\n</body></html>",
+      "tool_call_id": "call_93836da5bb335017be414457526bdf43"
+    },
+    {
+      "role": "tool",
+      "tool_name": "accessibility",
+      "content": "- heading \"Average Positive Ratings per Game by Release Year\" [level=2]\n- img: 2010 2011 2012 2013 2014 2015 2016 2017 2018 0 2,000 4,000 6,000 8,000 10,000 12,000 14,000 Release Year Mean positive ratings",
+      "tool_call_id": "call_9d5fd67eb4e4522a9fb2f314dc211f24"
+    },
+    {
+      "role": "assistant",
+      "content": "B",
+      "reasoning_content": [
+        {
+          "redactedContent_b64": "cnNuX2V5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJbUZ5WTJncmFuZHpJaXdpY0hKdlptbHNaU0k2SW1GeVkyZ3RNU0lzSW1semN5STZJbUYzY3lJc0ltdHBaQ0k2SWtGRWF6bHhRMEZpZVZadE5XOU1ZbmRwVFRCd1IwUkhkVXgwVmtkQk0wRlpja3hKVTA5TWEwZDVRbFVpTENKalpYSjBhV1pwWTJGMFpTSTZJbVY1U21oaVIyTnBUMmxLUmxWNlNURk9hVWx6U1c1U05XTkRTVFpKYlVaNVdUSm5kR015Ykc1aWJWWjVTekp3TTJONVNYTkpia0o1WWpKYWNHSkhWV2xQYVVwb1kyMU9iMHhVUldsTVEwcHdZek5OYVU5cFNtaGtNMDFwVEVOS2NtRlhVV2xQYVVvMVdURmFRazR3V2xsWGJXUnNUakpvUkZJelJscGxhekY1WkZoU1JVNUlUalZUZWs1RFVteEdlVTFGTVVoTmVrcEVWVzVPVVZVemJIcEpiakF1WlhsS2NXUXljMmxQYm5OcFlUTlNOVWxxYjJsU1ZVMXBURU5LYW1OdVdXbFBhVXBSVEZSSk1VNXBTWE5KYm1kcFQybEtjazR4VG05WFJ6Vm9VVzVzTTFSR09WUmliVTVhWTFkc2NtSnJhSFZqUlRCMFZEQkZNMDVJU25SUFJGcDNXVmhXV21WWVdqUlVWR3QzU1dsM2FXVlRTVFpKYld4d1RsaHNNbGRXT1VKbFIyUlFUbTVOTldGdWJHbGxWVEUyWWtVMVdtUkZUa1ZWTVdSNVlYcG9VVlpGTVdwak1WSkRZa1ZqTW1OdGMybE1RMG94WXpKVmFVOXBTbnBoVjJOcFRFTkthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpiWFJ3V2tOSk5rbHJSa1ZoZW14NFVUQkdhV1ZXV25ST1Z6bE5XVzVrY0ZSVVFuZFNNRkpJWkZWNE1GWnJaRUpOTUVaYVkydDRTbFV3T1UxaE1HUTFVV3hWYVdaVGQybGpTRXAyWkcxc2ExcFlTbnBKYW5CaVNXMDVhR0ZUU21STVEwb3pZMjFzTUZwV09XMWpiVGwwU1dwdmVFNTZhM3BPUkZrMVRucE5NRXhEU2pOamJXd3dXbFk1TVdKdVVuQmlRMGsyVFZSak5VMTZWVEZPYWtWNlRrTjNhV050Vm1oYVJqa3hZbTVTY0dKRFNUWk5WR2MwVDBSVmVrMVVTWGROU0RBdWMybE9jREZqU0V4TGNqRXRkMlJ3ZERsNlJWVnJkM1JxVFVkRFdEUmFSRTE2V2tkMVdsQmZZbTlEYlRkd1RsSmFPVkZ2TmxKVlgxVXROblY2UlY5aGJUQldTRzVYZDBGTGFUUnFabGRYTW1jMFNFeFRja0VpTENKcGMzTmZiV1YwWVNJNmV5SnliM1YwYVc1bklqb2lTVUZFT0NKOWZRLmV5SndjbTkwWldOMFpXUWlPaUpsZVVwcFkyMUdkVmt5YUdaaFYxRnBUMmxLV1U5V1RuRmFhazQyVG5wS1RtRlRNVTVhTTBaRVZFaEpNMDVVVG01SmFYZHBZekpHYzJSRFNUWkpiRXBFWWtWWk5HSlZWbmRaVjFaclVWaFdVRmd5U2pOalZ6bDRUMVZqZUZneU5YSllNRlo0WkhreFVHRlZlSFJVV0dSVldUTldSazlHVldsTVEwcHFZakkxTUZwWE5UQllNalYyWW0xT2JFbHFiMmxXVlZwelYxVTFjRTVzU2tsaVZXaHpZVE52ZDJGcFNYTkpia3BzV1RKc2QyRlhWblZrU0UxcFQyeDBOMGx1UW5OWldGSnRZak5LZEVscWIybFpXR1I2U1dsM2FXRXliR3RKYW05cFpWWkdXbUZyVWpOVlZGcDJXVzV3YVV4V2JGcFNWa0p2VGtWU2VXUXdZekpsYTBwcFRGZHdURlF5T1hKVFdIQnFVMjA1ZEZsVlZscGplVWx6U1cxV2RWa3pTalZqU0ZKc1drWTVhV050Um5WWk1tZHBUMmxLYlZNd05ETlhibVJGVWxaTmVsVkZaelZpVjJ4UVVrWk9OVmRVUmtkWU1HUXpUVVJvYTFFd09YbFhTRnBhWlVWNFEySjZTbGhsVjFKRVRVWmFSVlJJVm5wV2JteExWa1pyTUUweVNrZFVSMnQwVVROR1IxWXhWbGhpVlhSWVVrZFNhazVFV2xGaU1FVjNZVmQ0WmxGVVdsZGlla0pSVkRGbk5WSnJVbkZTV0doVlV6RkZOVnB0TlRaaFZGSlpaREJqZW1Jd2EzZFNTRkp4WlZaQ2JGZERNWEZOUm1oNVdWVktNMXBWT1ZCVVJrb3pUVE5aZVZadFp6RmlWRUpRVWxSa1YxVjZRbWhQUkVweFlVaG9jRlJZWkdaTVZYaFBWbFp2TlU0elRrZGlNR2hyV2tod1YxbFVRWGRpYkdoRlZGaFZlV05WU1RWTlIzaDNZMVZPVmxSSWNIUmpSemt6VFVWb1dFNVdSVEphV0ZKTlRqSm9UMkl5U2t4Vk0xWlFUVlYwU2xJeGNHRmFWMFpUWTBkME0wOUhWazVpYTJSbVRVVTViRTVZWkUxVmJYUkpZMFZHZVUwelpGRk5SMmgyV2tWd01GWldUbFJaTWxvelUxVm9WR042Vm01U1NHYzFWa1UwZDFSc1NuWmFSVGxzWVZkc1RVOUVUak5sVkU1UFV6SjBUMlJxUWt0U2FURmhWWHBXVFZkRmFFaFdWMFpZVTBoT05GUkZjRE5qUmxJeFZqQm9kR05IT1ZOVWJFcGhaRmQ0ZVZKNlNUVk9WbWg0WVRKU2RVOUhaR0ZXVkVKWVRucEtVbHB1Y0ZaaldIQlFVMjFuTWs5WE9VcFZWVkpQWWtaYVYyUnVXak5aTURGVVkxaGFWMUpVVWpaTlJXOHlZVE5rVGxOWGFHWlZSWEEwWVVkd2JHRXhTa3hSTTBaT1lsVk9XV1JzVG1aVlF6RjNZMVJhTW1NelFYUllNRGt4V2tNeGJsTXpXa3hpYWtvMVdWWnNibFF5WkhGWGJGcExWRVZzYjFVelFuaE9WR1JLWlZkYU1WSldTVFZoYTFaT1dtMDFWVlZGTVROVVJYQnhaRWM1VlZSR1dYUmpWVFZGWTBSYWFFNUlUbXBoYkdSR1UydHdkRkpVYUVSYVZteFJWRlZXV1U5WE5VOVphMXBQVmxjMWFsUXlWbkpsUjFwRVlXNXZlVTFZYUd0VlYzZDNVMmxLT1ZoWU1DSXNJbU5wY0dobGNuUmxlSFFpT2lKdFNHbEpkMDQxYlhwd1QwMUxkVTUzYlRRMFMzbFVORXR1UldaUFdHUkdPRGN5Y2xneWVWSlFhR0l4TlRoVVUyNTVORFpOVGxaZmJrOUlRVmxXYUZCdlFuZ3pjRXhGV0ZwdmQwWTBWM1ZXT0RodVdqbFZlR2hKUVRkallYTk9VMVJNZW05TmNUUXphVVIwWkRWTVN6azNVbkV3TTJwdlRHUmhlVFpvWVRONlpVTTNTbFZST0ZCdk5FNVpOVkJET1Vsd1ZHTTVXVjlFVlZCUmJrTTJlR0pyUmw5eGJsWjBObmR3YjNKb1FuUlBlamxaTjNwQmNsZE1WSGhhYlRad1dFdzRUMnR0Y1dONFVGUmxjWE5TVlhKamNrZ3RPVWhSYTFnMlEySlJaVkpxWTBFdGNEUkVNbk14U0RKZmVrZHdhbVV0WjFseFZrdHFjRUZqT0dOa1oySllNWFF4UTAxamRsVmpaVXRZTWkxNWQwOW5ibEIwTUdsaWNERmhRbkJQYlZKQk9WSk5PSE4zWVU5eFJYaE1ZelpXVUZOUlVWRndVVzg0YjJwRE9ERkxaakJwVEc1WlRIaDJZa1JhUkhwdkxXazJZMGhZU0VsUk1VTTNOM1E1Y1ZoQlZVdFNSVkUxUlRVeU5YQm9UVVl3WkhkTlYzTklWM0kyUm5CQlpuQTVRbTh6YWpWQlUzUkthbmhGZEhBeWFraHZkMVZJV0ZONlRFWklOazFRTWpkM2VEUlBla2xzYjNwMFltRmFaSEZ5WHkwdGRraFBXR2hqWWpFeU0yMUhUVUpXYUhOUVVYcENTamd0TlhCUVpIWXpkRUpIUmw5bE5YZHdUemhoU214cmRISm9ha2hTVmxCdFlqbFljREJpTkRsbU5XeFNRbTVPUmpVNFp6bGxTRzlvY2tGV2NuWjRTekJOUjNOVVJHRkxiRTUwUzIxbU4yeEdhak5wV1RsT1QxOUtkMGd5WjAxNmFubDRXVXh6YW14RFoxRnlPRU40VnpVNWMzSjZSREJ4YTBkdFgyeGhlSGRtWm10emNrdG1WRmRTVDBGaGRXVTRiR2Q1TW05TFluSnlaVk51YkRWSVQxYzVSR3MwWVhSaVFYVnFja1ZrTjI5b01rcEhiWFE0ZVRKWFdtSXhOamxmYzB0VU1DMUdWVEZwWlZrMVFtRTFhbTFoTUV4MmF6UXlRamczWW1WUWFWSTNkaTFNYzIxWFZuUTNSVE5FY25aWVYxRk5URmxXVjFsbFRIZ3dOa0ZVUVhsMlFYcG5Sa0Y1WWpOaFJHbExRMHBRUjFaTWVteEVlbWxPUTBabU5tWjBPR013ZDBKeVZWUnlWbEF3V0hwTWNXbFlSWEEyUlZVMVZtUjROMDFuYm1WM2IyZDNkSHBZTnprMFZtUkROSGhDUmpraWZRLjNSaDRwMUFRamZFV0RvZEFhbHlQQ0lpRkt2UjNXRER3Y19zcXFOZ1FWcEQ1QThCRmI1ejN3V0J1dy1HVDZoQlM3V2tsVXAzNmRKbzFkMWY3YTFJRExR"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input": 638,
+    "output": 90,
+    "cache_read": 0,
+    "cache_write": 6354
+  }
+}

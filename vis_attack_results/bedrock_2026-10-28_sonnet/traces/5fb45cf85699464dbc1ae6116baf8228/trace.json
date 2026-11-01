@@ -1,0 +1,106 @@
+{
+  "config": {
+    "model": "us.anthropic.claude-sonnet-5-5",
+    "backend": "bedrock",
+    "base_url": null,
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": 32768,
+    "temperature": 0,
+    "seed": 0,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": null,
+    "critic": false,
+    "tool_call_repair": true
+  },
+  "answer": "B",
+  "stop_reason": "final",
+  "steps": 3,
+  "latency_ms": 9567,
+  "error": "",
+  "recovered_calls": [],
+  "repair_prompts": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation."
+    },
+    {
+      "role": "user",
+      "content": "In how many years did total US CO2 exceed 6,000 Mt? (A) 13 (B) 4 (C) 8. Answer with just the letter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "tooluse_4VdN1zJdBJb6BkI7XGzjG9",
+          "function": {
+            "name": "screenshot",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "screenshot",
+      "content": "Current viewport screenshot (PNG).",
+      "tool_call_id": "tooluse_4VdN1zJdBJb6BkI7XGzjG9",
+      "image_files": [
+        "003-0.png"
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "",
+      "tool_calls": [
+        {
+          "id": "tooluse_mdg1Mf7OH51hE1L1INesec",
+          "function": {
+            "name": "evaluate",
+            "arguments": {
+              "script": "(()=>{const r=[...document.querySelectorAll('svg g.mark-rect path, svg g.role-mark rect, svg path')].filter(e=>e.getAttribute('aria-label'));return r.slice(0,300).map(e=>e.getAttribute('aria-label')).join('\\n')})()"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "evaluate",
+      "content": "Year: 1990; CO2 (million tonnes): 33.484; series: Cement; label: 1990; value: 33.484\nYear: 1991; CO2 (million tonnes): 32.736; series: Cement; label: 1991; value: 32.736\nYear: 1992; CO2 (million tonnes): 32.993; series: Cement; label: 1992; value: 32.993\nYear: 1993; CO2 (million tonnes): 34.838; series: Cement; label: 1993; value: 34.838\nYear: 1994; CO2 (million tonnes): 36.31; series: Cement; label: 1994; value: 36.31\nYear: 1995; CO2 (million tonnes): 37.075; series: Cement; label: 1995; value: 37.075\nYear: 1996; CO2 (million tonnes): 37.309; series: Cement; label: 1996; value: 37.309\nYear: 1997; CO2 (million tonnes): 38.561; series: Cement; label: 1997; value: 38.561\nYear: 1998; CO2 (million tonnes): 39.461; series: Cement; label: 1998; value: 39.461\nYear: 1999; CO2 (million tonnes): 40.239; series: Cement; label: 1999; value: 40.239\nYear: 2000; CO2 (million tonnes): 41.445; series: Cement; label: 2000; value: 41.445\nYear: 2001; CO2 (million tonnes): 41.613; series: Cement; label: 2001; value: 41.613\nYear: 2002; CO2 (million tonnes): 43.164; series: Cement; label: 2002; value: 43.164\nYear: 2003; CO2 (million tonnes): 43.349; series: Cement; label: 2003; value: 43.349\nYear: 2004; CO2 (million tonnes): 45.886; series: Cement; label: 2004; value: 45.886\nYear: 2005; CO2 (million tonnes): 46.194; series: Cement; label: 2005; value: 46.194\nYear: 2006; CO2 (million tonnes): 46.851; series: Cement; label: 2006; value: 46.851\nYear: 2007; CO2 (million tonnes): 45.509; series: Cement; label: 2007; value: 45.509\nYear: 2008; CO2 (million tonnes): 41.416; series: Cement; label: 2008; value: 41.416\nYear: 2009; CO2 (million tonnes): 29.615; series: Cement; label: 2009; value: 29.615\nYear: 2010; CO2 (million tonnes): 31.449; series: Cement; label: 2010; value: 31.449\nYear: 2011; CO2 (million tonnes): 32.208; series: Cement; label: 2011; value: 32.208\nYear: 2012; CO2 (million tonnes): 35.27; series: Cement; label: 2012; value: 35.27\nYear: 2013; CO2 (million tonnes): 36.369; series: Cement; label: 2013; value: 36.369\nYear: 2014; CO2 (million tonnes): 39.439; series: Cement; label: 2014; value: 39.439\nYear: 2015; CO2 (million tonnes): 39.907; series: Cement; label: 2015; value: 39.907\nYear: 2016; CO2 (million tonnes): 39.439; series: Cement; label: 2016; value: 39.439\nYear: 2017; CO2 (million tonnes): 40.324; series: Cement; label: 2017; value: 40.324\nYear: 2018; CO2 (million tonnes): 38.971; series: Cement; label: 2018; value: 38.971\nYear: 2019; CO2 (million tonnes): 40.896; series: Cement; label: 2019; value: 40.896\nYear: 2020; CO2 (million tonnes): 40.688; series: Cement; label: 2020; value: 40.688\nYear: 2021; CO2 (million tonnes): 41.312; series: Cement; label: 2021; value: 41.312\nYear: 2022; CO2 (million tonnes): 41.884; series: Cement; label: 2022; value: 41.884\nYear: 1990; CO2 (million tonnes): 1781.824; series: Coal; label: 1990; value: 1781.824\nYear: 1991; CO2 (million tonnes): 1764.221; series: Coal; label: 1991; value: 1764.221\nYear: 1992; CO2 (million tonnes): 1780.599; series: Coal; label: 1992; value: 1780.599\nYear: 1993; CO2 (million tonnes): 1847.292; series: Coal; label: 1993; value: 1847.292\nYear: 1994; CO2 (million tonnes): 1855.938; series: Coal; label: 1994; value: 1855.938\nYear: 1995; CO2 (million tonnes): 1875.787; series: Coal; label: 1995; value: 1875.787\nYear: 1996; CO2 (million tonnes): 1951.815; series: Coal; label: 1996; value: 1951.815\nYear: 1997; CO2 (million tonnes): 1992.723; series: Coal; label: 1997; value: 1992.723\nYear: 1998; CO2 (million tonnes): 2018.609; series: Coal; label: 1998; value: 2018.609\nYear: 1999; CO2 (million tonnes): 2013.12; series: Coal; label: 1999; value: 2013.12\nYear: 2000; CO2 (million tonnes): 2122.34; series: Coal; label: 2000; value: 2122.34\nYear: 2001; CO2 (million tonnes): 2054.729; series: Coal; label: 2001; value: 2054.729\nYear: 2002; CO2 (million tonnes): 2060.072; series: Coal; label: 2002; value: 2060.072\nYear: 2003; CO2 (million tonnes): 2100.323; series: Coal; label: 2003; value: 2100.323\nYear: 2004; CO2 (million tonnes): 2115.293; series: Coal; label: 2004; value: 2115.293\nYear: 2005; CO2 (million tonnes): 2139.954; series: Coal; label: 2005; value: 2139.954\nYear: 2006; CO2 (million tonnes): 2103.871; series: Coal; label: 2006; value: 2103.871\nYear: 2007; CO2 (million tonnes): 2130.169; series: Coal; label: 2007; value: 2130.169\nYear: 2008; CO2 (million tonnes): 2096.888; series: Coal; label: 2008; value: 2096.888\nYear: 2009; CO2 (million tonnes): 1842.392; series: Coal; label: 2009; value: 1842.392\nYear: 2010; CO2 (million tonnes): 1946.51; series: Coal; label: 2010; value: 1946.51\nYear: 2011; CO2 (million tonnes): 1840.243; series: Coal; label: 2011; value: 1840.243\nYear: 2012; CO2 (million tonnes): 1625.427; series: Coal; label: 2012; value: 1625.427\nYear: 2013; CO2 (million tonnes): 1684.672; series: Coal; label: 2013; value: 1684.672\nYear: 2014; CO2 (million tonnes): 1682.162; series: Coal; label: 2014; value: 1682.162\nYear: 2015; CO2 (million tonnes): 1446.99; series: Coal; label: 2015; value: 1446.99\nYear: 2016; CO2 (million tonnes): 1319.993; series: Coal; label: 2016; value: 1319.993\nYear: 2017; CO2 (million tonnes): 1277.049; series: Coal; label: 2017; value: 1277.049\nYear: 2018; CO2 (million tonnes): 1224.38; series: Coal; label: 2018; value: 1224.38\nYear: 2019; CO2 (million tonnes): 1043.896; series: Coal; label: 2019; value: 1043.896\nYear: 2020; CO2 (million tonnes): 853.925; series: Coal; label: 2020; value: 853.925\nYear: 2021; CO2 (million tonnes): 979.504; series: Coal; label: 2021; value: 979.504\nYear: 2022; CO2 (million tonnes): 916.343; series: Coal; label: 2022; value: 916.343\nYear: 1990; CO2 (million tonnes): 42.668; series: Flaring; label: 1990; value: 42.668\nYear: 1991; CO2 (million tonnes): 41.848; series: Flaring; label: 1991; value: 41.848\nYear: 1992; CO2 (million tonnes): 41.456; series: Flaring; label: 1992; value: 41.456\nYear: 1993; CO2 (million tonnes): 41.099; series: Flaring; label: 1993; value: 41.099\nYear: 1994; CO2 (million tonnes): 41.05; series: Flaring; label: 1994; value: 41.05\nYear: 1995; CO2 (million tonnes): 39.276; series: Flaring; label: 1995; value: 39.276\nYear: 1996; CO2 (million tonnes): 37.886; series: Flaring; label: 1996; value: 37.886\nYear: 1997; CO2 (million tonnes): 37.911; series: Flaring; label: 1997; value: 37.911\nYear: 1998; CO2 (million tonnes): 35.58; series: Flaring; label: 1998; value: 35.58\nYear: 1999; CO2 (million tonnes): 35.494; series: Flaring; label: 1999; value: 35.494\nYear: 2000; CO2 (million tonnes): 35.984; series: Flaring; label: 2000; value: 35.984\nYear: 2001; CO2 (million tonnes): 35.707; series: Flaring; label: 2001; value: 35.707\nYear: 2002; CO2 (million tonnes): 36.091; series: Flaring; label: 2002; value: 36.091\nYear: 2003; CO2 (million tonnes): 36.138; series: Flaring; label: 2003; value: 36.138\nYear: 2004; CO2 (million tonnes): 36.824; series: Flaring; label: 2004; value: 36.824\nYear: 2005; CO2 (million tonnes): 37.015; series: Flaring; label: 2005; value: 37.015\nYear: 2006; CO2 (million tonnes): 38.003; series: Flaring; label: 2006; value: 38.003\nYear: 2007; CO2 (million tonnes): 38.481; series: Flaring; label: 2007; value: 38.481\nYear: 2008; CO2 (million tonnes): 40.052; series: Flaring; label: 2008; value: 40.052\nYear: 2009; CO2 (million tonnes): 38.602; series: Flaring; label: 2009; value: 38.602\nYear: 2010; CO2 (million tonnes): 40.896; series: Flaring; label: 2010; value: 40.896\nYear: 2011; CO2 (million tonnes): 43.764; series: Flaring; label: 2011; value: 43.764\nYear: 2012; CO2 (million tonnes): 47.492; series: Flaring; label: 2012; value: 47.492\nYear: 2013; CO2 (million tonnes): 53.023; series: Flaring; label: 2013; value: 53.023\nYear: 2014; CO2 (million tonnes): 58.748; series: Flaring; label: 2014; value: 58.748\nYear: 2015; CO2 (million tonnes): 60.574; series: Flaring; label: 2015; value: 60.574\nYear: 2016; CO2 (million tonnes): 51.655; series: Flaring; label: 2016; value: 51.655\nYear: 2017; CO2 (million tonnes): 55.272; series: Flaring; label: 2017; value: 55.272\nYear: 2018; CO2 (million tonnes): 67.922; series: Flaring; label: 2018; value: 67.922\nYear: 2019; CO2 (million tonnes): 84.52; series: Flaring; label: 2019; value: 84.52\nYear: 2020; CO2 (million tonnes): 66.085; series: Flaring; label: 2020; value: 66.085\nYear: 2021; CO2 (million tonnes): 60.221; series: Flaring; label: 2021; value: 60.221\nYear: 2022; CO2 (million tonnes): 58.882; series: Flaring; label: 2022; value: 58.882\nYear: 1990; CO2 (million tonnes): 1004.975; series: Gas; label: 1990; value: 1004.975\nYear: 1991; CO2 (million tonnes): 1023.332; series: Gas; label: 1991; value: 1023.332\nYear: 1992; CO2 (million tonnes): 1058.593; series: Gas; label: 1992; value: 1058.593\nYear: 1993; CO2 (million tonnes): 1090.166; series: Gas; label: 1993; value: 1090.166\nYear: 1994; CO2 (million tonnes): 1114.334; series: Gas; label: 1994; value: 1114.334\nYear: 1995; CO2 (million tonnes): 1163.186; series: Gas; label: 1995; value: 1163.186\nYear: 1996; CO2 (million tonnes): 1181.318; series: Gas; label: 1996; value: 1181.318\nYear: 1997; CO2 (million tonnes): 1186.717; series: Gas; label: 1997; value: 1186.717\nYear: 1998; CO2 (million tonnes): 1165.559; series: Gas; label: 1998; value: 1165.559\nYear: 1999; CO2 (million tonnes): 1168.759; series: Gas; label: 1999; value: 1168.759\nYear: 2000; CO2 (million tonnes): 1227.529; series: Gas; label: 2000; value: 1227.529\nYear: 2001; CO2 (million tonnes): 1173.162; series: Gas; label: 2001; value: 1173.162\nYear: 2002; CO2 (million tonnes): 1212.087; series: Gas; label: 2002; value: 1212.087\nYear: 2003; CO2 (million tonnes): 1176.551; series: Gas; label: 2003; value: 1176.551\nYear: 2004; CO2 (million tonnes): 1177.528; series: Gas; label: 2004; value: 1177.528\nYear: 2005; CO2 (million tonnes): 1160.661; series: Gas; label: 2005; value: 1160.661\nYear: 2006; CO2 (million tonnes): 1146.714; series: Gas; label: 2006; value: 1146.714\nYear: 2007; CO2 (million tonnes): 1221.593; series: Gas; label: 2007; value: 1221.593\nYear: 2008; CO2 (million tonnes): 1229.733; series: Gas; label: 2008; value: 1229.733\nYear: 2009; CO2 (million tonnes): 1211.966; series: Gas; label: 2009; value: 1211.966\nYear: 2010; CO2 (million tonnes): 1266.778; series: Gas; label: 2010; value: 1266.778\nYear: 2011; CO2 (million tonnes): 1287.589; series: Gas; label: 2011; value: 1287.589\nYear: 2012; CO2 (million tonnes): 1344.719; series: Gas; label: 2012; value: 1344.719\nYear: 2013; CO2 (million tonnes): 1381.183; series: Gas; label: 2013; value: 1381.183\nYear: 2014; CO2 (million tonnes): 1411.355; series: Gas; label: 2014; value: 1411.355\nYear: 2015; CO2 (million tonnes): 1444.047; series: Gas; label: 2015; value: 1444.047\nYear: 2016; CO2 (million tonnes): 1451.146; series: Gas; label: 2016; value: 1451.146\nYear: 2017; CO2 (million tonnes): 1424.996; series: Gas; label: 2017; value: 1424.996\nYear: 2018; CO2 (million tonnes): 1577.716; series: Gas; label: 2018; value: 1577.716\nYear: 2019; CO2 (million tonnes): 1632.056; series: Gas; label: 2019; value: 1632.056\nYear: 2020; CO2 (million tonnes): 1612.504; series: Gas; label: 2020; value: 1612.504\nYear: 2021; CO2 (million tonnes): 1617.424; series: Gas; label: 2021; value: 1617.424\nYear: 2022; CO2 (million tonnes): 1707.391; series: Gas; label: 2022; value: 1707.391\nYear: 1990; CO2 (million tonnes): 299.218; series: Land Use Change; label: 1990; value: 299.218\nYear: 1991; CO2 (million tonnes): 250.527; series: Land Use Change; label: 1991; value: 250.527\nYear: 1992; CO2 (million tonnes): 194.772; series: Land Use Change; label: 1992; value: 194.772\nYear: 1993; CO2 (million tonnes): 177.943; series: Land Use Change; label: 1993; value: 177.943\nYear: 1994; CO2 (million tonnes): 230.715; series: Land Use Change; label: 1994; value: 230.715\nYear: 1995; CO2 (million tonnes): 114.026; series: Land Use Change; label: 1995; value: 114.026\nYear: 1996; CO2 (million tonnes): 94.963; series: Land Use Change; label: 1996; value: 94.963\nYear: 1997; CO2 (million tonnes): 121.207; series: Land Use Change; label: 1997; value: 121.207\nYear: 1998; CO2 (million tonnes): 129.293; series: Land Use Change; label: 1998; value: 129.293\nYear: 1999; CO2 (million tonnes): 170.899; series: Land Use Change; label: 1999; value: 170.899\nYear: 2000; CO2 (million tonnes): 155.802; series: Land Use Change; label: 2000; value: 155.802\nYear: 2001; CO2 (million tonnes): 56.933; series: Land Use Change; label: 2001; value: 56.933\nYear: 2002; CO2 (million tonnes): 126.328; series: Land Use Change; label: 2002; value: 126.328\nYear: 2003; CO2 (million tonnes): 268.839; series: Land Use Change; label: 2003; value: 268.839\nYear: 2004; CO2 (million tonnes): 215.298; series: Land Use Change; label: 2004; value: 215.298\nYear: 2005; CO2 (million tonnes): 323.501; series: Land Use Change; label: 2005; value: 323.501\nYear: 2006; CO2 (million tonnes): −49.36; series: Land Use Change; label: 2006; value: -49.36\nYear: 2007; CO2 (million tonnes): −20.978; series: Land Use Change; label: 2007; value: -20.978\nYear: 2008; CO2 (million tonnes): 97.343; series: Land Use Change; label: 2008; value: 97.343\nYear: 2009; CO2 (million tonnes): 79.04; series: Land Use Change; label: 2009; value: 79.04\nYear: 2010; CO2 (million tonnes): 170.196; series: Land Use Change; label: 2010; value: 170.196\nYear: 2011; CO2 (million tonnes): −68.071; series: Land Use Change; label: 2011; value: -68.071\nYear: 2012; CO2 (million tonnes): 46.088; series: Land Use Change; label: 2012; value: 46.088\nYear: 2013; CO2 (million tonnes): 2.382; series: Land Use Change; label: 2013; value: 2.382\nYear: 2014; CO2 (million tonnes): 74.884; series: Land Use Change; label: 2014; value: 74.884\nYear: 2015; CO2 (million tonnes): 53.68; series: Land Use Change; label: 2015; value: 53.68\nYear: 2016; CO2 (million tonnes): 105.186; series: Land Use Change; label: 2016; value: 105.186\nYear: 2017; CO2 (million tonnes): 164.417; series: Land Use Change; label: 2017; value: 164.417\nYear: 2018; CO2 (million tonnes): 99.65; series: Land Use Change; label: 2018; value: 99.65\nYear: 2019; CO2 (million tonnes): 98.056; series: Land Use Change; label: 2019; value: 98.056\nYear: 2020; CO2 (million tonnes): 86.538; series: Land Use Change; label: 2020; value: 86.538\nYear: 2021; CO2 (million tonnes): 89.716; series: Land Use Change; label: 2021; value: 89.716\nYear: 2022; CO2 (million tonnes): 118.009; series: Land Use Change; label: 2022; value: 118.009\nYear: 1990; CO2 (million tonnes): 2139.346; series: Oil; label: 1990; value: 2139.346\nYear: 1991; CO2 (million tonnes): 2082.099; series: Oil; label: 1991; value: 2082.099\nYear: 1992; CO2 (million tonnes): 2130.489; series: Oil; label: 1992; value: 2130.489\nYear: 1993; CO2 (million tonnes): 2144.156; series: Oil; label: 1993; value: 2144.156\nYear: 1994; CO2 (million tonnes): 2181.844; series: Oil; label: 1994; value: 2181.844\nYear: 1995; CO2 (million tonnes): 2174.303; series: Oil; label: 1995; value: 2174.303\nYear: 1996; CO2 (million tonnes): 2257.023; series: Oil; label: 1996; value: 2257.023\nYear: 1997; CO2 (million tonnes): 2273.815; series: Oil; label: 1997; value: 2273.815\nYear: 1998; CO2 (million tonnes): 2320.08; series: Oil; label: 1998; value: 2320.08\nYear: 1999; CO2 (million tonnes): 2374.201; series: Oil; label: 1999; value: 2374.201\nYear: 2000; CO2 (million tonnes): 2440.405; series: Oil; label: 2000; value: 2440.405\nYear: 2001; CO2 (million tonnes): 2448.622; series: Oil; label: 2001; value: 2448.622\nYear: 2002; CO2 (million tonnes): 2443.823; series: Oil; label: 2002; value: 2443.823\nYear: 2003; CO2 (million tonnes): 2505.134; series: Oil; label: 2003; value: 2505.134\nYear: 2004; CO2 (million tonnes): 2571.107; series: Oil; label: 2004; value: 2571.107\nYear: 2005; CO2 (million tonnes): 2584.13; series: Oil; label: 2005; value: 2584.13\nYear: 2006; CO2 (million tonnes): 2550.54; series: Oil; label: 2006; value: 2550.54\nYear: 2007; CO2 (million tonnes): 2538.968; series: Oil; label: 2007; value: 2538.968\nYear: 2008; CO2 (million tonnes): 2370.623; series: Oil; label: 2008; value: 2370.623\nYear: 2009; CO2 (million tonnes): 2243.79; series: Oil; label: 2009; value: 2243.79\nYear: 2010; CO2 (million tonnes): 2258.293; series: Oil; label: 2010; value: 2258.293\nYear: 2011; CO2 (million tonnes): 2212.686; series: Oil; label: 2011; value: 2212.686\nYear: 2012; CO2 (million tonnes): 2152.244; series: Oil; label: 2012; value: 2152.244\nYear: 2013; CO2 (million tonnes): 2178.417; series: Oil; label: 2013; value: 2178.417\nYear: 2014; CO2 (million tonnes): 2210.569; series: Oil; label: 2014; value: 2210.569\nYear: 2015; CO2 (million tonnes): 2235.988; series: Oil; label: 2015; value: 2235.988\nYear: 2016; CO2 (million tonnes): 2252.27; series: Oil; label: 2016; value: 2252.27\nYear: 2017; CO2 (million tonnes): 2259.157; series: Oil; label: 2017; value: 2259.157\nYear: 2018; CO2 (million tonnes): 2305.441; series: Oil; label: 2018; value: 2305.441\nYear: 2019; CO2 (million tonnes): 2299.82; series: Oil; label: 2019; value: 2299.82\nYear: 2020; CO2 (million tonnes): 1991.579; series: Oil; label: 2020; value: 1991.579\nYear: 2021; CO2 (million tonnes): 2182.605; series: Oil; label: 2021; value: 2182.605\nYear: 2022; CO2 (million tonnes): 2198.937; series: Oil; label: 2022; value: 2198.937",
+      "tool_call_id": "tooluse_mdg1Mf7OH51hE1L1INesec"
+    },
+    {
+      "role": "assistant",
+      "content": "B",
+      "thinking": ""
+    }
+  ],
+  "usage": {
+    "input": 8,
+    "output": 700,
+    "cache_read": 5615,
+    "cache_write": 9895
+  }
+}
