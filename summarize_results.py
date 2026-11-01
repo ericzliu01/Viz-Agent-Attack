@@ -19,6 +19,7 @@ import os
 import re
 from collections import defaultdict
 
+from build_cognitive_pages import ATTACKS as COGNITIVE_ATTACKS
 from results_logger import read_rows
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +57,15 @@ def wilson_interval(wrong, n, z=1.96):
     return ((center - spread) / denom, (center + spread) / denom)
 
 
+def dataset_of(attack_id):
+    """The dataset an attack page uses: "original" for the hand-written pages,
+    else the id after the first "__" (climate_core in
+    bar_truncated_axis__climate_core, climate in
+    bar_truncated_axis__climate__bar_determine_range)."""
+    parts = attack_id.split("__")
+    return parts[1] if len(parts) > 1 else "original"
+
+
 def build_asr_table(rows):
     """Return list of dicts: condition, library, attack_id, model, asr, n_attack, n_baseline, needs_review."""
     attack_groups = defaultdict(list)
@@ -65,6 +75,10 @@ def build_asr_table(rows):
         attack_id = row["attack_id"]
         key_base = (row["condition"], row["library"], row["model"])
         if attack_id == "clean":
+            continue
+        # Cognitive attacks have their own threat model (memory access) and
+        # their own summary (summarize_cognitive.py); never pool them here.
+        if attack_id.split("__")[0] in COGNITIVE_ATTACKS:
             continue
         if attack_id.endswith(BASELINE_SUFFIX):
             real_attack_id = attack_id[: -len(BASELINE_SUFFIX)]
@@ -190,6 +204,7 @@ def main():
     by_attack = aggregate(entries, lambda e: (e["condition"], e["library"], e["attack_id"]))
     by_library = aggregate(entries, lambda e: (e["condition"], e["library"]))
     by_model = aggregate(entries, lambda e: (e["condition"], e["model"]))
+    by_dataset = aggregate(entries, lambda e: (e["condition"], dataset_of(e["attack_id"])))
 
     sections = []
 
@@ -224,6 +239,12 @@ def main():
     print("\n== ASR by model (descending) ==")
     print(fmt_table(headers3, rows3))
     sections.append("## ASR by model\n\n" + md_table(headers3, rows3))
+
+    headers5 = ["condition", "dataset", "mean ASR", "n attacks x libraries x models"]
+    rows5 = [(k[0], k[1], f"{asr:+.2%}", n) for k, asr, n in by_dataset]
+    print("\n== ASR by dataset (descending) ==")
+    print(fmt_table(headers5, rows5))
+    sections.append("## ASR by dataset\n\n" + md_table(headers5, rows5))
 
     tool_entries = build_tool_usage_breakdown(rows)
     if tool_entries:

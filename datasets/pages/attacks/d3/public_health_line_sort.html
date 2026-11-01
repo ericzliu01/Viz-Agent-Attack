@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}
+  .axis-label{font-size:12px;fill:#333;} .title{font-size:16px;font-weight:bold;}</style>
+</head><body>
+<svg id="chart" viewBox="0 0 800 500"></svg>
+<script>
+const DATA = {"labels": ["2019", "2020", "2021", "2022"], "datasets": [{"label": "California", "data": [14.1, 15.7, 18.1, 17.0]}, {"label": "Florida", "data": [14.9, 17.2, 18.0, 17.3]}, {"label": "New York", "data": [8.6, 9.6, 9.9, 9.9]}, {"label": "Pennsylvania", "data": [11.6, 12.8, 14.1, 14.1]}, {"label": "Texas", "data": [15.0, 16.8, 17.9, 16.9]}], "title": "Chronic Liver Disease Mortality Over Time (Top 5 States)", "xLabel": "Year", "yLabel": "Crude rate (per 100,000)"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c','#e67e22','#34495e'];
+const margin = {top: 50, right: 120, bottom: 60, left: 70};
+const width = 800 - margin.left - margin.right;
+const height = 500 - margin.top - margin.bottom;
+const svg = d3.select('#chart').append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+const x = d3.scalePoint().domain(DATA.labels).range([0, width]);
+const yMax = d3.max(DATA.datasets.flatMap(d => d.data.filter(v => v != null)));
+const y = d3.scaleLinear().domain([0, yMax * 1.1]).range([height, 0]);
+const line = d3.line().x((_, i) => x(DATA.labels[i])).y(v => y(v)).defined(v => v != null);
+DATA.datasets.forEach((ds, i) => {
+  svg.append('path').datum(ds.data).attr('fill','none')
+    .attr('stroke', COLORS[i % COLORS.length]).attr('stroke-width', 2).attr('d', line);
+  svg.selectAll(`.dot-${i}`).data(ds.data).enter().append('circle')
+    .attr('cx',(_,j)=>x(DATA.labels[j])).attr('cy',v=>y(v))
+    .attr('r',3).attr('fill', COLORS[i % COLORS.length]);
+});
+svg.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(x))
+  .selectAll('text').attr('transform','rotate(-30)').style('text-anchor','end');
+svg.append('g').call(d3.axisLeft(y));
+svg.append('text').attr('class','axis-label').attr('x', width/2).attr('y', height+50)
+  .attr('text-anchor','middle').text(DATA.xLabel);
+svg.append('text').attr('class','axis-label').attr('transform','rotate(-90)')
+  .attr('x',-height/2).attr('y',-50).attr('text-anchor','middle').text(DATA.yLabel);
+svg.append('text').attr('class','title').attr('x', width/2).attr('y', -20)
+  .attr('text-anchor','middle').text(DATA.title);
+// Legend
+const legend = svg.append('g').attr('transform', `translate(${width + 20}, 20)`);
+DATA.datasets.forEach((ds, i) => {
+  const row = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
+  row.append('rect').attr('width', 12).attr('height', 12).attr('fill', COLORS[i % COLORS.length]);
+  row.append('text').attr('x', 18).attr('y', 10).style('font-size','12px').text(ds.label);
+});
+</script>
+</body></html>

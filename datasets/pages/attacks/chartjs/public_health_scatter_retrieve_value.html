@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"points": [{"x": 22.4, "y": 13.1}, {"x": 18.7, "y": 10.2}, {"x": 24.7, "y": 16.7}, {"x": 12.8, "y": 7.3}, {"x": 24.2, "y": 14.2}, {"x": 12.8, "y": 5.7}, {"x": 22.2, "y": 12.5}, {"x": 17.7, "y": 11.0}, {"x": 21.0, "y": 12.6}, {"x": 20.3, "y": 12.2}, {"x": 23.8, "y": 16.0}, {"x": 19.2, "y": 10.5}, {"x": 21.6, "y": 11.1}, {"x": 24.7, "y": 15.9}, {"x": 24.7, "y": 13.8}, {"x": 23.8, "y": 26.8}, {"x": 27.7, "y": 16.4}, {"x": 20.5, "y": 12.0}, {"x": 21.7, "y": 12.3}, {"x": 18.4, "y": 10.0}, {"x": 22.8, "y": 15.3}, {"x": 22.7, "y": 13.7}, {"x": 14.0, "y": 7.7}, {"x": 33.2, "y": 22.2}, {"x": 32.9, "y": 17.9}, {"x": 13.3, "y": 6.6}, {"x": 19.9, "y": 10.4}, {"x": 13.8, "y": 7.6}, {"x": 21.2, "y": 12.2}, {"x": 20.1, "y": 11.1}, {"x": 27.7, "y": 17.1}, {"x": 19.6, "y": 12.2}, {"x": 23.7, "y": 14.0}, {"x": 26.1, "y": 15.3}, {"x": 21.2, "y": 13.0}, {"x": 25.8, "y": 14.1}, {"x": 17.3, "y": 10.1}, {"x": 28.6, "y": 20.1}, {"x": 50.4, "y": 28.1}, {"x": 21.6, "y": 12.2}, {"x": 11.3, "y": 7.7}, {"x": 23.9, "y": 16.0}, {"x": 21.1, "y": 12.8}, {"x": 21.3, "y": 13.9}, {"x": 17.7, "y": 11.7}, {"x": 36.3, "y": 25.7}, {"x": 17.7, "y": 10.6}, {"x": 17.6, "y": 10.3}, {"x": 21.1, "y": 12.9}, {"x": 20.8, "y": 12.2}, {"x": 24.0, "y": 16.3}, {"x": 24.9, "y": 17.2}], "title": "Male vs Female Chronic Liver Disease Mortality by State (2022)", "xLabel": "Male crude rate (per 100,000)", "yLabel": "Female crude rate (per 100,000)"};
+new Chart(document.getElementById('chart'), {
+  type: 'scatter',
+  data: { datasets: [{ label: 'Points', data: DATA.points,
+    backgroundColor: '#4b79b9', pointRadius: 5 }] },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel } } } }
+});
+</script>
+<script>let c=Chart.getChart('chart'); c.options.scales.y.type='logarithmic'; c.update();</script></body></html>

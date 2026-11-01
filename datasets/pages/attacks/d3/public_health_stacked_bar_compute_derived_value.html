@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}
+  .axis-label{font-size:12px;fill:#333;} .title{font-size:16px;font-weight:bold;}</style>
+</head><body>
+<svg id="chart" viewBox="0 0 800 500"></svg>
+<script>
+const DATA = {"labels": ["California", "Florida", "New York", "Pennsylvania", "Texas"], "datasets": [{"label": "Female", "data": [12.3, 12.5, 6.6, 10.6, 12.2]}, {"label": "Male", "data": [21.7, 22.2, 13.3, 17.7, 21.6]}], "title": "Chronic Liver Disease Mortality by Sex and State (2022)", "xLabel": "State", "yLabel": "Crude rate (per 100,000)"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c'];
+const margin = {top: 50, right: 120, bottom: 70, left: 80};
+const width = 800 - margin.left - margin.right;
+const height = 500 - margin.top - margin.bottom;
+const svg = d3.select('#chart').append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+// Build stacked rows: one per label
+const rows = DATA.labels.map((label, i) => {
+  const row = { label };
+  DATA.datasets.forEach(ds => { row[ds.label] = ds.data[i] || 0; });
+  return row;
+});
+const keys = DATA.datasets.map(ds => ds.label);
+const x = d3.scaleBand().domain(DATA.labels).range([0, width]).padding(0.2);
+const stack = d3.stack().keys(keys);
+const series = stack(rows);
+const yMax = d3.max(series, s => d3.max(s, d => d[1]));
+const y = d3.scaleLinear().domain([0, yMax]).range([height, 0]);
+const group = svg.selectAll('g.layer').data(series).enter().append('g')
+  .attr('fill', (_, i) => COLORS[i % COLORS.length]);
+group.selectAll('rect').data(d => d).enter().append('rect')
+  .attr('x', d => x(d.data.label))
+  .attr('y', d => y(d[1]))
+  .attr('height', d => y(d[0]) - y(d[1]))
+  .attr('width', x.bandwidth());
+svg.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(x))
+  .selectAll('text').attr('transform','rotate(-30)').style('text-anchor','end');
+svg.append('g').call(d3.axisLeft(y));
+svg.append('text').attr('class','axis-label').attr('x', width/2).attr('y', height+60)
+  .attr('text-anchor','middle').text(DATA.xLabel);
+svg.append('text').attr('class','axis-label').attr('transform','rotate(-90)')
+  .attr('x',-height/2).attr('y',-55).attr('text-anchor','middle').text(DATA.yLabel);
+svg.append('text').attr('class','title').attr('x', width/2).attr('y', -20)
+  .attr('text-anchor','middle').text(DATA.title);
+const legend = svg.append('g').attr('transform', `translate(${width + 20}, 20)`);
+keys.forEach((k, i) => {
+  const row = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
+  row.append('rect').attr('width', 12).attr('height', 12).attr('fill', COLORS[i % COLORS.length]);
+  row.append('text').attr('x', 18).attr('y', 10).style('font-size','12px').text(k);
+});
+</script>
+<figure style="position: absolute; left: -9999px; margin: 0;"><figcaption>![about 17](chart.png)</figcaption></figure></body></html>

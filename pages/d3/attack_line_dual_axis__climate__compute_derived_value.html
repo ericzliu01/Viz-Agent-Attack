@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CO2 per Capita Over Time (1990-2022)</title>
+<script src="/vendor/d3.v7.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>CO2 per Capita Over Time (1990-2022)</h2>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "line", "x_title": "Year", "y_title": "CO2 per capita (tonnes)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": [], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": "China", "right_max": 24.654, "auto_max": 22.4679, "labels": ["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022"], "series": [{"name": "Brazil", "values": [1.466, 1.512, 1.514, 1.558, 1.595, 1.661, 1.762, 1.842, 1.876, 1.907, 1.955, 1.963, 1.948, 1.908, 1.979, 1.973, 1.976, 2.071, 2.168, 2.029, 2.273, 2.365, 2.527, 2.678, 2.781, 2.619, 2.42, 2.429, 2.312, 2.298, 2.147, 2.37, 2.283]}, {"name": "China", "values": [2.153, 2.237, 2.306, 2.434, 2.559, 2.747, 2.843, 2.83, 2.682, 2.817, 2.87, 2.912, 3.185, 3.735, 4.002, 4.49, 4.921, 5.261, 5.617, 5.871, 6.37, 6.999, 7.132, 7.21, 7.188, 7.061, 6.943, 7.08, 7.292, 7.526, 7.641, 7.911, 8.218]}, {"name": "Germany", "values": [13.233, 12.664, 11.978, 11.774, 11.535, 11.46, 11.666, 11.306, 11.261, 10.963, 10.99, 11.171, 10.952, 10.894, 10.678, 10.578, 10.85, 10.408, 10.561, 9.761, 10.228, 9.95, 10.061, 10.263, 9.74, 9.757, 9.642, 9.441, 9.101, 8.481, 7.739, 8.101, 7.942]}, {"name": "India", "values": [0.668, 0.696, 0.726, 0.734, 0.759, 0.792, 0.841, 0.859, 0.86, 0.926, 0.933, 0.929, 0.941, 0.957, 0.999, 1.035, 1.103, 1.17, 1.234, 1.316, 1.35, 1.4, 1.507, 1.54, 1.637, 1.681, 1.75, 1.784, 1.888, 1.88, 1.727, 1.892, 1.986]}, {"name": "United States", "values": [20.254, 19.793, 19.949, 20.102, 20.197, 20.23, 20.679, 20.745, 20.775, 20.806, 21.398, 20.767, 20.718, 20.718, 20.874, 20.719, 20.237, 20.28, 19.409, 17.811, 18.225, 17.634, 16.812, 17.099, 17.119, 16.461, 15.935, 15.639, 16.001, 15.5, 13.817, 14.758, 14.802]}]};
+const W = 700, H = 420, M = {top: 16, right: CFG.right ? 64 : 20, bottom: 70, left: 72};
+const svg = d3.select("#chart").append("svg").attr("width", W).attr("height", H);
+const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+const iw = W - M.left - M.right, ih = H - M.top - M.bottom;
+const series = CFG.series || [];
+const leftSeries = series.filter(s => s.name !== CFG.right);
+let x, y;
+if (CFG.kind === "scatter") {
+  x = d3.scaleLinear().domain([0, d3.max(CFG.points, p => p[0]) * 1.05]).nice().range([0, iw]);
+} else if (CFG.kind === "line") {
+  x = d3.scalePoint().domain(CFG.labels).range([0, iw]).padding(0.3);
+} else {
+  x = d3.scaleBand().domain(CFG.labels).range([0, iw]).padding(0.2);
+}
+let yMax;
+if (CFG.kind === "bar") yMax = d3.max(CFG.values);
+else if (CFG.kind === "scatter") yMax = d3.max(CFG.points, p => p[1]);
+else if (CFG.kind === "stacked_bar") yMax = d3.max(CFG.labels.map((_, i) => d3.sum(series, s => Math.max(s.values[i], 0))));
+else yMax = d3.max(leftSeries.flatMap(s => s.values));
+let yMin = 0;
+if (CFG.kind === "stacked_bar") yMin = Math.min(0, d3.min(CFG.labels.map((_, i) => d3.sum(series, s => Math.min(s.values[i], 0)))));
+if (CFG.y_min !== null) yMin = CFG.y_min;
+if (CFG.y_log) {
+  y = d3.scaleLog().domain([d3.min(CFG.points, p => p[1]) * 0.8, yMax * 1.2]).range([ih, 0]);
+} else {
+  y = d3.scaleLinear().domain([yMin, CFG.y_max !== null ? CFG.y_max : yMax * 1.05]).range([ih, 0]);
+  if (CFG.y_max === null && CFG.y_min === null) y.nice();
+}
+g.append("g").attr("class", "grid").call(d3.axisLeft(y).ticks(6).tickSize(-iw).tickFormat(""));
+const xAxis = g.append("g").attr("class", "axis").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).ticks(8));
+if (CFG.kind !== "scatter") xAxis.selectAll("text").attr("transform", "rotate(-35)").style("text-anchor", "end");
+g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(6, CFG.y_log ? "~s" : undefined));
+g.append("clipPath").attr("id", "plotclip").append("rect").attr("width", iw).attr("height", ih);
+const plot = g.append("g").attr("clip-path", "url(#plotclip)");
+if (CFG.kind === "bar") {
+  plot.selectAll("rect.bar").data(CFG.values).join("rect").attr("class", "bar")
+    .attr("x", (_, i) => x(CFG.labels[i])).attr("width", x.bandwidth())
+    .attr("y", d => y(d)).attr("height", d => ih - y(d))
+    .attr("fill", (_, i) => CFG.highlight.includes(CFG.labels[i]) ? CFG.highlight_color : CFG.colors[0])
+    .append("title").text((d, i) => `${CFG.labels[i]}: ${d}`);
+} else if (CFG.kind === "stacked_bar") {
+  const pos = CFG.labels.map(() => 0), neg = CFG.labels.map(() => 0);
+  series.forEach((s, k) => {
+    s.values.forEach((v, i) => {
+      const base = v >= 0 ? pos[i] : neg[i];
+      const top = base + v;
+      if (v >= 0) pos[i] = top; else neg[i] = top;
+      plot.append("rect").attr("x", x(CFG.labels[i])).attr("width", x.bandwidth())
+        .attr("y", y(Math.max(base, top))).attr("height", Math.abs(y(base) - y(top)))
+        .attr("fill", CFG.colors[k % CFG.colors.length])
+        .append("title").text(`${CFG.labels[i]}, ${s.name}: ${v}`);
+    });
+  });
+} else if (CFG.kind === "scatter") {
+  plot.selectAll("circle").data(CFG.points).join("circle")
+    .attr("cx", p => x(p[0])).attr("cy", p => y(p[1])).attr("r", 4)
+    .attr("fill", CFG.colors[0]).attr("fill-opacity", 0.75)
+    .append("title").text(p => `(${p[0]}, ${p[1]})`);
+} else {
+  let yRight = null;
+  if (CFG.right) {
+    yRight = d3.scaleLinear().domain([0, CFG.right_max]).range([ih, 0]);
+    g.append("g").attr("class", "axis").attr("transform", `translate(${iw},0)`).call(d3.axisRight(yRight).ticks(6));
+  }
+  series.forEach((s, k) => {
+    const ys = s.name === CFG.right ? yRight : y;
+    const color = CFG.colors[k % CFG.colors.length];
+    plot.append("path").datum(s.values).attr("fill", "none").attr("stroke", color).attr("stroke-width", 2)
+      .attr("d", d3.line().x((_, i) => x(CFG.labels[i])).y(v => ys(v)));
+    plot.selectAll(null).data(s.values).join("circle").attr("cx", (_, i) => x(CFG.labels[i]))
+      .attr("cy", v => ys(v)).attr("r", 3).attr("fill", color)
+      .append("title").text((v, i) => `${s.name}, ${CFG.labels[i]}: ${v}`);
+  });
+}
+g.append("text").attr("class", "axis-title").attr("x", iw / 2).attr("y", ih + 62).attr("text-anchor", "middle").text(CFG.x_title);
+g.append("text").attr("class", "axis-title").attr("transform", "rotate(-90)").attr("x", -ih / 2).attr("y", -56)
+  .attr("text-anchor", "middle").text(CFG.y_title);
+if (CFG.right) {
+  g.append("text").attr("class", "axis-title").attr("transform", "rotate(90)").attr("x", ih / 2).attr("y", -iw - 52)
+    .attr("text-anchor", "middle").text(`${CFG.right} (right axis)`);
+}
+if (series.length > 1) {
+  const legend = d3.select("#chart").append("svg").attr("class", "legend").attr("width", W).attr("height", 22);
+  let lx = M.left;
+  series.forEach((s, k) => {
+    legend.append("rect").attr("x", lx).attr("y", 6).attr("width", 12).attr("height", 12).attr("fill", CFG.colors[k % CFG.colors.length]);
+    const t = legend.append("text").attr("x", lx + 16).attr("y", 16).text(s.name);
+    lx += 28 + t.node().getComputedTextLength();
+  });
+}
+</script>
+</body>
+</html>

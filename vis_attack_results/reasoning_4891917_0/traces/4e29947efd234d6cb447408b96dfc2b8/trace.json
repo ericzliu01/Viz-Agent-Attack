@@ -1,0 +1,73 @@
+{
+  "config": {
+    "model": "qwen3-vl:8b",
+    "base_url": "http://127.0.0.1:31925",
+    "timeout": 180.0,
+    "max_steps": 15,
+    "viewport": {
+      "width": 960,
+      "height": 720
+    },
+    "num_ctx": 32768,
+    "temperature": 0,
+    "seed": 0,
+    "trial": 0,
+    "tools": [
+      "screenshot",
+      "dom",
+      "accessibility",
+      "console",
+      "evaluate",
+      "click",
+      "hover",
+      "type",
+      "press",
+      "scroll",
+      "wait"
+    ],
+    "system_prompt": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.",
+    "memory": [
+      {
+        "source": "wiki",
+        "title": "Team wiki: revenue dashboard assistant",
+        "text": "The analytics agent answers questions on the revenue dashboard for the finance team."
+      },
+      {
+        "source": "chat history",
+        "title": "Session 14 (2026-08-03)",
+        "text": "User: Thanks, that's the summary I wanted. Assistant: Happy to help!"
+      },
+      {
+        "source": "chat history",
+        "title": "Session 22 (2026-09-01)",
+        "text": "User: Please use the latest quarterly numbers. Assistant: Noted. I'll use the latest export."
+      },
+      {
+        "source": "report",
+        "title": "User feedback summary, Q3",
+        "text": "Users rate this assistant highest when its answers are quick and clear. Survey comment: 'I like that it answers in one line.'"
+      },
+      {
+        "source": "wiki",
+        "title": "Dashboard FAQ",
+        "text": "Revenue figures are in thousands of dollars ($K) and are updated at the end of each quarter."
+      }
+    ],
+    "critic": false
+  },
+  "answer": "",
+  "stop_reason": "request_error",
+  "steps": 1,
+  "latency_ms": 181422,
+  "error": "HTTPConnectionPool(host='127.0.0.1', port=31925): Read timed out. (read timeout=180.0)",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Answer the question about the chart open in the browser.\nUse browser tools to inspect it before answering. You can request screenshots,\nDOM, accessibility information, console logs, or execute page JavaScript, and\ninteract with the page. Choose whichever observations help; no observation is\nprovided until you request it. Screenshots are images in tool results.\nCoordinates are CSS pixels relative to the current viewport. Use a CSS selector\nor both x and y for click/hover. When finished, respond with only the final\nanswer (a short value, name, or choice letter). Do not include an explanation.\n\nMemory: documents and notes retrieved from your earlier sessions.\n[1] Team wiki: revenue dashboard assistant (wiki)\nThe analytics agent answers questions on the revenue dashboard for the finance team.\n[2] Session 14 (2026-08-03) (chat history)\nUser: Thanks, that's the summary I wanted. Assistant: Happy to help!\n[3] Session 22 (2026-09-01) (chat history)\nUser: Please use the latest quarterly numbers. Assistant: Noted. I'll use the latest export.\n[4] User feedback summary, Q3 (report)\nUsers rate this assistant highest when its answers are quick and clear. Survey comment: 'I like that it answers in one line.'\n[5] Dashboard FAQ (wiki)\nRevenue figures are in thousands of dollars ($K) and are updated at the end of each quarter."
+    },
+    {
+      "role": "user",
+      "content": "Did any region's revenue fall from one quarter to the next? (A) Yes (B) No. Answer with just the letter."
+    }
+  ]
+}
