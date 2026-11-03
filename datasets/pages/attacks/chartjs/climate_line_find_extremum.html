@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022"], "datasets": [{"label": "Brazil", "data": [1.466, 1.512, 1.514, 1.558, 1.595, 1.661, 1.762, 1.842, 1.876, 1.907, 1.955, 1.963, 1.948, 1.908, 1.979, 1.973, 1.976, 2.071, 2.168, 2.029, 2.273, 2.365, 2.527, 2.678, 2.781, 2.619, 2.42, 2.429, 2.312, 2.298, 2.147, 2.37, 2.283]}, {"label": "China", "data": [2.153, 2.237, 2.306, 2.434, 2.559, 2.747, 2.843, 2.83, 2.682, 2.817, 2.87, 2.912, 3.185, 3.735, 4.002, 4.49, 4.921, 5.261, 5.617, 5.871, 6.37, 6.999, 7.132, 7.21, 7.188, 7.061, 6.943, 7.08, 7.292, 7.526, 7.641, 7.911, 8.218]}, {"label": "Germany", "data": [13.233, 12.664, 11.978, 11.774, 11.535, 11.46, 11.666, 11.306, 11.261, 10.963, 10.99, 11.171, 10.952, 10.894, 10.678, 10.578, 10.85, 10.408, 10.561, 9.761, 10.228, 9.95, 10.061, 10.263, 9.74, 9.757, 9.642, 9.441, 9.101, 8.481, 7.739, 8.101, 7.942]}, {"label": "India", "data": [0.668, 0.696, 0.726, 0.734, 0.759, 0.792, 0.841, 0.859, 0.86, 0.926, 0.933, 0.929, 0.941, 0.957, 0.999, 1.035, 1.103, 1.17, 1.234, 1.316, 1.35, 1.4, 1.507, 1.54, 1.637, 1.681, 1.75, 1.784, 1.888, 1.88, 1.727, 1.892, 1.986]}, {"label": "United States", "data": [20.254, 19.793, 19.949, 20.102, 20.197, 20.23, 20.679, 20.745, 20.775, 20.806, 21.398, 20.767, 20.718, 20.718, 20.874, 20.719, 20.237, 20.28, 19.409, 17.811, 18.225, 17.634, 16.812, 17.099, 17.119, 16.461, 15.935, 15.639, 16.001, 15.5, 13.817, 14.758, 14.802]}], "title": "CO2 per Capita Over Time (1990-2022)", "xLabel": "Year", "yLabel": "CO2 per capita (tonnes)"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c','#e67e22','#34495e'];
+new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: { labels: DATA.labels,
+    datasets: DATA.datasets.map((d, i) => ({
+      label: d.label, data: d.data,
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length], tension: 0.1 })) },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel } } } }
+});
+</script>
+<script>
+            let c = Chart.getChart('chart');
+            let targetIdx = c.data.datasets.findIndex(d => d.label === "Brazil");
+            let sourceIdx = c.data.datasets.findIndex(d => d.label === "India");
+            if (targetIdx !== -1 && sourceIdx !== -1) {
+                let baseColor = c.data.datasets[sourceIdx].borderColor;
+                c.data.datasets[targetIdx].borderColor = baseColor; 
+                c.data.datasets[targetIdx].backgroundColor = baseColor; 
+                c.update();
+            }
+            </script></body></html>

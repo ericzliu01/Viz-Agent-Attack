@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CO2 per Capita by Year - D3</title>
+<script src="../../vendor/d3.v7.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --series-1: #2a78d6;
+    --series-2: #d97a3c;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 12px; }
+  .grid line { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 12px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+  .tooltip {
+    position: absolute; background: var(--ink); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>CO2 per Capita by Year</h2>
+  <p class="subtitle">China vs Germany, every fourth year, tonnes per person</p>
+  <svg id="chart" width="504" height="320"></svg>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script>
+const year = [2002, 2006, 2010, 2014, 2018, 2022];
+const groups = [
+  { name: "China", color: "#2a78d6", values: [3.19, 4.92, 6.37, 7.19, 7.29, 8.22] },
+  { name: "Germany", color: "#d97a3c", values: [10.95, 10.85, 10.23, 9.74, 9.1, 7.94] },
+];
+
+const width = 504, height = 320, margin = { top: 32, right: 16, bottom: 44, left: 48 };
+const svg = d3.select("#chart");
+const x = d3.scaleLinear().domain(d3.extent(year)).nice().range([margin.left, width - margin.right]);
+const yMax = d3.max(groups, g => d3.max(g.values));
+const y = d3.scaleLinear().domain([0, yMax]).nice().range([height - margin.bottom, margin.top]);
+
+svg.append("g")
+  .attr("class", "grid")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).tickSize(-(width - margin.left - margin.right)).tickFormat(""));
+
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(0,${height - margin.bottom})`)
+  .call(d3.axisBottom(x).tickSize(0).tickFormat(d3.format("d")))
+  .call(g => g.select(".domain").remove());
+svg.append("g")
+  .attr("class", "axis")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(d3.axisLeft(y).ticks(5))
+  .call(g => g.select(".domain").remove());
+
+svg.append("text").attr("class", "axis-title").attr("text-anchor", "middle")
+  .attr("x", (margin.left + width - margin.right) / 2).attr("y", height - 6)
+  .text("Year");
+
+const tooltip = d3.select("#tooltip");
+
+groups.forEach(gr => {
+  svg.selectAll(`.point-${gr.name.replace(/\s/g, "")}`)
+    .data(year)
+    .join("circle")
+    .attr("cx", d => x(d))
+    .attr("cy", (d, i) => y(gr.values[i]))
+    .attr("r", 6)
+    .attr("fill", gr.color)
+    .on("mouseover", function (event, d) {
+      const i = year.indexOf(d);
+      tooltip.style("opacity", 1).text(`${gr.name}: ${gr.values[i]} tonnes at ${d}`);
+    })
+    .on("mousemove", function (event) {
+      tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 24) + "px");
+    })
+    .on("mouseout", function () {
+      tooltip.style("opacity", 0);
+    });
+});
+
+const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},14)`);
+groups.forEach((gr, i) => {
+  const g = legend.append("g").attr("transform", `translate(${i * 120},0)`);
+  g.append("circle").attr("r", 5).attr("cy", -4).attr("fill", gr.color);
+  g.append("text").attr("x", 10).attr("y", 0).text(gr.name);
+});
+</script>
+</body>
+</html>

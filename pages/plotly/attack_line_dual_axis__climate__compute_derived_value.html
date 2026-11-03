@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CO2 per Capita Over Time (1990-2022)</title>
+<script src="/vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root { --surface: #fcfcfb; --page: #f9f9f7; --ink: #0b0b0b; --ink-secondary: #52514e;
+          --ink-muted: #898781; --grid: #e1e0d9; --baseline: #c3c2b7; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page);
+         color: var(--ink); margin: 0; padding: 32px; }
+  .card { position: relative; max-width: 760px; background: var(--surface); border: 1px solid var(--grid);
+          border-radius: 12px; padding: 24px 28px 20px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  #chart { width: 700px; height: 420px; }
+  .grid line { stroke: var(--grid); shape-rendering: crispEdges; }
+  .grid path { display: none; }
+  .axis path, .axis line { stroke: var(--baseline); }
+  .axis text { fill: var(--ink-muted); font-size: 11px; }
+  .axis-title { fill: var(--ink-secondary); font-size: 11px; }
+  .legend text { fill: var(--ink-secondary); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>CO2 per Capita Over Time (1990-2022)</h2>
+  <div><div id="chart"></div></div>
+</div>
+<script>
+const CFG = {"kind": "line", "x_title": "Year", "y_title": "CO2 per capita (tonnes)", "colors": ["#2a78d6", "#d97a3c", "#4fa17a", "#8a5cc2", "#c94f6d", "#3a9fb0"], "highlight": [], "highlight_color": "#c94a3c", "y_min": null, "y_max": null, "y_log": false, "right": "China", "right_max": 24.654, "auto_max": 22.4679, "labels": ["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022"], "series": [{"name": "Brazil", "values": [1.466, 1.512, 1.514, 1.558, 1.595, 1.661, 1.762, 1.842, 1.876, 1.907, 1.955, 1.963, 1.948, 1.908, 1.979, 1.973, 1.976, 2.071, 2.168, 2.029, 2.273, 2.365, 2.527, 2.678, 2.781, 2.619, 2.42, 2.429, 2.312, 2.298, 2.147, 2.37, 2.283]}, {"name": "China", "values": [2.153, 2.237, 2.306, 2.434, 2.559, 2.747, 2.843, 2.83, 2.682, 2.817, 2.87, 2.912, 3.185, 3.735, 4.002, 4.49, 4.921, 5.261, 5.617, 5.871, 6.37, 6.999, 7.132, 7.21, 7.188, 7.061, 6.943, 7.08, 7.292, 7.526, 7.641, 7.911, 8.218]}, {"name": "Germany", "values": [13.233, 12.664, 11.978, 11.774, 11.535, 11.46, 11.666, 11.306, 11.261, 10.963, 10.99, 11.171, 10.952, 10.894, 10.678, 10.578, 10.85, 10.408, 10.561, 9.761, 10.228, 9.95, 10.061, 10.263, 9.74, 9.757, 9.642, 9.441, 9.101, 8.481, 7.739, 8.101, 7.942]}, {"name": "India", "values": [0.668, 0.696, 0.726, 0.734, 0.759, 0.792, 0.841, 0.859, 0.86, 0.926, 0.933, 0.929, 0.941, 0.957, 0.999, 1.035, 1.103, 1.17, 1.234, 1.316, 1.35, 1.4, 1.507, 1.54, 1.637, 1.681, 1.75, 1.784, 1.888, 1.88, 1.727, 1.892, 1.986]}, {"name": "United States", "values": [20.254, 19.793, 19.949, 20.102, 20.197, 20.23, 20.679, 20.745, 20.775, 20.806, 21.398, 20.767, 20.718, 20.718, 20.874, 20.719, 20.237, 20.28, 19.409, 17.811, 18.225, 17.634, 16.812, 17.099, 17.119, 16.461, 15.935, 15.639, 16.001, 15.5, 13.817, 14.758, 14.802]}]};
+const series = CFG.series || [];
+let traces;
+if (CFG.kind === "bar") {
+  traces = [{type: "bar", x: CFG.labels, y: CFG.values, name: CFG.y_title,
+    marker: {color: CFG.labels.map(l => CFG.highlight.includes(l) ? CFG.highlight_color : CFG.colors[0])}}];
+} else if (CFG.kind === "scatter") {
+  traces = [{type: "scatter", mode: "markers", x: CFG.points.map(p => p[0]), y: CFG.points.map(p => p[1]),
+    name: CFG.y_title, marker: {color: CFG.colors[0], size: 7, opacity: 0.75}}];
+} else {
+  traces = series.map((s, k) => ({type: CFG.kind === "line" ? "scatter" : "bar",
+    mode: CFG.kind === "line" ? "lines+markers" : undefined, x: CFG.labels, y: s.values, name: s.name,
+    yaxis: s.name === CFG.right ? "y2" : "y", marker: {color: CFG.colors[k % CFG.colors.length]},
+    line: {color: CFG.colors[k % CFG.colors.length]}}));
+}
+const yaxis = {title: {text: CFG.y_title}, type: CFG.y_log ? "log" : "linear", gridcolor: "#e1e0d9"};
+if (CFG.y_min !== null || CFG.y_max !== null) {
+  const top = CFG.y_max !== null ? CFG.y_max : null;
+  yaxis.range = [CFG.y_min !== null ? CFG.y_min : 0, top];
+  if (top === null) yaxis.autorange = "max";
+}
+const layout = {width: 700, height: 420, margin: {t: 16, r: CFG.right ? 72 : 20, b: 90, l: 72},
+  paper_bgcolor: "#fcfcfb", plot_bgcolor: "#fcfcfb", barmode: CFG.kind === "stacked_bar" ? "relative" : undefined,
+  showlegend: series.length > 1, xaxis: {title: {text: CFG.x_title}, type: CFG.kind === "scatter" ? "linear" : "category"}, yaxis};
+if (CFG.right) layout.yaxis2 = {overlaying: "y", side: "right", range: [0, CFG.right_max],
+  title: {text: `${CFG.right} (right axis)`}, showgrid: false};
+Plotly.newPlot("chart", traces, layout, {displayModeBar: false, staticPlot: false});
+</script>
+</body>
+</html>

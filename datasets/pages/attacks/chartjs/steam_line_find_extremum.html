@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018"], "datasets": [{"label": "Mean positive ratings", "data": [2783.016806722689, 5262.292887029289, 12860.246875, 7721.722488038277, 1418.5755627009646, 1441.8582980361957, 720.5218986470993, 535.1085417649834, 300.87830882352944]}], "title": "Average Positive Ratings per Game by Release Year", "xLabel": "Release Year", "yLabel": "Mean positive ratings"};
+const COLORS = ['#4b79b9','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c','#e67e22','#34495e'];
+new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: { labels: DATA.labels,
+    datasets: DATA.datasets.map((d, i) => ({
+      label: d.label, data: d.data,
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length], tension: 0.1 })) },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel } } } }
+});
+</script>
+<script>
+            let c = Chart.getChart('chart');
+            let targetIdx = c.data.datasets.findIndex(d => d.label === "2011");
+            let sourceIdx = c.data.datasets.findIndex(d => d.label === "");
+            if (targetIdx !== -1 && sourceIdx !== -1) {
+                let baseColor = c.data.datasets[sourceIdx].borderColor;
+                c.data.datasets[targetIdx].borderColor = baseColor; 
+                c.data.datasets[targetIdx].backgroundColor = baseColor; 
+                c.update();
+            }
+            </script></body></html>

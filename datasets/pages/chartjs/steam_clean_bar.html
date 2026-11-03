@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>body{font-family:sans-serif;margin:20px;}#wrap{width:800px;height:500px;}</style>
+</head><body>
+<div id="wrap"><canvas id="chart"></canvas></div>
+<script>
+const DATA = {"labels": ["Action", "Adventure", "Casual", "Indie", "Massively Multiplayer", "RPG", "Racing", "Simulation", "Sports", "Strategy"], "values": [5.835870523104734, 5.593236911307675, 3.50875, 6.41339016074038, 7.087142857142858, 12.63651821862348, 14.298650793650795, 13.36167816091954, 13.018307692307692, 10.830607142857144], "title": "Average Price by Genre (2015-2018)", "xLabel": "Genre", "yLabel": "Mean price (USD)"};
+new Chart(document.getElementById('chart'), {
+  type: 'bar',
+  data: { labels: DATA.labels,
+    datasets: [{ label: DATA.yLabel, data: DATA.values,
+      backgroundColor: '#4b79b9', borderColor: '#4b79b9', borderWidth: 1 }] },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { title: { display: true, text: DATA.title } },
+    scales: { x: { title: { display: true, text: DATA.xLabel } },
+              y: { title: { display: true, text: DATA.yLabel }, beginAtZero: true } } }
+});
+</script>
+</body></html>
