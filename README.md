@@ -567,3 +567,14 @@ uses an Amar, Eagan & Stasko category and that category's difficulty tier.
 
 </details>
 
+
+## Task generation pilot
+
+Generate 100 Netflix tasks with computed solutions:
+
+```bash
+python task_generation.py --count 100 --seed 42
+```
+
+See [task generation documentation](docs/task-generation.md) for Bedrock selection,
+output schema, validation, and the included 100-case Bedrock pilot.
