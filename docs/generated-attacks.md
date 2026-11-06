@@ -86,6 +86,7 @@ benchmark. Do not tune or select cases using the final tested model's failures.
 ```bash
 python validate_generated_corpus.py --corpus generated_corpus
 python validate_generated_corpus.py --corpus generated_corpus --all
+cp -R vendor generated_corpus/public/vendor  # Restore local assets after a fresh checkout.
 python -m http.server 8000 --bind 127.0.0.1 --directory generated_corpus/public
 ```
 
@@ -97,8 +98,9 @@ measurements of attack effectiveness or proof that every task is visually answer
 
 The initial 100-task build produces 400 clean pages and 4,704 attack pages.
 The 96 MT/sum combinations are explicitly skipped. Four libraries times 12 variants
-give 48 representative browser checks. Generated artifacts are ignored by Git and
-can be rebuilt; the source task corpus remains versioned.
+give 48 representative browser checks. Generated test pages, the evaluator manifest, and the validation report are
+versioned alongside the source task corpus. Local LLM caches and duplicate
+vendor assets remain ignored.
 
 ## LLM attack planning and wording
 
