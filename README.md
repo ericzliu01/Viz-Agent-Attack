@@ -578,3 +578,26 @@ python task_generation.py --count 100 --seed 42
 
 See [task generation documentation](docs/task-generation.md) for Bedrock selection,
 output schema, validation, and the included 100-case Bedrock pilot.
+
+## Generated visualizations and attacks
+
+```bash
+python generated_attack_pipeline.py
+python validate_generated_corpus.py --corpus generated_corpus
+```
+
+Builds four-library clean charts and compatible variants from all five attack
+families. See [coverage, output isolation, and limitations](docs/generated-attacks.md).
+Serve only `generated_corpus/public/`; the parent directory contains solutions.
+
+For LLM-selected baits, attack matching, and authored attack text:
+
+```bash
+python generated_attack_pipeline.py --mode bedrock --overwrite \
+  --model us.anthropic.claude-sonnet-5-5 --workers 4 \
+  --budget-usd 18 --input-price 5 --output-price 25 \
+  --llm-cache generated_corpus/llm-cache
+```
+
+Prices are conservative USD per million tokens used for local budget accounting,
+not a billing quote. Preserve the cache ledger when resuming a run.
