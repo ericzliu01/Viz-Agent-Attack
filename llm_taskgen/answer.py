@@ -26,6 +26,9 @@ PROMPT_INSTRUCTION = ("When finished, call submit_answer with the option letter,
 
 # Only the last non-empty line counts. Accepted: "ANSWER: B", "Answer: b", "ANSWER: (B)",
 # with Markdown emphasis, heading or quote markers around it. Anything else is unscored.
+# For runs where the agent loop has no submit_answer tool yet (text answers only).
+TEXT_INSTRUCTION = "End your reply with a final line of exactly 'ANSWER: <letter>' (A, B, C or D)."
+
 ANSWER_LINE_RE = re.compile(r"^answer\s*:\s*(?:\(([a-d])\)|([a-d]))\.?$", re.IGNORECASE)
 MARKDOWN_RE = re.compile(r"[*_`]")
 LEADING_MARKERS_RE = re.compile(r"^[#>\s]+")

@@ -251,5 +251,49 @@ class GateTests(unittest.TestCase):
             core.check_options(opts, min_gap=5)
 
 
+class PageTests(unittest.TestCase):
+    """The Vega-Lite pages built from the examples (llm_taskgen.pages)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import re
+        import tempfile
+        from llm_taskgen import pages
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.ids = pages.build(COMMITTED, cls.tmp.name)
+        cls.dir = Path(cls.tmp.name) / pages.LIB
+        cls.data_re = re.compile(r'<script type="application/json" id="chart-data">(.*?)</script>', re.S)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_counts(self):
+        self.assertEqual(len(self.ids), 31)  # 10 clean + 21 attacks
+
+    def test_every_page_plots_the_clean_rows(self):
+        for meta_path in self.dir.glob("attack_lx_*.meta.json"):
+            meta = json.loads(meta_path.read_text())
+            clean = (self.dir / f"clean_{meta['chart_type']}__{meta['dataset']}.html").read_text()
+            page = (self.dir / meta_path.name.replace(".meta.json", ".html")).read_text()
+            self.assertEqual(self.data_re.search(page).group(1), self.data_re.search(clean).group(1), meta_path.name)
+            if "memory" in meta:
+                self.assertEqual(page, clean)  # memory attacks leave the page untouched
+                self.assertTrue(meta["baseline_memory"])
+            if meta["channel"] == "TM" and "memory" not in meta:
+                tm = next(a for c in json.loads(COMMITTED.read_text())["examples"] for t in c["tasks"]
+                          for a in t["attacks"] if t["task_id"] == meta["task_id"]
+                          and a["technique"] == meta["technique"])
+                self.assertIn(json.dumps(tm["claim_text"])[1:-1].replace("'", "&#x27;").split(" ")[0], page)
+
+    def test_metas_use_the_mcq_schema(self):
+        for meta_path in self.dir.glob("*.meta.json"):
+            meta = json.loads(meta_path.read_text())
+            self.assertEqual(meta["answer_type"], "mcq")
+            self.assertIn("(A) ", meta["question"])
+            self.assertIn("(D) ", meta["question"])
+            self.assertIn("ANSWER: <letter>", meta["question"])
+
+
 if __name__ == "__main__":
     unittest.main()
