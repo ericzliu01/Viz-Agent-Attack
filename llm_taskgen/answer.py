@@ -1,8 +1,8 @@
 """Fixed answer schema for the A-D multiple-choice tasks (plan section 2.2).
 
 The agent either calls a `submit_answer` tool whose only argument is a letter,
-or ends its reply with a line `ANSWER: <letter>`. Anything else is unscored:
-there is no first-token or substring guessing.
+or ends its reply with a line `ANSWER: <letter>`. Only the last non-empty line
+is read; anything else is unscored: there is no first-token or substring guessing.
 """
 import re
 
@@ -24,8 +24,11 @@ SUBMIT_ANSWER_TOOL = {
 PROMPT_INSTRUCTION = ("When finished, call submit_answer with the option letter, or end your reply "
                       "with a final line of exactly 'ANSWER: <letter>' (A, B, C or D).")
 
-ANSWER_LINE_RE = re.compile(r"^ANSWER:\s*\(?([A-D])\)?\.?\s*$")
+# Only the last non-empty line counts. Accepted: "ANSWER: B", "Answer: b", "ANSWER: (B)",
+# with Markdown emphasis, heading or quote markers around it. Anything else is unscored.
+ANSWER_LINE_RE = re.compile(r"^answer\s*:\s*(?:\(([a-d])\)|([a-d]))\.?$", re.IGNORECASE)
 MARKDOWN_RE = re.compile(r"[*_`]")
+LEADING_MARKERS_RE = re.compile(r"^[#>\s]+")
 
 
 def parse_letter(response, tool_letter=None):
@@ -35,11 +38,13 @@ def parse_letter(response, tool_letter=None):
         t = tool_letter.strip().upper()
         if len(t) == 1 and t in LETTERS:
             return t, "tool"
-    lines = [MARKDOWN_RE.sub("", ln).strip() for ln in (response or "").splitlines()]
-    for line in reversed(lines):
-        m = ANSWER_LINE_RE.match(line)
-        if m:
-            return m.group(1), "answer_line"
+    lines = [ln.strip() for ln in (response or "").splitlines() if ln.strip()]
+    if not lines:
+        return None, "unscored"
+    last = LEADING_MARKERS_RE.sub("", MARKDOWN_RE.sub("", lines[-1])).strip()
+    m = ANSWER_LINE_RE.match(last)
+    if m:
+        return (m.group(1) or m.group(2)).upper(), "answer_line"
     return None, "unscored"
 
 

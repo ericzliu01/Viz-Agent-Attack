@@ -2,7 +2,6 @@
 
 Run from the repo root: python -m unittest tests.test_llm_taskgen -v
 """
-import copy
 import json
 import unittest
 from pathlib import Path
@@ -11,6 +10,7 @@ import pandas as pd
 
 from llm_taskgen import core
 from llm_taskgen.answer import grade_mcq, parse_letter
+from llm_taskgen import examples
 from llm_taskgen.examples import build
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +30,18 @@ class AnswerSchemaTests(unittest.TestCase):
 
     def test_parenthesised_letter(self):
         self.assertEqual(parse_letter("ANSWER: (C)."), ("C", "answer_line"))
+
+    def test_only_the_last_line_counts(self):
+        self.assertEqual(parse_letter("ANSWER: B\nWait, on reflection it is C."), (None, "unscored"))
+        self.assertEqual(parse_letter("ANSWER: B\nANSWER: E"), (None, "unscored"))
+
+    def test_tolerated_formatting(self):
+        for reply in ["Answer: b", "### ANSWER: B", "> ANSWER: B", "ANSWER : B", "_ANSWER: B_"]:
+            self.assertEqual(parse_letter(reply), ("B", "answer_line"), reply)
+
+    def test_rejected_formatting(self):
+        for reply in ["ANSWER: (B", "ANSWER: B (2nd Class)", "ANSWER: B or C"]:
+            self.assertEqual(parse_letter(reply), (None, "unscored"), reply)
 
     def test_unscored_without_schema(self):
         for reply in ["B", "The answer is B", "ANSWER: E", "answer: b is likely", "", None]:
@@ -67,6 +79,21 @@ class BaitRuleTests(unittest.TestCase):
                             {"letter": "C", "value": "flat", "text": "flat", "misreading": "flattened"},
                             {"letter": "D", "value": "peak", "text": "peak", "misreading": "shape"}]}
         self.assertEqual(core.tm_bait(task)[0]["letter"], "B")
+
+    def test_numpy_numbers_use_nearest_rule(self):
+        import numpy as np
+        task = {"options": self.opts([np.int64(10), np.int64(14), np.int64(7), np.int64(30)], [None, "a", "b", "c"])}
+        self.assertEqual(core.tm_bait(task), (task["options"][2], "nearest_numeric"))
+
+    def test_no_rule_raises_gate_error(self):
+        task = {"options": [{"letter": l, "value": l, "text": l, "misreading": t}
+                            for l, t in zip("ABCD", [None, "a", "b", "c"])]}
+        with self.assertRaises(core.GateError):
+            core.tm_bait(task)
+
+    def test_unknown_primitive_raises_gate_error(self):
+        with self.assertRaises(core.GateError):
+            core.item(task_id="x", primitive="Cluster")
 
     def test_lettering_balances_truth(self):
         L = core.Lettering(1)
@@ -138,10 +165,16 @@ class GateTests(unittest.TestCase):
         cls.doc = build(DATASETS)
 
     def pick(self, tid):
-        for c in self.doc["examples"]:
-            for t in c["tasks"]:
+        """A fresh, unvalidated copy of one example task (with its recompute function)."""
+        L = core.Lettering(examples.SEED)
+        for fn in (examples.scatter_heart, examples.bar_titanic, examples.line_climate,
+                   examples.stacked_netflix, examples.heatmap_heart):
+            spec, tasks = fn(DATASETS, L)
+            for t in tasks:
                 if t["task_id"] == tid:
-                    return copy.deepcopy(c["chart"]), copy.deepcopy(t)
+                    core.fill_tm(t)
+                    return spec, t
+        raise KeyError(tid)
 
     def test_valid_task_passes(self):
         core.validate_task(*self.pick("ex_bar_titanic_retrieve"))
@@ -186,6 +219,31 @@ class GateTests(unittest.TestCase):
         spec, t = self.pick("ex_scatter_heart_correlate")  # uses x and y only
         with self.assertRaises(core.GateError):
             core.check_channels_exercised(spec, [t])
+
+    def test_missing_recompute_is_rejected(self):
+        spec, t = self.pick("ex_bar_titanic_retrieve")
+        del t["recompute"]
+        with self.assertRaises(core.GateError):
+            core.validate_task(spec, t)
+
+    def test_filter_not_in_title_is_rejected(self):
+        spec, t = self.pick("ex_bar_titanic_retrieve")
+        spec["filters"]["Joined"] = "Southampton"
+        with self.assertRaises(core.GateError):
+            core.validate_task(spec, t)
+
+    def test_named_value_not_plotted_is_rejected(self):
+        spec, t = self.pick("ex_bar_titanic_retrieve")
+        spec["data"] = [r for r in spec["data"] if r["class"] != "3rd Class"]
+        with self.assertRaises(core.GateError):
+            core.validate_task(spec, t)
+
+    def test_claim_with_truth_is_rejected(self):
+        spec, t = self.pick("ex_bar_titanic_retrieve")
+        tm = next(a for a in t["attacks"] if a["channel"] == "TM")
+        tm["claim_text"] += " Earlier estimates said 49%."
+        with self.assertRaises(core.GateError):
+            core.validate_task(spec, t)
 
     def test_close_options_are_rejected(self):
         opts = [{"text": str(v), "value": v} for v in (10, 12, 30, 40)]

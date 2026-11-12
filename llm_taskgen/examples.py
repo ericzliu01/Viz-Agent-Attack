@@ -56,7 +56,7 @@ def scatter_heart(d, L):
     ]
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_scatter_heart_correlate", primitive="Correlate", level="low",
+        task_id="ex_scatter_heart_correlate", named_values={}, primitive="Correlate", level="low",
         question=("Among the Cleveland patients, as age increases, how does maximum heart rate tend "
                   "to change?"),
         fields_referenced=["age", "thalch"], channels_used=["x", "y"],
@@ -95,7 +95,7 @@ def scatter_heart(d, L):
     check_options(opts)
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_scatter_heart_extremum_size", primitive="Find Extremum", level="low",
+        task_id="ex_scatter_heart_extremum_size", named_values={"sex": ["Male"]}, primitive="Find Extremum", level="low",
         question=("Among male patients, how old is the patient with the largest ST depression "
                   "(the largest marker)?"),
         fields_referenced=["sex", "oldpeak", "age"], channels_used=["color", "size", "x"],
@@ -152,7 +152,7 @@ def bar_titanic(d, L):
     check_options(opts, min_gap=5)
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_bar_titanic_retrieve", primitive="Retrieve Value", level="low",
+        task_id="ex_bar_titanic_retrieve", named_values={"class": ["3rd Class"], "gender": ["Female"]}, primitive="Retrieve Value", level="low",
         question="What percentage of female 3rd Class passengers survived?",
         fields_referenced=["class", "gender", "survival_rate"], channels_used=["x", "group", "color", "y"],
         options=opts, answer_letter=truth_letter(opts), solution={"rate": tr},
@@ -173,7 +173,7 @@ def bar_titanic(d, L):
     opts = [{"text": c, "value": gaps[c], "misreading": tag} for c, tag in zip(ranked, tags)]
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_bar_titanic_gap_extremum", primitive="Find Extremum", level="compound",
+        task_id="ex_bar_titanic_gap_extremum", named_values={"gender": ["Female", "Male"]}, primitive="Find Extremum", level="compound",
         primitive_chain=["Compute Derived Value", "Find Extremum"],
         question=("In which class is the difference between female and male survival rates the "
                   "largest?"),
@@ -236,7 +236,7 @@ def line_climate(d, L):
     check_options(opts, min_gap=0.03 * float(long.t_per_person.max()))
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_line_climate_range_style", primitive="Determine Range", level="low",
+        task_id="ex_line_climate_range_style", named_values={"country": ["Germany"], "measure": ["consumption-based"]}, primitive="Determine Range", level="low",
         question=("Over 2000-2022, what is the range (highest minus lowest) of Germany's "
                   "consumption-based CO2 per person?"),
         fields_referenced=["country", "measure", "year", "t_per_person"],
@@ -272,7 +272,7 @@ def line_climate(d, L):
     ]
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_line_climate_correlate", primitive="Correlate", level="low",
+        task_id="ex_line_climate_correlate", named_values={"country": ["China", "Germany"], "measure": ["territorial"]}, primitive="Correlate", level="low",
         question=("From 2000 to 2022, how did China's territorial CO2 per person change compared "
                   "with Germany's?"),
         fields_referenced=["country", "measure", "year", "t_per_person"],
@@ -330,7 +330,7 @@ def stacked_netflix(d, L):
     check_options(opts, min_gap=50)
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_stacked_netflix_total", primitive="Compute Derived Value", level="low",
+        task_id="ex_stacked_netflix_total", named_values={"release_year": [y]}, primitive="Compute Derived Value", level="low",
         question=f"How many titles (movies and TV shows together) were released in {y}?",
         fields_referenced=["release_year", "type", "titles"], channels_used=["x", "stack", "y"],
         options=opts, answer_letter=truth_letter(opts),
@@ -365,7 +365,7 @@ def stacked_netflix(d, L):
     ]
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_stacked_netflix_tv_peak", primitive="Find Extremum", level="low",
+        task_id="ex_stacked_netflix_tv_peak", named_values={"type": ["TV Show"]}, primitive="Find Extremum", level="low",
         question="In which release year did TV shows (the bottom segment) have the most titles?",
         fields_referenced=["release_year", "type", "titles"], channels_used=["x", "stack", "color", "y"],
         options=opts, answer_letter=truth_letter(opts),
@@ -432,7 +432,7 @@ def heatmap_heart(d, L):
     check_options(opts, min_gap=10)  # values read from color need wider gaps than values read from an axis
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_heatmap_heart_retrieve", primitive="Retrieve Value", level="low",
+        task_id="ex_heatmap_heart_retrieve", named_values={"age_band": ["50-59"], "chest_pain": ["non-anginal"]}, primitive="Retrieve Value", level="low",
         question=("What percentage of patients aged 50-59 with non-anginal chest pain have heart "
                   "disease?"),
         fields_referenced=["age_band", "chest_pain", "disease_rate"], channels_used=["x", "y", "color"],
@@ -458,7 +458,7 @@ def heatmap_heart(d, L):
             for b, t in zip(ranked, [None, "runner_up", "rank_3", "min_instead_of_max"])]
     opts = L.assign(opts)
     out.append(item(
-        task_id="ex_heatmap_heart_extremum", primitive="Find Extremum", level="low",
+        task_id="ex_heatmap_heart_extremum", named_values={"chest_pain": ["non-anginal"]}, primitive="Find Extremum", level="low",
         question="Among patients with non-anginal chest pain, which age band has the highest heart disease rate?",
         fields_referenced=["age_band", "chest_pain", "disease_rate"], channels_used=["y", "x", "color"],
         options=opts, answer_letter=truth_letter(opts), solution={"row": row},

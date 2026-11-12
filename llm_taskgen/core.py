@@ -5,6 +5,7 @@ validation gates. The generator LLM never sets anything defined here.
 See notes/llm-task-attack-generation-plan-2026-11-11.md.
 """
 import hashlib
+import numbers
 import random
 from pathlib import Path
 
@@ -85,7 +86,8 @@ class Lettering:
         truth_pos = self.queue.pop()
         truth = [o for o in options if o["misreading"] is None]
         wrong = [o for o in options if o["misreading"] is not None]
-        assert len(truth) == 1 and len(wrong) == 3, options
+        if len(truth) != 1 or len(wrong) != 3:
+            raise GateError(f"need one truth and three wrong options: {options}")
         self.rng.shuffle(wrong)
         ordered = wrong[:truth_pos] + truth + wrong[truth_pos:]
         for letter, o in zip(LETTERS, ordered):
@@ -115,6 +117,9 @@ def truth_letter(options):
 
 def item(**kw):
     chain = kw.get("primitive_chain", [kw["primitive"]])
+    unknown = [p for p in chain if p not in TIER]
+    if unknown:
+        raise GateError(f"{kw.get('task_id')}: {unknown} not Amar/Eagan/Stasko tasks with a README tier")
     kw["tier"] = max(TIER[p] for p in chain)  # a compound task takes its hardest step's tier
     return kw
 
@@ -130,9 +135,12 @@ def tm_bait(task):
     if tagged:
         return tagged[0], "runner_up"
     truth = next(o for o in opts if o["misreading"] is None)
-    if all(isinstance(o["value"], (int, float)) for o in opts):
+    if all(isinstance(o["value"], numbers.Real) and not isinstance(o["value"], bool) for o in opts):
         return min(wrong, key=lambda o: (abs(o["value"] - truth["value"]), o["letter"])), "nearest_numeric"
-    return next(o for o in wrong if o["misreading"] == "sign_flip"), "sign_flip"
+    flips = [o for o in wrong if o["misreading"] == "sign_flip"]
+    if not flips:
+        raise GateError(f"{task.get('task_id')}: no TM bait rule applies")
+    return flips[0], "sign_flip"
 
 
 def fill_tm(task):
@@ -164,6 +172,22 @@ def validate_task(spec, task):
         raise GateError(f"{tid}: primitive {task['primitive']!r} not an Amar/Eagan/Stasko task with a tier")
     if truths[0]["text"].lower() in task["question"].lower():
         raise GateError(f"{tid}: answer text appears in the question")
+    # 3.2 rule 2: every filter value is stated in the title or subtitle
+    header = f"{spec.get('title', '')} {spec.get('subtitle', '')}"
+    for field, value in spec["filters"].items():
+        for v in (value if isinstance(value, list) else [value]):
+            if str(v) not in header:
+                raise GateError(f"{tid}: filter {field}={v!r} not stated in the title or subtitle")
+    # 3.2 rule 3: every category the question names exists in the plotted rows (and in the question)
+    if "named_values" not in task:
+        raise GateError(f"{tid}: named_values missing")
+    for field, values in task["named_values"].items():
+        plotted = {r.get(field) for r in spec["data"]}
+        for v in values:
+            if v not in plotted:
+                raise GateError(f"{tid}: {field}={v!r} named in the question but not plotted")
+            if str(v).lower() not in task["question"].lower():
+                raise GateError(f"{tid}: named value {v!r} not in the question text")
     covered = set(spec["encodings"].values()) | set(spec["filters"])
     missing = set(task["fields_referenced"]) - covered
     if missing:
@@ -171,7 +195,9 @@ def validate_task(spec, task):
     if not set(task["channels_used"]) <= set(spec["encodings"]):
         raise GateError(f"{tid}: channels_used not encoded")
     recompute = task.pop("recompute", None)
-    if recompute is not None and recompute(spec["data"]) != truths[0]["text"]:
+    if recompute is None:
+        raise GateError(f"{tid}: no recompute function, so the answer key cannot be checked")
+    if recompute(spec["data"]) != truths[0]["text"]:
         raise GateError(f"{tid}: answer recomputed from the plotted rows differs from the key")
     for a in task["attacks"]:
         tech = TECHNIQUES.get(a["technique"])
@@ -184,6 +210,9 @@ def validate_task(spec, task):
         bait = next(o for o in opts if o["letter"] == a["bait_letter"])
         if "claim_text" in a and bait.get("claim_phrase", bait["text"]) not in a["claim_text"]:
             raise GateError(f"{tid}: claim does not name the bait")
+        truth_strings = {truths[0]["text"], truths[0].get("claim_phrase", truths[0]["text"])}
+        if "claim_text" in a and any(x in a["claim_text"] for x in truth_strings):
+            raise GateError(f"{tid}: attack claim contains the truth")
 
 
 def check_channels_exercised(spec, tasks):
