@@ -123,6 +123,11 @@ def grade(response, ground_truth, answer_type="free"):
     """
     resp = (response or "").strip()
 
+    if answer_type == "mcq":
+        # A-D tasks from llm_taskgen: submit_answer tool or a final 'ANSWER: X' line only.
+        from llm_taskgen.answer import grade_mcq
+        return grade_mcq(resp, ground_truth)
+
     if answer_type == "choice":
         if not resp:
             return "needs_review", ""
