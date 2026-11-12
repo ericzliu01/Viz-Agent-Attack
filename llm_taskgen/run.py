@@ -9,7 +9,7 @@
 Usage (Bedrock credentials loaded in the shell):
   python -m llm_taskgen.pages
   VIS_RESULTS_DIR=results/llm_examples_sonnet python -m llm_taskgen.run \\
-      --models us.anthropic.claude-sonnet-5-5 --backend bedrock --libraries vega-lite --trials 3
+      --models us.anthropic.claude-sonnet-5-5 --backend bedrock --libraries vega-lite,plotly,chartjs,d3 --trials 3
 """
 import argparse
 

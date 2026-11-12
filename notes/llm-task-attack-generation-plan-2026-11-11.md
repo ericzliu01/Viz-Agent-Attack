@@ -5,6 +5,8 @@ Status: plan reviewed by an independent sub-agent (needs changes, all 11 finding
 - `llm_taskgen/core.py`: the fixed A-D option schema and letter assignment, tiers, required channels per chart type, the technique registry, the TM bait rule (`tm_bait`) and the validation gates (`validate_task`, `check_channels_exercised`, `check_options`).
 - `llm_taskgen/answer.py`: the answer schema (`submit_answer` tool definition, `ANSWER: X` line), `parse_letter` and `grade_mcq`; `run_attack_suite.grade(..., answer_type="mcq")` uses it.
 - `llm_taskgen/examples.py`: builds the few-shot examples from the CSVs in `datasets/` (`python -m llm_taskgen.examples`), writing `tasks/llm_examples/task-attack-examples.json`: 10 tasks on 5 chart types with 21 paired attacks.
+- `llm_taskgen/pages.py`: builds the example pages (`python -m llm_taskgen.pages`), 31 per library (10 clean + 21 attacks) in Vega-Lite, Plotly, Chart.js and D3 under `pages/<lib>/` (git-ignored, `lx_` prefix). Vega-Lite uses a spec built in Python; the other three share one chart description (rows plus encodings and MT changes) drawn by `llm_taskgen/renderers/<lib>.js`. The Chart.js heatmap is drawn by a small plugin on a category scatter, so no extra vendored code is needed; size legends for Plotly, Chart.js and D3 bubbles are HTML.
+- `llm_taskgen/run.py` and `llm_taskgen/summarize.py`: run the pages through `run_attack_suite` with the `ANSWER: X` instruction and summarise per model, library and attack.
 - `tests/test_llm_taskgen.py`: `python -m unittest tests.test_llm_taskgen -v`.
 
 Not yet done: the generator LLM prompts, LLM-written page code, the browser validation layers, a generic MT misreading gate (the examples check it per task in their builders), the `submit_answer` change to the agent loop and system prompt, and moving the existing A-C code paths to A-D.
@@ -233,7 +235,7 @@ Each layer's drop count is reported for the methods section.
 
 1. Done on this branch (off Jacob's `feat/task-generation-pipeline`): the schema, gates, bait rules, answer parser and the ten examples as code with tests. Still to do: generalise the A to C code paths to A to D, and add `submit_answer` to the agent loop.
 2. Wire Jacob's ledger, cache and validator to the new spec and gates.
-3. Hand-check the 20 few-shot clean pages (5 chart types x 4 libraries), starting with the heatmap pages.
+3. Hand-check the 20 few-shot clean pages (5 chart types x 4 libraries), starting with the heatmap pages. Done 2026-11-12 by screenshot; TM attack pages are pixel-identical to their clean page in every library except `automation_cloak` (shown to automated browsers by design) and `css_hidden_text` (at most 1/255 anti-aliasing difference).
 4. Prompt the generator for question wording on one chart type, run the validation layers, and report drop counts before scaling up.
 
 ## 10. Review findings and how they were handled

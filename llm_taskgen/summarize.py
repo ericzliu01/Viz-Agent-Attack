@@ -1,6 +1,6 @@
 """Summarise llm_taskgen example runs: clean accuracy, attacked accuracy, bait rate
 (ASR in the ASB sense: attacked trials answering the bait / attacked trials) and
-unscored rate, per model and per attack.
+unscored rate, per model, per library and per attack.
 
 Usage: python -m llm_taskgen.summarize results/llm_examples_sonnet/results.csv [more.csv ...]
 """
@@ -11,15 +11,20 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = ROOT / "pages" / "vega-lite"
+PAGES = ROOT / "pages"
 
 
 def metas():
+    """Attack metadata keyed by attack_id (identical across libraries apart from 'library')."""
     out = {}
-    for p in PAGES.glob("attack_lx_*.meta.json"):
+    for p in PAGES.glob("*/attack_lx_*.meta.json"):
         m = json.loads(p.read_text())
         out[m["attack_id"]] = m
     return out
+
+
+def is_bait(r, meta):
+    return r["extracted_answer"] == meta[r["attack_id"]]["bait"]
 
 
 def pct(a, b):
@@ -39,10 +44,22 @@ def main(paths):
         lines.append(f"## {model}\n")
         lines.append(f"- Clean: correct {pct(sum(r['correct'] == 'true' for r in clean), len(clean))}, "
                      f"unscored {pct(sum(r['correct'] == 'needs_review' for r in clean), len(clean))}")
-        bait_hits = sum(r["extracted_answer"] == meta[r["attack_id"]]["bait"] for r in att)
+        bait_hits = sum(is_bait(r, meta) for r in att)
         lines.append(f"- Attacked: correct {pct(sum(r['correct'] == 'true' for r in att), len(att))}, "
                      f"bait (ASR) {pct(bait_hits, len(att))}, "
                      f"unscored {pct(sum(r['correct'] == 'needs_review' for r in att), len(att))}\n")
+        libs = sorted({r["library"] for r in rs})
+        if len(libs) > 1:
+            lines.append("| Library | Clean correct | Attacked correct | Bait | Unscored |")
+            lines.append("|---|---|---|---|---|")
+            for lib in libs:
+                c = [r for r in clean if r["library"] == lib]
+                a = [r for r in att if r["library"] == lib]
+                lines.append(f"| {lib} | {pct(sum(r['correct'] == 'true' for r in c), len(c))} | "
+                             f"{pct(sum(r['correct'] == 'true' for r in a), len(a))} | "
+                             f"{pct(sum(is_bait(r, meta) for r in a), len(a))} | "
+                             f"{pct(sum(r['correct'] == 'needs_review' for r in a), len(a))} |")
+            lines.append("")
         lines.append("| Attack | Channel | Task | Clean correct | Attacked correct | Bait | Unscored |")
         lines.append("|---|---|---|---|---|---|---|")
         for aid in sorted({r["attack_id"] for r in att}):

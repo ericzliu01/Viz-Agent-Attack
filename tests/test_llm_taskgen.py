@@ -252,7 +252,7 @@ class GateTests(unittest.TestCase):
 
 
 class PageTests(unittest.TestCase):
-    """The Vega-Lite pages built from the examples (llm_taskgen.pages)."""
+    """The pages built from the examples in every library (llm_taskgen.pages)."""
 
     @classmethod
     def setUpClass(cls):
@@ -261,7 +261,9 @@ class PageTests(unittest.TestCase):
         from llm_taskgen import pages
         cls.tmp = tempfile.TemporaryDirectory()
         cls.ids = pages.build(COMMITTED, cls.tmp.name)
-        cls.dir = Path(cls.tmp.name) / pages.LIB
+        cls.libs = pages.LIBRARIES
+        cls.root = Path(cls.tmp.name)
+        cls.dir = cls.root / pages.LIB
         cls.data_re = re.compile(r'<script type="application/json" id="chart-data">(.*?)</script>', re.S)
 
     @classmethod
@@ -269,25 +271,37 @@ class PageTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_counts(self):
-        self.assertEqual(len(self.ids), 31)  # 10 clean + 21 attacks
+        self.assertEqual(len(self.ids), 31 * len(self.libs))  # 10 clean + 21 attacks per library
+        for lib in self.libs:
+            self.assertEqual(sum(1 for l, _ in self.ids if l == lib), 31, lib)
+
+    def test_libraries_plot_the_same_rows(self):
+        for page in self.dir.glob("*lx_*.html"):
+            ref = self.data_re.search(page.read_text()).group(1)
+            for lib in self.libs:
+                other = (self.root / lib / page.name).read_text()
+                self.assertEqual(json.loads(self.data_re.search(other).group(1)), json.loads(ref), f"{lib}/{page.name}")
 
     def test_every_page_plots_the_clean_rows(self):
-        for meta_path in self.dir.glob("attack_lx_*.meta.json"):
-            meta = json.loads(meta_path.read_text())
-            clean = (self.dir / f"clean_{meta['chart_type']}__{meta['dataset']}.html").read_text()
-            page = (self.dir / meta_path.name.replace(".meta.json", ".html")).read_text()
-            self.assertEqual(self.data_re.search(page).group(1), self.data_re.search(clean).group(1), meta_path.name)
-            if "memory" in meta:
-                self.assertEqual(page, clean)  # memory attacks leave the page untouched
-                self.assertTrue(meta["baseline_memory"])
-            if meta["channel"] == "TM" and "memory" not in meta:
-                tm = next(a for c in json.loads(COMMITTED.read_text())["examples"] for t in c["tasks"]
-                          for a in t["attacks"] if t["task_id"] == meta["task_id"]
-                          and a["technique"] == meta["technique"])
-                self.assertIn(json.dumps(tm["claim_text"])[1:-1].replace("'", "&#x27;").split(" ")[0], page)
+        for lib in self.libs:
+            d = self.root / lib
+            for meta_path in d.glob("attack_lx_*.meta.json"):
+                meta = json.loads(meta_path.read_text())
+                self.assertEqual(meta["library"], lib)
+                clean = (d / f"clean_{meta['chart_type']}__{meta['dataset']}.html").read_text()
+                page = (d / meta_path.name.replace(".meta.json", ".html")).read_text()
+                self.assertEqual(self.data_re.search(page).group(1), self.data_re.search(clean).group(1), meta_path.name)
+                if "memory" in meta:
+                    self.assertEqual(page, clean)  # memory attacks leave the page untouched
+                    self.assertTrue(meta["baseline_memory"])
+                if meta["channel"] == "TM" and "memory" not in meta:
+                    tm = next(a for c in json.loads(COMMITTED.read_text())["examples"] for t in c["tasks"]
+                              for a in t["attacks"] if t["task_id"] == meta["task_id"]
+                              and a["technique"] == meta["technique"])
+                    self.assertIn(json.dumps(tm["claim_text"])[1:-1].replace("'", "&#x27;").split(" ")[0], page)
 
     def test_metas_use_the_mcq_schema(self):
-        for meta_path in self.dir.glob("*.meta.json"):
+        for meta_path in self.root.glob("*/*.meta.json"):
             meta = json.loads(meta_path.read_text())
             self.assertEqual(meta["answer_type"], "mcq")
             self.assertIn("(A) ", meta["question"])
