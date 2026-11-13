@@ -7,6 +7,7 @@ See notes/llm-task-attack-generation-plan-2026-11-11.md.
 import hashlib
 import numbers
 import random
+import re
 from pathlib import Path
 
 LETTERS = "ABCD"
@@ -71,6 +72,26 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+ORDINAL_RE = re.compile(r"^\s*(?:(1)st|(2)nd|(3)rd|(4)th|(first)|(second)|(third)|(fourth))\b", re.I)
+
+
+def ordinal_position(text):
+    """0-3 if the option text starts with an ordinal (1st/2nd/3rd/4th or First-Fourth), else None."""
+    m = ORDINAL_RE.match(text)
+    if not m:
+        return None
+    return next(i for i, g in enumerate(m.groups()) if g) % 4
+
+
+def check_ordinal_letters(options):
+    """An option text that starts with an ordinal must sit at the matching letter
+    (1st at A, 2nd at B, ...). '2nd Class' at A invites 'second option = B' slips."""
+    for o in options:
+        pos = ordinal_position(o["text"])
+        if pos is not None and LETTERS[pos] != o["letter"]:
+            raise GateError(f"ordinal option {o['text']!r} must be at {LETTERS[pos]}, not {o['letter']}")
+
+
 class Lettering:
     """Seeded letter assignment, balanced so the truth sits at each of A-D equally
     often across the batch (a cycle of the four positions, shuffled per block)."""
@@ -80,6 +101,8 @@ class Lettering:
         self.queue = []
 
     def assign(self, options):
+        if any(ordinal_position(o.get("text", "")) is not None for o in options):
+            return self._assign_ordinal(options)
         if not self.queue:
             self.queue = list(range(4))
             self.rng.shuffle(self.queue)
@@ -90,6 +113,24 @@ class Lettering:
             raise GateError(f"need one truth and three wrong options: {options}")
         self.rng.shuffle(wrong)
         ordered = wrong[:truth_pos] + truth + wrong[truth_pos:]
+        for letter, o in zip(LETTERS, ordered):
+            o["letter"] = letter
+            o["option_id"] = "truth" if o["misreading"] is None else f"wrong_{o['misreading']}"
+        return ordered
+
+    def _assign_ordinal(self, options):
+        """Ordinal options take their own letter; the rest fill the free letters in a seeded order.
+        The balancing queue is left untouched."""
+        slots = [None] * 4
+        rest = []
+        for o in options:
+            pos = ordinal_position(o["text"])
+            if pos is None or slots[pos] is not None:
+                rest.append(o)
+            else:
+                slots[pos] = o
+        self.rng.shuffle(rest)
+        ordered = [s if s is not None else rest.pop() for s in slots]
         for letter, o in zip(LETTERS, ordered):
             o["letter"] = letter
             o["option_id"] = "truth" if o["misreading"] is None else f"wrong_{o['misreading']}"
@@ -163,6 +204,7 @@ def validate_task(spec, task):
     check_options(opts)
     if [o["letter"] for o in opts] != list(LETTERS):
         raise GateError(f"{tid}: letters must be A-D in order")
+    check_ordinal_letters(opts)
     truths = [o for o in opts if o["misreading"] is None]
     if len(truths) != 1 or truths[0]["letter"] != task["answer_letter"]:
         raise GateError(f"{tid}: exactly one truth option matching answer_letter")

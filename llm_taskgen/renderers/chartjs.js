@@ -12,8 +12,9 @@ function render(values, V) {
     cfg.data = { datasets: cats(values, V, E.color).map(c => ({ label: c,
       data: values.filter(r => r[E.color] === c).map(r => ({ x: r[E.x], y: r[E.y], r: diameter(r[E.size], V) / 2, v: r[E.size] })),
       backgroundColor: V.palette[c] + "b3", borderWidth: 0 })) };
-    S.x = axis(L[E.x], { type: "linear" });
-    S.y = axis(L[E.y], V.y_domain ? { min: V.y_domain[0], max: V.y_domain[1] } : {});
+    S.x = axis(L[E.x], { type: "linear", min: V.x_domain[0], max: V.x_domain[1] });
+    S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1] });
+    cfg.options.plugins.legend.title = { display: true, text: L[E.color], font: { weight: "bold" } };
     cfg.options.plugins.tooltip = { callbacks: { label: c => c.dataset.label + ": " + L[E.x] + " " + c.raw.x + ", " + L[E.y] + " " + c.raw.y + ", " + L[E.size] + " " + c.raw.v } };
   } else if (ct === "grouped_bar") {
     const xs = cats(values, V, E.x);
@@ -23,7 +24,10 @@ function render(values, V) {
       return { label: g, data: rs.map(r => r[E.y]), backgroundColor: V.palette[g],
         borderColor: rs.map(r => isHighlighted(V, r) ? "#111111" : "rgba(0,0,0,0)"),
         borderWidth: rs.map(r => isHighlighted(V, r) ? 3 : 0) }; }) };
-    S.x = axis(L[E.x]); S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1] });
+    S.x = axis(L[E.x]); S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: 10 } });
+    // Legend swatches without the decoy outline.
+    cfg.options.plugins.legend.title = { display: true, text: L[E.group], font: { weight: "bold" } };
+    cfg.options.plugins.legend.labels.generateLabels = ch => Chart.defaults.plugins.legend.labels.generateLabels(ch).map(it => ({ ...it, lineWidth: 0, strokeStyle: "rgba(0,0,0,0)" }));
   } else if (ct === "line") {
     cfg.type = "line";
     const ds = [];
@@ -38,13 +42,20 @@ function render(values, V) {
     S.x = axis(L[E.x], { type: "linear", ticks: { stepSize: 2, callback: v => String(v) } });
     S.y = axis(L[E.y], { beginAtZero: true, ticks: { stepSize: V.gridstep } });
     if (V.dual) S.y2 = axis(V.dual.title, { position: "right", min: V.dual.domain[0], max: V.dual.domain[1], grid: { drawOnChartArea: false } });
-    cfg.options.plugins.legend = { position: "bottom", labels: { usePointStyle: true, pointStyle: "line", pointStyleWidth: 30 } };
+    // Legend samples drawn with each series' own dash pattern (a small canvas per item).
+    const sample = d => { const c = document.createElement("canvas"); c.width = 30; c.height = 10;
+      const x = c.getContext("2d"); x.strokeStyle = d.borderColor; x.lineWidth = 2; x.setLineDash(d.borderDash || []);
+      x.beginPath(); x.moveTo(0, 5); x.lineTo(30, 5); x.stroke(); return c; };
+    cfg.options.plugins.legend = { position: "bottom", title: { display: true, text: L[E.color] + " / " + L[E.line_style], font: { weight: "bold" } },
+      labels: { usePointStyle: true, padding: 14, generateLabels: ch => ch.data.datasets.map((d, i) => ({
+        text: d.label, datasetIndex: i, pointStyle: sample(d), hidden: !ch.isDatasetVisible(i), fontColor: "#52514e" })) } };
   } else if (ct === "stacked_bar") {
     const xs = cats(values, V, E.x);
     cfg.type = "bar";
     cfg.data = { labels: xs.map(String), datasets: V.stack_order.map(s => ({ label: s,
       data: xs.map(x => values.find(r => r[E.x] === x && r[E.stack] === s)[E.y]), backgroundColor: V.palette[s] })) };
     S.x = axis(L[E.x], { stacked: true }); S.y = axis(L[E.y], { stacked: true, beginAtZero: true });
+    cfg.options.plugins.legend.title = { display: true, text: L[E.stack], font: { weight: "bold" } };
   } else if (ct === "heatmap") {
     // Chart.js 4 has no heatmap: draw the cells on two category axes with an inline plugin.
     const xs = cats(values, V, E.x), ys = cats(values, V, E.y);
@@ -65,6 +76,6 @@ function render(values, V) {
       }
     } }];
   }
-  window.chart = new Chart(document.getElementById("cv"), cfg);
+  new Chart(document.getElementById("cv"), cfg);
   htmlLegend(V);
 }

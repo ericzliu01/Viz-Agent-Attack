@@ -1,6 +1,6 @@
 function render(values, V) {
   const E = V.enc, L = V.labels, ct = V.chart_type;
-  const W = 760, H = 400, m = { l: 70, r: ct === "line" ? (V.dual ? 290 : 240) : 170, t: 10, b: 50 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const W = 760, H = 400, m = { l: 70, r: ct === "line" ? (V.dual ? 250 : 190) : 170, t: 10, b: 50 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
   const svg = d3.select("#chart").append("svg").attr("width", W).attr("height", H)
     .attr("font-family", "system-ui, sans-serif").attr("font-size", 12);
   const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
@@ -18,10 +18,10 @@ function render(values, V) {
       it.append("text").attr("x", 28).attr("fill", "#52514e").text(lab);
     });
   };
-  const tip = (sel, f) => sel.append("title").text(f);
+  const tip = (sel, f) => hoverTip(sel, typeof f === "function" ? f : () => f);
   if (ct === "scatter") {
-    const x = d3.scaleLinear().domain(d3.extent(values, r => r[E.x])).nice().range([0, iw]);
-    const y = d3.scaleLinear().domain(V.y_domain || d3.extent(values, r => r[E.y])).nice().range([ih, 0]);
+    const x = d3.scaleLinear().domain(V.x_domain).range([0, iw]);
+    const y = d3.scaleLinear().domain(V.y_domain).range([ih, 0]);
     grid(y, 8);
     g.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x)).call(axisStyle);
     g.append("g").call(d3.axisLeft(y)).call(axisStyle);
@@ -60,7 +60,16 @@ function render(values, V) {
         .call(s => tip(s, `${c}, ${mm}`));
     }
     xTitle(L[E.x]); yTitle(L[E.y]);
-    legend(L[E.color] + " / " + L[E.line_style], cats(values, V, E.color).flatMap(c => cats(values, V, E.line_style).map(mm => [c + ", " + mm, V.palette[c], V.dash[mm][1] === 0 ? "none" : V.dash[mm].join(",")])));
+    // Two legends, as in Vega-Lite: color = country, dash = measure.
+    legend(L[E.color], cats(values, V, E.color).map(c => [c, V.palette[c], "none"]));
+    const n = cats(values, V, E.color).length, lg2 = svg.append("g").attr("transform", `translate(${W - m.r + (V.dual ? 60 : 20)},${m.t + 10 + 18 * (n + 2)})`);
+    lg2.append("text").attr("font-weight", 600).attr("fill", "#52514e").text(L[E.line_style]);
+    cats(values, V, E.line_style).forEach((mm, i) => {
+      const it = lg2.append("g").attr("transform", `translate(0,${18 + i * 18})`);
+      it.append("line").attr("x1", 0).attr("x2", 22).attr("y1", -4).attr("y2", -4).attr("stroke", "#52514e").attr("stroke-width", 2)
+        .attr("stroke-dasharray", V.dash[mm][1] === 0 ? "none" : V.dash[mm].join(","));
+      it.append("text").attr("x", 28).attr("fill", "#52514e").text(mm);
+    });
   } else if (ct === "stacked_bar") {
     const xs = cats(values, V, E.x);
     const wide = xs.map(xv => Object.fromEntries([["_x", xv], ...V.stack_order.map(s => [s, values.find(r => r[E.x] === xv && r[E.stack] === s)[E.y]])]));

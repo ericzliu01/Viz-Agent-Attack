@@ -28,8 +28,9 @@ function htmlLegend(V) {
     }).join("");
   } else if (V.chart_type === "heatmap") {
     const [lo, hi] = V.heat.domain, grad = V.heat.stops.map(([v, c]) => c + " " + (100 * (v - lo) / (hi - lo)) + "%").join(",");
-    box.innerHTML = "<div class='lg-title'>" + V.labels[V.enc.color] + "</div><span class='lg-item'>" + lo +
-      "</span><span class='lg-grad' style='background:linear-gradient(90deg," + grad + ")'></span><span class='lg-item'>" + hi + "</span>";
+    const ticks = []; for (let t = lo; t <= hi; t += (hi - lo) / 5) ticks.push(t);
+    box.innerHTML = "<div class='lg-title'>" + V.labels[V.enc.color] + "</div><span class='lg-grad' style='background:linear-gradient(90deg," +
+      grad + ")'>" + ticks.map(t => "<span class='lg-tick' style='left:" + (100 * (t - lo) / (hi - lo)) + "%'>" + Math.round(t) + "</span>").join("") + "</span>";
   }
 }
 function isHighlighted(V, row) {
@@ -39,4 +40,13 @@ function isHighlighted(V, row) {
 function isDual(V, row) {
   const d = V.dual; if (!d) return false;
   return Object.entries(d.filter).every(([k, v]) => row[k] === v);
+}
+function hoverTip(sel, textFn) {
+  // Hover tooltip like the other libraries': a div that exists only while the pointer is on a mark.
+  const card = document.querySelector(".card");
+  sel.on("mouseenter", (ev, d) => {
+    const t = document.createElement("div"); t.className = "tip"; t.textContent = textFn(d);
+    const r = card.getBoundingClientRect(); t.style.left = (ev.clientX - r.left + 12) + "px"; t.style.top = (ev.clientY - r.top + 12) + "px";
+    card.appendChild(t);
+  }).on("mouseleave", () => document.querySelectorAll(".card .tip").forEach(e => e.remove()));
 }

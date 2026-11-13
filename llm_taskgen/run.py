@@ -12,6 +12,8 @@ Usage (Bedrock credentials loaded in the shell):
       --models us.anthropic.claude-sonnet-5-5 --backend bedrock --libraries vega-lite,plotly,chartjs,d3 --trials 3
 """
 import argparse
+import json
+from pathlib import Path
 
 import browser_agent
 import run_attack_suite as r
@@ -46,6 +48,25 @@ def select_trials(libraries, techniques=None):
     return trials
 
 
+def write_trial_metadata(trials, results_dir):
+    """Save the answer, bait and technique of every trial next to results.csv, so
+    summaries score against what was run, not against pages rebuilt later."""
+    path = Path(results_dir) / "trial_metadata.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    old = json.loads(path.read_text()) if path.exists() else {}
+    for t in trials:
+        technique = t["attack_id"].split("__")[0][len("lx_"):] if t["attack_id"].startswith("lx_") else None
+        old[f"{t['library']}|{t['attack_id']}"] = {
+            "library": t["library"], "attack_id": t["attack_id"], "task_id": (t.get("dataset") or "")[len("lx_"):],
+            "chart_type": t.get("chart_type"), "dataset": t.get("dataset"),
+            "ground_truth": t.get("ground_truth"),
+            "bait": None if t["attack_id"].startswith("clean_") else t.get("bait"), "technique": technique,
+            "memory_control": t["attack_id"].endswith("__clean_baseline")
+            and t.get("memory") is not None}
+    path.write_text(json.dumps(old, indent=1, sort_keys=True))
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     r.add_agent_arguments(parser)
@@ -57,6 +78,7 @@ def main():
     patch_system_prompt()
     trials = select_trials(args.libraries, techniques)
     print(f"{len(trials)} trials per model and trial index", flush=True)
+    write_trial_metadata(trials, r.RESULTS_DIR)
     r.run_trials(trials, args)
 
 

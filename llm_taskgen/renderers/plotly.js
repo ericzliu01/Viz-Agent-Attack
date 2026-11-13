@@ -13,15 +13,20 @@ function render(values, V) {
         customdata: rs.map(r => r[E.size]),
         hovertemplate: L[E.x] + ": %{x}<br>" + L[E.y] + ": %{y}<br>" + L[E.size] + ": %{customdata}<extra>%{fullData.name}</extra>" });
     }
-    if (V.y_domain) layout.yaxis.range = V.y_domain;
+    layout.xaxis.range = V.x_domain; layout.yaxis.range = V.y_domain;
   } else if (ct === "grouped_bar") {
     const xs = cats(values, V, E.x);
     for (const g of cats(values, V, E.group)) {
       const rs = xs.map(x => values.find(r => r[E.x] === x && r[E.group] === g));
-      traces.push({ type: "bar", name: g, x: xs, y: rs.map(r => r[E.y]), marker: { color: V.palette[g],
-        line: { color: rs.map(r => isHighlighted(V, r) ? "#111111" : "rgba(0,0,0,0)"), width: rs.map(r => isHighlighted(V, r) ? 3 : 0) } } });
+      traces.push({ type: "bar", name: g, x: xs, y: rs.map(r => r[E.y]), marker: { color: V.palette[g] } });
     }
-    layout.barmode = "group"; layout.yaxis.range = V.y_domain; layout.legend.title.text = L[E.group];
+    layout.barmode = "group"; layout.yaxis.range = V.y_domain; layout.yaxis.dtick = 10; layout.legend.title.text = L[E.group];
+    // Decoy outline as shapes, so the legend swatches keep no border.
+    const gs = cats(values, V, E.group), bw = 0.8 / gs.length;
+    layout.shapes = values.filter(r => isHighlighted(V, r)).map(r => {
+      const x0 = xs.indexOf(r[E.x]) - 0.4 + gs.indexOf(r[E.group]) * bw;
+      return { type: "rect", xref: "x", yref: "y", x0, x1: x0 + bw, y0: 0, y1: r[E.y], line: { color: "#111111", width: 3 } };
+    });
   } else if (ct === "line") {
     for (const c of cats(values, V, E.color)) for (const m of cats(values, V, E.line_style)) {
       const rs = values.filter(r => r[E.color] === c && r[E.line_style] === m).sort((a, b) => a[E.x] - b[E.x]);
