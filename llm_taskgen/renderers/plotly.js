@@ -14,6 +14,7 @@ function render(values, V) {
         hovertemplate: L[E.x] + ": %{x}<br>" + L[E.y] + ": %{y}<br>" + L[E.size] + ": %{customdata}<extra>%{fullData.name}</extra>" });
     }
     layout.xaxis.range = V.x_domain; layout.yaxis.range = V.y_domain;
+    layout.xaxis.dtick = 5; layout.yaxis.dtick = V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20; layout.xaxis.tick0 = 0; layout.yaxis.tick0 = 0;
   } else if (ct === "grouped_bar") {
     const xs = cats(values, V, E.x);
     for (const g of cats(values, V, E.group)) {

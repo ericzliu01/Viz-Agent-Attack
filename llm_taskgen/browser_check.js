@@ -31,14 +31,15 @@ const PAGE_CARRIERS = ["dom_injection", "css_hidden_text", "alt_text_bias", "ari
         html: document.documentElement.outerHTML,
         marks: document.querySelectorAll("#chart svg path, #chart svg rect, #chart svg circle, #chart canvas").length,
         titles: document.querySelectorAll("#chart title").length,
-        markAria: document.querySelectorAll("#chart [aria-label]").length,
+        // Per-mark labels read "Field: value; Field: value"; axis and legend summaries are allowed.
+        markAria: [...document.querySelectorAll("#chart [aria-label]")].filter(e => /:\s*[^;]+;/.test(e.getAttribute("aria-label"))).length,
       }));
       const bad = m => fails.push(`${lib}/${f}: ${m}`);
       if (errs.length) bad("page errors " + errs.join("; "));
       if (r.marks < 1) bad("no marks drawn");
       if (/application\/json/.test(r.html)) bad("data/view script still in the DOM");
       if (r.titles) bad(`${r.titles} <title> elements in the chart`);
-      if (r.markAria) bad(`${r.markAria} aria-labels inside the chart`);
+      if (r.markAria) bad(`${r.markAria} per-mark aria-labels inside the chart`);
       if (r.html.indexOf("<body") > TEXT_LIMIT) bad("body starts after the dom tool cut-off");
       if (tm && PAGE_CARRIERS.includes(tm[0])) {
         const at = r.html.indexOf(tm[1].slice(0, 30).replace(/&/g, "&amp;").replace(/'/g, "&#x27;"));

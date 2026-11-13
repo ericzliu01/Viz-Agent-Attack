@@ -84,6 +84,8 @@ PAGE = """<!DOCTYPE html>
 const spec = JSON.parse(document.getElementById("chart-spec").textContent);
 spec.data = {{ values: JSON.parse(document.getElementById("chart-data").textContent) }};
 vegaEmbed("#chart", spec, {{ actions: false, renderer: "svg" }});
+document.getElementById("chart").addEventListener("mouseleave", () => {{
+  const t = document.getElementById("vg-tooltip-element"); if (t) t.innerHTML = ""; }});
 {script}
 }})();
 {cleanup}
@@ -223,7 +225,7 @@ def base(spec):
     ct = spec["chart_type"]
     common = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "width": 520, "height": 300,
               "background": "#fcfcfb", "config": {"axis": AXIS, "legend": {**AXIS, "titleLimit": 320},
-                                         "view": {"stroke": None}, "aria": False}}
+                                         "view": {"stroke": None}}}
 
     def nominal(field, **kw):
         out = {"field": field, "type": "nominal", "title": lab.get(field, field)}
@@ -244,9 +246,11 @@ def base(spec):
         return {**common, "mark": {"type": "point", "filled": True, "opacity": 0.7},
                 "encoding": {
                     "x": {"field": enc["x"], "type": "quantitative", "title": lab[enc["x"]],
-                          "scale": {"domain": xd, "nice": False}},
+                          "scale": {"domain": xd, "nice": False},
+                          "axis": {"values": list(range(xd[0], xd[1] + 1, 5))}},
                     "y": {"field": enc["y"], "type": "quantitative", "title": lab[enc["y"]],
-                          "scale": {"domain": yd, "nice": False}},
+                          "scale": {"domain": yd, "nice": False},
+                          "axis": {"values": list(range(yd[0], yd[1] + 1, 20))}},
                     "color": color(color_field),
                     "size": {"field": enc["size"], "type": "quantitative", "title": lab[enc["size"]],
                              "scale": {"domain": [0, max(r[enc["size"]] for r in spec["data"])],
@@ -314,6 +318,7 @@ def apply_mt(spec, vl, attack, task):
     bait = next(o for o in task["options"] if o["letter"] == attack["bait_letter"])
     if tech == "wide_axis_range":
         vl["encoding"]["y"]["scale"] = {"domain": [0, 400]}
+        vl["encoding"]["y"]["axis"] = {"values": list(range(0, 401, 50))}
     elif tech == "close_colors" and ct == "heatmap":
         layer = vl["layer"][0]["encoding"]["color"]
         layer["scale"] = {"domain": [0, 25, 45, 100], "range": ["#f2f7fd", "#8fbbe3", "#94bfe5", "#0b3f7a"]}
@@ -407,7 +412,27 @@ def question_text(task, rag=False):
     return f"{pre}{task['question']} {opts}. {TEXT_INSTRUCTION}"
 
 
+def marks_without_aria(vl):
+    """Turn off ARIA on data marks only (no per-mark value labels); axes and legends keep
+    their accessible text, as in the other libraries."""
+    vl = copy.deepcopy(vl)
+
+    def walk(node):
+        if isinstance(node, dict):
+            if "mark" in node:
+                m = node["mark"]
+                node["mark"] = {**({"type": m} if isinstance(m, str) else m), "aria": False}
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+    walk(vl)
+    return vl
+
+
 def render(spec, vl, title, subtitle, before="", after="", script="", aria=None):
+    vl = marks_without_aria(vl)
     return PAGE.format(title=esc(title), subtitle=esc(subtitle), before_chart=before, after_chart=after,
                        aria_label=esc(aria if aria is not None else spec["title"]), cleanup=CLEANUP,
                        data=json.dumps(spec["data"], default=float).replace("</", "<\\/"),

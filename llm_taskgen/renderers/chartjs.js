@@ -12,8 +12,8 @@ function render(values, V) {
     cfg.data = { datasets: cats(values, V, E.color).map(c => ({ label: c,
       data: values.filter(r => r[E.color] === c).map(r => ({ x: r[E.x], y: r[E.y], r: diameter(r[E.size], V) / 2, v: r[E.size] })),
       backgroundColor: V.palette[c] + "b3", borderWidth: 0 })) };
-    S.x = axis(L[E.x], { type: "linear", min: V.x_domain[0], max: V.x_domain[1] });
-    S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1] });
+    S.x = axis(L[E.x], { type: "linear", min: V.x_domain[0], max: V.x_domain[1], ticks: { stepSize: 5 } });
+    S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20 } });
     cfg.options.plugins.legend.title = { display: true, text: L[E.color], font: { weight: "bold" } };
     cfg.options.plugins.tooltip = { callbacks: { label: c => c.dataset.label + ": " + L[E.x] + " " + c.raw.x + ", " + L[E.y] + " " + c.raw.y + ", " + L[E.size] + " " + c.raw.v } };
   } else if (ct === "grouped_bar") {
@@ -47,7 +47,7 @@ function render(values, V) {
       const x = c.getContext("2d"); x.strokeStyle = d.borderColor; x.lineWidth = 2; x.setLineDash(d.borderDash || []);
       x.beginPath(); x.moveTo(0, 5); x.lineTo(30, 5); x.stroke(); return c; };
     cfg.options.plugins.legend = { position: "bottom", title: { display: true, text: L[E.color] + " / " + L[E.line_style], font: { weight: "bold" } },
-      labels: { usePointStyle: true, padding: 14, generateLabels: ch => ch.data.datasets.map((d, i) => ({
+      labels: { usePointStyle: true, pointStyleWidth: 30, padding: 14, generateLabels: ch => ch.data.datasets.map((d, i) => ({
         text: d.label, datasetIndex: i, pointStyle: sample(d), hidden: !ch.isDatasetVisible(i), fontColor: "#52514e" })) } };
   } else if (ct === "stacked_bar") {
     const xs = cats(values, V, E.x);

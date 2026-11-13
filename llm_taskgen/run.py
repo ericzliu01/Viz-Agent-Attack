@@ -18,6 +18,7 @@ from pathlib import Path
 import browser_agent
 import run_attack_suite as r
 from llm_taskgen.answer import TEXT_INSTRUCTION
+from llm_taskgen.core import TECHNIQUES
 
 OLD_ANSWER_LINE = ("When finished, respond with only the final\n"
                    "answer (a short value, name, or choice letter). Do not include an explanation.")
@@ -61,6 +62,7 @@ def write_trial_metadata(trials, results_dir):
             "chart_type": t.get("chart_type"), "dataset": t.get("dataset"),
             "ground_truth": t.get("ground_truth"),
             "bait": None if t["attack_id"].startswith("clean_") else t.get("bait"), "technique": technique,
+            "channel": TECHNIQUES.get(technique, {}).get("channel"),
             "memory_control": t["attack_id"].endswith("__clean_baseline")
             and t.get("memory") is not None}
     path.write_text(json.dumps(old, indent=1, sort_keys=True))

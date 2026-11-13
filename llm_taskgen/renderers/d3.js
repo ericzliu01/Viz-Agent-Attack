@@ -23,8 +23,8 @@ function render(values, V) {
     const x = d3.scaleLinear().domain(V.x_domain).range([0, iw]);
     const y = d3.scaleLinear().domain(V.y_domain).range([ih, 0]);
     grid(y, 8);
-    g.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x)).call(axisStyle);
-    g.append("g").call(d3.axisLeft(y)).call(axisStyle);
+    g.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).tickValues(d3.range(V.x_domain[0], V.x_domain[1] + 1, 5))).call(axisStyle);
+    g.append("g").call(d3.axisLeft(y).tickValues(d3.range(V.y_domain[0], V.y_domain[1] + 1, V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20))).call(axisStyle);
     g.append("g").selectAll("circle").data(values).join("circle").attr("cx", r => x(r[E.x])).attr("cy", r => y(r[E.y]))
       .attr("r", r => diameter(r[E.size], V) / 2).attr("fill", r => V.palette[r[E.color]]).attr("fill-opacity", 0.7)
       .call(s => tip(s, r => `${r[E.color]}: ${L[E.x]} ${r[E.x]}, ${L[E.y]} ${r[E.y]}, ${L[E.size]} ${r[E.size]}`));
