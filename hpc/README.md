@@ -32,7 +32,12 @@ hpc/submit.sh --models qwen3-vl:8b --dry-run llm_examples   # build + check, pri
    (default `d3,plotly;chartjs,vega-lite`);
 5. the last array task writes `summary.md` (bait/ASR, exposure) in the run directory.
 
-The other suites submit their existing job files (`run_*.slurm`) unchanged.
+If an array task fails, it leaves `part_<n>/failed` and the summary lists it. Each commit
+gets its own worktree (`~/VisAgent/runs/<branch>-<commit>`), so submitting a newer commit
+never changes a running job; remove old ones with `git -C ~/VisAgent/test worktree remove <dir>`.
+
+The other suites submit their existing job files (`run_*.slurm`) unchanged; `tail` and
+`fetch` then keep to the files named by that job id in the shared `results/` folder.
 
 ## One-time setup on the cluster
 

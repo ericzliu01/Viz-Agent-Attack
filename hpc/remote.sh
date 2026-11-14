@@ -3,8 +3,11 @@
 #
 #   hpc/remote.sh submit [submit.sh options] <suite>   build pages and sbatch on the cluster
 #   hpc/remote.sh status [JOB]                          your queued/running jobs, or one job's history
-#   hpc/remote.sh tail [RUN_DIR|latest]                 last lines of each Slurm log of a run
-#   hpc/remote.sh fetch [RUN_DIR|latest] [DEST]         copy a run's results here with rsync
+#   hpc/remote.sh tail [latest|RUN_DIR [JOB]]           last lines of each Slurm log of a run
+#   hpc/remote.sh fetch [latest|RUN_DIR [JOB]] [DEST]   copy a run's results here with rsync
+#
+# For real/cognitive/reasoning the run directory is the shared results/ folder, so
+# tail and fetch keep to the files named by the job id (from LATEST, or JOB).
 #
 # Examples:
 #   hpc/remote.sh submit llm_examples --models qwen3-vl:8b,qwen3.5:9b --trials 3
@@ -12,7 +15,7 @@
 #   hpc/remote.sh status
 #   hpc/remote.sh fetch latest          # -> ~/Downloads/vis-attack-results/hpc/<run>/
 #
-# submit streams this checkout's hpc/submit.sh to the cluster, so the script runs in
+# submit sends this checkout's hpc/submit.sh to the cluster, so the script runs in
 # the version you have here; the code it runs is origin/<branch> on GitHub, so push first.
 #
 # Settings (environment): HPC_HOST (ssh host or alias, default "agate"),
@@ -35,22 +38,31 @@ RUNS_ROOT_REMOTE='$HOME/VisAgent/runs'
 die() { echo "remote.sh: $*" >&2; exit 1; }
 remote() { ssh "$HOST" "bash -lc $(printf '%q' "$1")"; }
 
-# Resolve "latest" (or nothing) to the RUN_DIR of the last submit.
-run_dir() {
-    local arg=${1:-latest}
-    if [ "$arg" = latest ]; then
-        remote "cat $RUNS_ROOT_REMOTE/LATEST" | sed -n 's/^RUN_DIR=\([^ ]*\) .*/\1/p' | tail -1
+# Sets D (run directory) and JOB from "latest" (the last submit) or "RUN_DIR [JOB]".
+# JOB is empty for an llm_examples run directory, which holds that one run only.
+resolve() {
+    local line
+    if [ "${1:-latest}" = latest ]; then
+        line=$(remote "cat $RUNS_ROOT_REMOTE/LATEST")
+        D=$(sed -n 's/^RUN_DIR=\([^ ]*\) .*/\1/p' <<< "$line")
+        JOB=$(sed -n 's/.* JOB=\([0-9]*\).*/\1/p' <<< "$line")
+        [ "$(sed -n 's/.* SUITE=\([a-z_]*\).*/\1/p' <<< "$line")" = llm_examples ] && JOB=""
+        NEXT=1
     else
-        echo "$arg"
+        D=$1; JOB=""; NEXT=1
+        if [[ "${2:-}" =~ ^[0-9]+$ ]]; then JOB=$2; NEXT=2; fi
     fi
+    [ -n "$D" ] || die "no run found"
 }
 
 cmd=${1:-help}; shift || true
 case "$cmd" in
     submit)
         [ $# -gt 0 ] || die "submit needs a suite and --models; see hpc/submit.sh --help"
-        # bash -l so the module command is defined; arguments are quoted for the remote shell.
-        ssh "$HOST" "bash -l -s -- $(printf '%q ' "$@")" < "$HERE/submit.sh"
+        for a in "$@"; do case "$a" in -h|--help) exec bash "$HERE/submit.sh" --help ;; esac; done
+        # The script goes as an argument (stdin stays free), through bash -l so the module
+        # command is defined; everything is quoted for the remote shell.
+        ssh "$HOST" "bash -l -c $(printf '%q' "$(cat "$HERE/submit.sh")") submit.sh $(printf '%q ' "$@")" </dev/null
         ;;
     status)
         if [ $# -gt 0 ]; then
@@ -60,16 +72,26 @@ case "$cmd" in
         fi
         ;;
     tail)
-        d=$(run_dir "${1:-latest}"); [ -n "$d" ] || die "no run found"
-        remote "for f in $(printf '%q' "$d")/*.log; do [ -f \"\$f\" ] && { echo \"== \$f\"; tail -n 15 \"\$f\"; }; done; true"
+        resolve "$@"
+        if [ -n "$JOB" ]; then pat="*_${JOB}_*.log"; else pat="*.log"; fi
+        remote "for f in $(printf '%q' "$D")/$pat; do [ -f \"\$f\" ] && { echo \"== \$f\"; tail -n 15 \"\$f\"; }; done; true"
         ;;
     fetch)
-        d=$(run_dir "${1:-latest}"); [ -n "$d" ] || die "no run found"
-        dest=${2:-$DEST_ROOT/$(basename "$d")}
+        resolve "$@"; shift "$NEXT" 2>/dev/null || shift $#
+        if [ -n "$JOB" ]; then
+            dest=${1:-$DEST_ROOT/$(basename "$(dirname "$D")")_$JOB}
+            # Only this job's parts and logs (the job files name them <suite>_<job>_<task>).
+            FILTER=(--include="*_${JOB}_*/***" --include="*_${JOB}_*" --exclude='*')
+        else
+            dest=${1:-$DEST_ROOT/$(basename "$D")}
+            FILTER=()
+        fi
         mkdir -p "$dest"
-        rsync -az --exclude 'ollama.log' --exclude '.lock' "$HOST:$d/" "$dest/"
-        echo "copied $HOST:$d to $dest"
-        [ -f "$dest/summary.md" ] && echo "summary: $dest/summary.md" || echo "no summary.md yet (run still going?)"
+        rsync -az --exclude 'ollama*.log' --exclude '.lock' --exclude 'merge.lock' ${FILTER[@]+"${FILTER[@]}"} "$HOST:$D/" "$dest/"
+        echo "copied $HOST:$D${JOB:+ (job $JOB)} to $dest"
+        if [ -z "$JOB" ]; then
+            [ -f "$dest/summary.md" ] && echo "summary: $dest/summary.md" || echo "no summary.md yet (run still going, or see slurm_*.log)"
+        fi
         ;;
     help|-h|--help)
         sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'

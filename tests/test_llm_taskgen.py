@@ -447,4 +447,11 @@ class ExposureTests(unittest.TestCase):
         self.assertTrue(summarize.exposed({"notes": f"stop=final; trace={tmp / 'seen'}"}, claim, tmp))
         self.assertFalse(summarize.exposed({"notes": f"stop=final; trace={tmp / 'unseen'}"}, claim, tmp))
         self.assertIsNone(summarize.exposed({"notes": "stop=final"}, claim, tmp))
+        # A run copied off the cluster: notes hold the cluster's absolute trace.json path,
+        # the trace sits in traces/<id>/ next to results.csv.
+        part = tmp / "part_0"
+        (part / "traces").mkdir(parents=True)
+        shutil.copytree(tmp / "seen", part / "traces" / "abc123")
+        self.assertTrue(summarize.exposed(
+            {"notes": "stop=final; trace=/nonexistent/cluster/part_0/traces/abc123/trace.json"}, claim, part))
         shutil.rmtree(tmp)

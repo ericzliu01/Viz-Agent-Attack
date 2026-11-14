@@ -33,6 +33,31 @@ PORT=$((20000 + SLURM_JOB_ID % 40000))
 export OLLAMA_HOST=127.0.0.1:$PORT
 BASE_URL=http://127.0.0.1:$PORT
 
+# On any exit: stop Ollama, mark this part done or failed, and if every part has
+# finished, summarize the parts that have results (failed parts are listed).
+finish() {
+    local status=$?
+    kill "$OLLAMA_PID" 2>/dev/null || true
+    if [ "$status" -eq 0 ]; then touch "$PART/done"; else echo "exit $status" > "$PART/failed"; fi
+    (
+        flock 9
+        local finished failed
+        finished=$(find "$RUN_DIR" -maxdepth 2 -path '*/part_*' \( -name done -o -name failed \) | wc -l)
+        failed=$(find "$RUN_DIR" -maxdepth 2 -path '*/part_*' -name failed | sed 's|/failed$||; s|.*/||' | tr '\n' ' ')
+        if [ "$finished" -lt "${#GROUPS_ARR[@]}" ] || [ -e "$RUN_DIR/summary.md" ]; then
+            echo "$finished of ${#GROUPS_ARR[@]} parts finished; the last one writes the summary."
+            exit 0
+        fi
+        csvs=("$RUN_DIR"/part_*/results.csv)
+        {
+            [ -n "$failed" ] && printf 'Failed parts (see slurm_*.log): %s\n\n' "$failed"
+            if [ -e "${csvs[0]}" ]; then python3 -m llm_taskgen.summarize "${csvs[@]}"; else echo "No results.csv in any part."; fi
+        } > "$RUN_DIR/summary.md.tmp" && mv "$RUN_DIR/summary.md.tmp" "$RUN_DIR/summary.md"
+        echo "summary written to $RUN_DIR/summary.md"
+    ) 9>"$RUN_DIR/.lock" || true
+    exit "$status"
+}
+
 module load python/3.10.9_anaconda2023.03_libmamba
 cd "$WORK_DIR"
 PART="$RUN_DIR/part_$TASK"
@@ -41,7 +66,7 @@ echo "job $SLURM_JOB_ID task $TASK: libraries=$LIBRARIES models=$MODELS trials=$
 ollama --version || true
 ollama serve > "$PART/ollama.log" 2>&1 &
 OLLAMA_PID=$!
-trap 'kill "$OLLAMA_PID" 2>/dev/null || true' EXIT
+trap finish EXIT
 for _ in $(seq 1 60); do
     curl -fsS "$BASE_URL/api/tags" >/dev/null 2>&1 && break
     sleep 1
@@ -58,16 +83,3 @@ done
 VIS_RESULTS_DIR="$PART" python3 -m llm_taskgen.run --models "$MODELS" --base-url "$BASE_URL" \
     --libraries "$LIBRARIES" --trials "$TRIALS" --timeout "$TIMEOUT" --max-steps "$MAX_STEPS" \
     --trace-dir "$PART/traces" $EXTRA_ARGS
-touch "$PART/done"
-
-(
-    flock 9
-    n_done=$(find "$RUN_DIR" -maxdepth 2 -name done -path '*/part_*' | wc -l)
-    if [ "$n_done" -eq "${#GROUPS_ARR[@]}" ] && [ ! -e "$RUN_DIR/summary.md" ]; then
-        python3 -m llm_taskgen.summarize "$RUN_DIR"/part_*/results.csv > "$RUN_DIR/summary.md.tmp"
-        mv "$RUN_DIR/summary.md.tmp" "$RUN_DIR/summary.md"
-        echo "summary written to $RUN_DIR/summary.md"
-    else
-        echo "$n_done of ${#GROUPS_ARR[@]} parts done; the last one writes the summary."
-    fi
-) 9>"$RUN_DIR/.lock"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Submit a test suite to Slurm on the HPC cluster (agate). Run it on a login node,
-# or from your own machine with hpc/remote.sh, which streams this script over SSH.
+# or from your own machine with hpc/remote.sh, which sends this script over SSH.
 #
 #   hpc/submit.sh [options] <suite>
 #
@@ -16,7 +16,8 @@
 #   --branch B          git branch to run (default: per suite, above)
 #   --groups "a,b;c,d"  llm_examples: library groups, one GPU node each
 #                       (default "d3,plotly;chartjs,vega-lite")
-#   --libraries a,b     cognitive/reasoning: LIBRARIES for the job; llm_examples: one group
+#   --libraries a,b     cognitive: LIBRARIES for the job (real and reasoning split libraries
+#                       themselves and refuse it); llm_examples: same as one --groups entry
 #   --trials N          llm_examples: trials per cell (default 3)
 #   --time HH:MM:SS     Slurm time limit (default: the job file's)
 #   --partition P       Slurm partition (default: the job file's, v100)
@@ -24,14 +25,20 @@
 #   --repo PATH         main checkout on the cluster (default $HOME/VisAgent/test)
 #   --dry-run           update the checkout and build pages, print the sbatch command, submit nothing
 #
-# The branch is checked out (detached at origin/<branch>) in its own git worktree,
-# $HOME/VisAgent/runs/<branch>, so the main checkout and running jobs are untouched.
+# Each commit is checked out (detached) in its own git worktree,
+# $HOME/VisAgent/runs/<branch>-<commit>, so the main checkout is untouched and a later
+# submit of a newer commit never changes code or pages under a running job. Remove old
+# ones with: git -C ~/VisAgent/test worktree remove <dir>.
 # Results: <worktree>/results/<suite>_<timestamp>/ for llm_examples; the other suites
-# write where their job files always have (<worktree>/results/). The last line printed
-# is "RUN_DIR=<dir> JOB=<id>", and $HOME/VisAgent/runs/LATEST holds the same line.
+# write where their job files always have (<worktree>/results/, files named by job id).
+# The last line printed is "RUN_DIR=<dir> JOB=<id> SUITE=<suite>", and
+# $HOME/VisAgent/runs/LATEST holds the same line.
 set -euo pipefail
 
-usage() { sed -n '2,32p' "${BASH_SOURCE[0]:-/dev/null}" 2>/dev/null | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() {
+    [ -f "${BASH_SOURCE[0]:-}" ] || { echo "run hpc/remote.sh help, or hpc/submit.sh --help locally"; exit "${1:-0}"; }
+    sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'; exit "${1:-0}"
+}
 die() { echo "submit.sh: $*" >&2; exit 1; }
 
 MODELS="" BRANCH="" GROUPS_ARG="" LIBRARIES="" TRIALS=3 TIME="" PARTITION="" EXTRA="" DRY=0
@@ -65,20 +72,22 @@ case "$SUITE" in
     *) die "unknown suite '$SUITE'" ;;
 esac
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "--trials must be a positive integer"
+case "$SUITE" in real|reasoning) [ -z "$LIBRARIES" ] || die "$SUITE splits libraries itself; --libraries is not supported" ;; esac
 
-# 1. Check out origin/<branch> in its own worktree.
+# 1. Check out origin/<branch> in a worktree of its own for this commit. The explicit
+# refspec also works in a clone made with --single-branch.
 [ -d "$REPO/.git" ] || die "no git checkout at $REPO (set --repo)"
-git -C "$REPO" fetch -q origin "$BRANCH" || die "git fetch of $BRANCH failed"
-WT="$RUNS_ROOT/${BRANCH//\//-}"
+git -C "$REPO" fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" </dev/null \
+    || die "git fetch of $BRANCH failed"
+COMMIT=$(git -C "$REPO" rev-parse --short=8 "origin/$BRANCH")
+WT="$RUNS_ROOT/${BRANCH//\//-}-$COMMIT"
 if [ -d "$WT" ]; then
     git -C "$WT" diff --quiet HEAD -- || die "$WT has uncommitted changes to tracked files; commit or discard them first"
-    git -C "$WT" checkout -q --detach "origin/$BRANCH"
 else
     mkdir -p "$RUNS_ROOT"
-    git -C "$REPO" worktree add -q --detach "$WT" "origin/$BRANCH"
+    git -C "$REPO" worktree add -q --detach "$WT" "$COMMIT" </dev/null
 fi
 cd "$WT"
-COMMIT=$(git rev-parse --short HEAD)
 echo "checkout: $WT at $COMMIT ($BRANCH)"
 [ -f "$JOB_FILE" ] || die "$JOB_FILE is not on $BRANCH"
 
@@ -93,12 +102,20 @@ STAMP=$(date +%Y%m%d_%H%M%S)
 if [ "$SUITE" = llm_examples ]; then
     GROUPS_STR=${GROUPS_ARG:-${LIBRARIES:-d3,plotly;chartjs,vega-lite}}
     IFS=';' read -r -a GROUPS_ARR <<< "$GROUPS_STR"
+    for g in "${GROUPS_ARR[@]}"; do [[ "$g" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]] || die "bad library group '$g' in --groups '$GROUPS_STR'"; done
+    [ "${GROUPS_STR: -1}" != ";" ] || die "--groups ends with ';'"
     ALL_LIBS=$(IFS=,; echo "${GROUPS_ARR[*]}")
-    # 2. Build the pages on the login node (pure Python, no GPU or network).
-    python3 -m llm_taskgen.pages --libraries "$ALL_LIBS"
+    # 2. Build the pages on the login node (pure Python, no GPU or network), once per
+    # library in this worktree, so a second submit never rewrites pages a job is reading.
+    TO_BUILD=""
+    for lib in ${ALL_LIBS//,/ }; do [ -e "pages/$lib/.lx_built" ] || TO_BUILD+="${TO_BUILD:+,}$lib"; done
+    if [ -n "$TO_BUILD" ]; then
+        python3 -m llm_taskgen.pages --libraries "$TO_BUILD" </dev/null
+        for lib in ${TO_BUILD//,/ }; do touch "pages/$lib/.lx_built"; done
+    fi
     # 3. Browser smoke check, if Node Playwright is installed here; it fails fast on broken pages.
     if command -v node >/dev/null 2>&1 && NODE_PATH=$(npm root -g 2>/dev/null) node -e "require('playwright')" >/dev/null 2>&1; then
-        NODE_PATH=$(npm root -g) node llm_taskgen/browser_check.js pages tasks/llm_examples/task-attack-examples.json \
+        NODE_PATH=$(npm root -g) node llm_taskgen/browser_check.js pages tasks/llm_examples/task-attack-examples.json </dev/null \
             || die "browser check failed; nothing submitted"
     else
         echo "note: Node Playwright not found, skipping the browser check"
@@ -110,8 +127,11 @@ if [ "$SUITE" = llm_examples ]; then
     export MODELS LIBRARY_GROUPS="$GROUPS_STR" RUN_DIR TRIALS EXTRA_ARGS="$EXTRA"
     ENV_SHOWN="MODELS LIBRARY_GROUPS RUN_DIR TRIALS EXTRA_ARGS"
     SB+=(--array="0-$((${#GROUPS_ARR[@]} - 1))" --output="$RUN_DIR/slurm_%A_%a.log" --export=ALL)
-    printf '{"suite": "%s", "branch": "%s", "commit": "%s", "models": "%s", "groups": "%s", "trials": %s, "extra": "%s", "submitted": "%s"}\n' \
-        "$SUITE" "$BRANCH" "$COMMIT" "$MODELS" "$GROUPS_STR" "$TRIALS" "$EXTRA" "$STAMP" > "$RUN_DIR/run.json"
+    SUITE="$SUITE" BRANCH="$BRANCH" COMMIT="$COMMIT" STAMP="$STAMP" python3 -c '
+import json, os
+print(json.dumps({k.lower(): os.environ[k] for k in
+    ("SUITE", "BRANCH", "COMMIT", "MODELS", "LIBRARY_GROUPS", "TRIALS", "EXTRA_ARGS", "STAMP")}, indent=1))' \
+        </dev/null > "$RUN_DIR/run.json"
 else
     RUN_DIR="$WT/results"
     mkdir -p "$RUN_DIR"
@@ -129,8 +149,8 @@ if [ "$DRY" = 1 ]; then
     exit 0
 fi
 command -v sbatch >/dev/null 2>&1 || die "sbatch not found; run this on a cluster login node"
-JOB=$("${SB[@]}")
+JOB=$("${SB[@]}" </dev/null)
 JOB=${JOB%%;*}
 [ "$SUITE" = llm_examples ] && echo "$JOB" > "$RUN_DIR/job_id"
 echo "submitted $SUITE as job $JOB (watch: squeue -j $JOB)"
-echo "RUN_DIR=$RUN_DIR JOB=$JOB" | tee "$RUNS_ROOT/LATEST"
+echo "RUN_DIR=$RUN_DIR JOB=$JOB SUITE=$SUITE" | tee "$RUNS_ROOT/LATEST"
