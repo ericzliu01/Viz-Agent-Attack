@@ -44,7 +44,8 @@ def exposed(row, claim, base_dir):
     if not m:
         return None
     path = Path(m.group(1).strip())
-    for cand in (path, base_dir / path, ROOT / path, base_dir.parent.parent / path):
+    # The last candidate finds traces copied off the cluster (absolute paths there).
+    for cand in (path, base_dir / path, ROOT / path, base_dir.parent.parent / path, base_dir / "traces" / path.name):
         f = cand / "trace.json" if cand.is_dir() else cand
         if f.is_file():
             break
