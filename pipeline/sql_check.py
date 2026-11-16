@@ -119,6 +119,13 @@ def run_sql(query: str, df, table: str = "data") -> str:
 
     con = duckdb.connect()
     try:
+        # Engine-level defense: disable ALL file/URL access before registering
+        # the frame or running the query. This blocks replacement scans
+        # (SELECT * FROM '/etc/passwd'), read_* functions, st_read, httpfs,
+        # COPY-to-file, etc. -- including shapes the token guard cannot see.
+        # The token guard above stays as defense-in-depth for the common
+        # read_* case (it yields a cleaner UnsafeSQL before execution).
+        con.execute("SET enable_external_access=false")
         con.register(table, df)
         try:
             rows = con.execute(cleaned).fetchall()

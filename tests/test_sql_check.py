@@ -55,6 +55,14 @@ def test_read_csv_rejected():
         run_sql("SELECT * FROM read_csv('/etc/passwd')", titanic_df)
 
 
+def test_replacement_scan_rejected():
+    # Replacement scan names no function, so the token guard cannot see it;
+    # enable_external_access=false must stop it at execution. Either exception
+    # is acceptable -- what matters is it raises and never reads the file.
+    with pytest.raises((UnsafeSQL, UnsolvableTask)):
+        run_sql("SELECT * FROM '/etc/passwd'", titanic_df)
+
+
 def test_benign_select_still_passes():
     out = run_sql("SELECT ROUND(AVG(fare),2) FROM data", titanic_df)
     assert float(out) == pytest.approx(32.20, abs=0.01)
