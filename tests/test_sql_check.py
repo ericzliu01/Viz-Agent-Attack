@@ -43,3 +43,18 @@ def test_missing_column_unsolvable():
 def test_non_scalar_result_unsolvable():
     with pytest.raises(UnsolvableTask):
         run_sql("SELECT survived, COUNT(*) FROM data GROUP BY survived", titanic_df)
+
+
+def test_read_text_rejected():
+    with pytest.raises(UnsafeSQL):
+        run_sql("SELECT read_text('/etc/hostname')", titanic_df)
+
+
+def test_read_csv_rejected():
+    with pytest.raises(UnsafeSQL):
+        run_sql("SELECT * FROM read_csv('/etc/passwd')", titanic_df)
+
+
+def test_benign_select_still_passes():
+    out = run_sql("SELECT ROUND(AVG(fare),2) FROM data", titanic_df)
+    assert float(out) == pytest.approx(32.20, abs=0.01)

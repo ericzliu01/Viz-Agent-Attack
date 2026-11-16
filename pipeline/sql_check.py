@@ -35,6 +35,17 @@ _FORBIDDEN_KEYWORDS = frozenset({
     "REPLACE", "MERGE", "UPSERT", "DESCRIBE", "EXPLAIN", "SUMMARIZE",
 })
 
+# DuckDB file-access / external-source functions. A read-only SELECT can still
+# read local files through these (e.g. SELECT read_text('/etc/hostname')), so
+# they are blocked before execution. The catch-all `read_[a-z_]+` covers future
+# read_* variants.
+_FILE_ACCESS_FUNCS = frozenset({
+    "READ_TEXT", "READ_TEXT_AUTO", "READ_CSV", "READ_CSV_AUTO", "READ_JSON",
+    "READ_JSON_AUTO", "READ_NDJSON", "READ_PARQUET", "READ_BLOB",
+    "PARQUET_SCAN", "JSON_SCAN", "CSV_SCAN", "GLOB",
+})
+_READ_FUNC_RE = re.compile(r"^READ_[A-Z_]+$")
+
 # C-style block comments /* ... */ (non-greedy, across newlines).
 _BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 # -- line comments through end of line.
@@ -82,6 +93,15 @@ def _guard(query: str) -> str:
     if forbidden:
         raise UnsafeSQL(
             f"forbidden keyword(s) present: {', '.join(sorted(forbidden))}"
+        )
+
+    file_access = {
+        t for t in upper_tokens
+        if t in _FILE_ACCESS_FUNCS or _READ_FUNC_RE.match(t)
+    }
+    if file_access:
+        raise UnsafeSQL(
+            f"file-access function(s) not allowed: {', '.join(sorted(file_access))}"
         )
 
     return cleaned
