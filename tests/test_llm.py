@@ -43,6 +43,49 @@ def test_changing_model_busts_cache(tmp_path):
     assert client.messages.create.call_count == 2
 
 
+def test_different_prompt_same_key_does_not_collide(tmp_path):
+    client = make_client()
+    complete("prompt one", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client)
+    complete("prompt two", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client)
+    assert client.messages.create.call_count == 2
+    assert len(list(tmp_path.glob("*.json"))) == 2
+
+
+def test_different_system_same_key_does_not_collide(tmp_path):
+    client = make_client()
+    complete("p", system="system one", model="m", cache_key="k", cache_dir=tmp_path, client=client)
+    complete("p", system="system two", model="m", cache_key="k", cache_dir=tmp_path, client=client)
+    assert client.messages.create.call_count == 2
+    assert len(list(tmp_path.glob("*.json"))) == 2
+
+
+def test_different_images_same_key_does_not_collide(tmp_path):
+    client = make_client()
+    complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path,
+             images=[b"\x89PNG\r\n\x1a\nAAA"], client=client)
+    complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path,
+             images=[b"\x89PNG\r\n\x1a\nBBB"], client=client)
+    assert client.messages.create.call_count == 2
+
+
+def test_empty_response_is_not_cached(tmp_path):
+    client = make_client(text="")
+    assert complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client) == ""
+    assert complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client) == ""
+    assert client.messages.create.call_count == 2
+    assert list(tmp_path.glob("*.json")) == []
+
+
+def test_corrupt_cache_entry_is_treated_as_miss(tmp_path):
+    client = make_client("fresh")
+    complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client)
+    cache_file = next(tmp_path.glob("*.json"))
+    cache_file.write_text("{ truncated")  # simulate a crash mid-write
+    assert complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path,
+                    client=client) == "fresh"
+    assert client.messages.create.call_count == 2
+
+
 def test_cache_hit_constructs_no_client(tmp_path):
     complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path,
              client=make_client("cached"))

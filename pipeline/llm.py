@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
 
 #: Default region when no AWS_REGION / AWS_DEFAULT_REGION is set (matches aws-api-test.py).
@@ -39,11 +40,39 @@ class LLMFormatError(ValueError):
     """Raised when a model reply contains no parseable JSON object."""
 
 
-def _cache_path(cache_dir, cache_key, model):
-    """One file per (model, cache_key). Folding ``model`` into the on-disk key means
-    switching a stage's model re-generates only that stage, even for the same key."""
-    digest = hashlib.sha256(f"{model}\x00{cache_key}".encode("utf-8")).hexdigest()
-    return Path(cache_dir) / f"{digest}.json"
+def _cache_path(cache_dir, *, model, cache_key, system, prompt, images):
+    """One file per distinct request. The on-disk key hashes ALL request-identifying
+    content -- ``model``, ``cache_key``, ``system``, ``prompt``, and each image's bytes
+    -- so two calls that share ``model``+``cache_key`` but differ in any of those get
+    different files (a correct miss, never a wrong hit). Folding ``model`` in means
+    switching a stage's model re-generates only that stage."""
+    hasher = hashlib.sha256()
+    parts = [model.encode("utf-8"), cache_key.encode("utf-8"),
+             system.encode("utf-8"), prompt.encode("utf-8")]
+    parts.extend(bytes(image) for image in images)
+    # Fold each part's own digest (fixed 32 bytes) so arbitrary binary image bytes
+    # can never blur a boundary between parts.
+    for part in parts:
+        hasher.update(hashlib.sha256(part).digest())
+        hasher.update(b"\x00")
+    return Path(cache_dir) / f"{hasher.hexdigest()}.json"
+
+
+def _write_cache_atomic(path, payload):
+    """Write the cache entry via a temp file + os.replace so a crash mid-write can
+    never leave a truncated file that would make every future read raise."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _image_block(data):
@@ -84,9 +113,13 @@ def complete(prompt, *, system, model, cache_key, cache_dir, images=(), client=N
     making any call. When ``client`` is None (and it is a miss), the real
     ``AnthropicBedrockMantle`` is built; tests inject a mock instead.
     """
-    path = _cache_path(cache_dir, cache_key, model)
+    path = _cache_path(cache_dir, model=model, cache_key=cache_key,
+                       system=system, prompt=prompt, images=images)
     if path.exists():
-        return json.loads(path.read_text())["text"]
+        try:
+            return json.loads(path.read_text())["text"]
+        except (json.JSONDecodeError, KeyError, OSError):
+            pass  # Corrupt/truncated entry (e.g. crash mid-write): treat as a miss.
 
     if client is None:
         client = _build_client()
@@ -103,8 +136,10 @@ def complete(prompt, *, system, model, cache_key, cache_dir, images=(), client=N
         block.text for block in message.content if block.type == "text"
     ).strip()
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"model": model, "cache_key": cache_key, "text": text}))
+    # Never cache an empty result: a sticky empty (max_tokens/refusal) would poison
+    # every rerun. Only successful, non-empty text is persisted.
+    if text:
+        _write_cache_atomic(path, {"model": model, "cache_key": cache_key, "text": text})
     return text
 
 
