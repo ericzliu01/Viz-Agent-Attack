@@ -124,6 +124,22 @@ class BedrockAdapterTests(unittest.TestCase):
         self.assertEqual(result.stop_reason, "max_steps")
         self.assertEqual(result.answer, "")
 
+    def test_tool_use_stop_with_no_tool_blocks_terminates_without_a_further_call(self):
+        # Malformed: stop_reason "tool_use" but no tool_use blocks. The loop must
+        # not append an empty user turn and re-call (which would 400); it ends here.
+        resp = FakeResponse("tool_use", [FakeBlock("text", text="D")])
+        client = FakeClient([resp])
+        result = run_bedrock_agent(self.make_page(), "Q", "m", client=client)
+        self.assertEqual(len(client.messages.calls), 1)  # no further create call
+        self.assertEqual((result.answer, result.stop_reason), ("D", "final"))
+
+    def test_tool_use_stop_with_no_tool_blocks_and_no_text_is_empty(self):
+        resp = FakeResponse("tool_use", [])
+        client = FakeClient([resp])
+        result = run_bedrock_agent(self.make_page(), "Q", "m", client=client)
+        self.assertEqual(len(client.messages.calls), 1)
+        self.assertEqual((result.answer, result.stop_reason), ("", "empty_response"))
+
     def test_agent_model_default_is_a_cheap_haiku_proxy(self):
         self.assertEqual(AGENT_MODEL, "anthropic.claude-haiku-5-5")
 

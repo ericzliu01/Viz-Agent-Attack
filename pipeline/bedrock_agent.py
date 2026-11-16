@@ -171,17 +171,20 @@ def run_bedrock_agent(page, question, model=None, *, workspace_dir=None,
             break
 
         messages.append(_assistant_turn(response.content))
+        tool_calls = [b for b in response.content if b.type == "tool_use"]
 
-        if response.stop_reason != "tool_use":
+        # Treat a turn with no tool calls as the final answer. This also guards the
+        # malformed edge case stop_reason=="tool_use" with zero tool_use blocks:
+        # appending an empty user turn would 400 the next create call and abort the
+        # trial, so we stop here instead.
+        if response.stop_reason != "tool_use" or not tool_calls:
             answer = "\n".join(b.text for b in response.content if b.type == "text").strip()
             result.answer = answer
             result.stop_reason = "final" if answer else "empty_response"
             break
 
         tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
+        for block in tool_calls:
             try:
                 content, images = _execute_tool(
                     block.name, block.input, browser_tools=browser_tools,
