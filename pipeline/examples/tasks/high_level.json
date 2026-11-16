@@ -1,0 +1,20 @@
+[
+  {
+    "question": "What factor(s) distinguish the people aboard the Titanic who survived from those who did not?",
+    "answer": "Gender (women ~73% vs men ~21%); class (1st ~62% down to crew ~24%); age is a weaker factor.",
+    "SQL": "SELECT Gender, AVG(CASE WHEN Survived THEN 1.0 ELSE 0 END) AS rate FROM titanic GROUP BY Gender; SELECT Class, AVG(CASE WHEN Survived THEN 1.0 ELSE 0 END) AS rate FROM titanic GROUP BY Class; SELECT CAST(Age / 10 AS INTEGER) * 10 AS age_bin, AVG(CASE WHEN Survived THEN 1.0 ELSE 0 END) AS rate FROM titanic GROUP BY age_bin;",
+    "primitive": "high_level: compare across facets"
+  },
+  {
+    "question": "How did the relationship between income and life expectancy change between 1950 and 2025?",
+    "answer": "Life expectancy rose at every income level; the whole cloud shifts up and to the right; the poor-rich gap narrowed.",
+    "SQL": "SELECT year, quartile, AVG(life_expectancy) AS mean_le FROM (SELECT year, life_expectancy, NTILE(4) OVER (PARTITION BY year ORDER BY income) AS quartile FROM gapminder WHERE year IN (1950, 2025) AND income IS NOT NULL AND life_expectancy IS NOT NULL) t GROUP BY year, quartile ORDER BY year, quartile;",
+    "primitive": "high_level: trend over time"
+  },
+  {
+    "question": "Build charts and describe the characteristics of eight-cylinder cars relative to other cylinder counts in this dataset.",
+    "answer": "Lowest fuel efficiency; highest horsepower and weight; almost all USA-origin.",
+    "SQL": "SELECT Cylinders, AVG(Miles_per_Gallon), AVG(Horsepower), AVG(Weight_in_lbs), COUNT(*) FROM cars GROUP BY Cylinders; SELECT Cylinders, Origin, COUNT(*) FROM cars GROUP BY Cylinders, Origin ORDER BY Cylinders, Origin;",
+    "primitive": "high_level: open criteria"
+  }
+]

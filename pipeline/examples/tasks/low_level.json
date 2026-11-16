@@ -1,0 +1,122 @@
+[
+  {
+    "question": "What are the miles per gallon, horsepower and origin of the bmw 2002?",
+    "answer": "26 mpg, 113 hp, Europe.",
+    "SQL": "SELECT Miles_per_Gallon, Horsepower, Origin FROM cars WHERE Name = 'bmw 2002';",
+    "primitive": "retrieve_value"
+  },
+  {
+    "question": "What are the class, age and ticket cost of the passenger 'ALLEN, Miss Elisabeth Walton'?",
+    "answer": "1st Class Passenger, age 29, ticket cost 214.04.",
+    "SQL": "SELECT Class, Age, TicketCost FROM titanic WHERE Name = 'ALLEN, Miss Elisabeth Walton';",
+    "primitive": "retrieve_value"
+  },
+  {
+    "question": "Which datapoints have a culmen depth of 15.9 mm and a flipper length between 220 and 250 mm? Report how many there are and their indexes.",
+    "answer": "4 datapoints: indexes 237, 285, 153, 254.",
+    "SQL": "SELECT id FROM penguins WHERE culmen_depth_mm = 15.9 AND flipper_length_mm BETWEEN 220 AND 250;",
+    "primitive": "filter"
+  },
+  {
+    "question": "Which people aboard the Titanic were 70 years old or older? Report how many there are and their names.",
+    "answer": "5 people: Artagaveytia, Crosby, Goldschmidt, Mitchell, Svensson.",
+    "SQL": "SELECT Name, Age FROM titanic WHERE Age >= 70;",
+    "primitive": "filter"
+  },
+  {
+    "question": "What is the average acceleration of the cars?",
+    "answer": "15.52.",
+    "SQL": "SELECT AVG(Acceleration) FROM cars;",
+    "primitive": "compute_derived_value"
+  },
+  {
+    "question": "What percentage of all people aboard the Titanic (passengers and crew) survived?",
+    "answer": "32.2% (711 of 2,207).",
+    "SQL": "SELECT 100.0 * AVG(CASE WHEN Survived THEN 1 ELSE 0 END) FROM titanic;",
+    "primitive": "compute_derived_value"
+  },
+  {
+    "question": "What is the most expensive wine?",
+    "answer": "Château Pétrus 2014 Pomerol ($2,500).",
+    "SQL": "SELECT title, price FROM wines ORDER BY price DESC LIMIT 1;",
+    "primitive": "find_extremum"
+  },
+  {
+    "question": "Which penguin has the largest body mass? Report its body mass and species.",
+    "answer": "A Gentoo, 6,300 g.",
+    "SQL": "SELECT species, body_mass_g FROM penguins ORDER BY body_mass_g DESC LIMIT 1;",
+    "primitive": "find_extremum"
+  },
+  {
+    "question": "Rank the Titanic's classes (1st, 2nd, 3rd, Crew) from highest to lowest survival rate.",
+    "answer": "1st (62%), 2nd (42%), 3rd (26%), Crew (24%).",
+    "SQL": "SELECT Class, AVG(CASE WHEN Survived THEN 1.0 ELSE 0 END) AS rate FROM titanic GROUP BY Class ORDER BY rate DESC;",
+    "primitive": "sort"
+  },
+  {
+    "question": "Sort the cylinder counts (3, 4, 5, 6, 8) from highest to lowest mean miles per gallon.",
+    "answer": "4, 5, 3, 6, 8.",
+    "SQL": "SELECT Cylinders, AVG(Miles_per_Gallon) AS mean_mpg FROM cars GROUP BY Cylinders ORDER BY mean_mpg DESC;",
+    "primitive": "sort"
+  },
+  {
+    "question": "What is the range of car weights? Report the lightest and heaviest cars, their weights, and the span.",
+    "answer": "1,613 lbs (datsun 1200) to 5,140 lbs (pontiac safari (sw)), span 3,527 lbs.",
+    "SQL": "SELECT (SELECT Name FROM cars ORDER BY Weight_in_lbs LIMIT 1) AS lightest, MIN(Weight_in_lbs), (SELECT Name FROM cars ORDER BY Weight_in_lbs DESC LIMIT 1) AS heaviest, MAX(Weight_in_lbs), MAX(Weight_in_lbs) - MIN(Weight_in_lbs) FROM cars;",
+    "primitive": "determine_range"
+  },
+  {
+    "question": "What is the range of penguin flipper length? Report the minimum, the maximum and the span.",
+    "answer": "172 mm to 231 mm, span 59 mm.",
+    "SQL": "SELECT MIN(flipper_length_mm), MAX(flipper_length_mm), MAX(flipper_length_mm) - MIN(flipper_length_mm) FROM penguins;",
+    "primitive": "determine_range"
+  },
+  {
+    "question": "Grouping the Titanic's people into ten-year age ranges starting from 0 (0-10, 10-20, 20-30, ...), which age range contains the most people?",
+    "answer": "20-30 years (about 825 people).",
+    "SQL": "SELECT CAST(Age / 10 AS INTEGER) * 10 AS age_bin, COUNT(*) AS n FROM titanic GROUP BY age_bin ORDER BY n DESC LIMIT 1;",
+    "primitive": "characterize_distribution"
+  },
+  {
+    "question": "Binning car horsepower into 20-hp ranges starting at 40 (40-60, 60-80, ...), which range contains the most cars, and is the distribution skewed?",
+    "answer": "80-100 hp (113 cars); right-skewed.",
+    "SQL": "SELECT 40 + 20 * CAST((Horsepower - 40) / 20 AS INTEGER) AS hp_bin, COUNT(*) AS n FROM cars WHERE Horsepower IS NOT NULL GROUP BY hp_bin ORDER BY hp_bin;",
+    "primitive": "characterize_distribution"
+  },
+  {
+    "question": "Overall, Titanic survival falls from 1st class to 2nd, 3rd and crew. Among women, which class breaks this pattern?",
+    "answer": "Crew: 80% of female crew survived, above 3rd-class women (49%).",
+    "SQL": "SELECT Class, AVG(CASE WHEN Survived THEN 1.0 ELSE 0 END) AS rate, COUNT(*) FROM titanic WHERE Gender = 'Female' GROUP BY Class ORDER BY rate DESC;",
+    "primitive": "find_anomalies"
+  },
+  {
+    "question": "In a scatterplot of car horsepower against weight, heavier cars generally have more horsepower. Which car breaks this pattern most clearly?",
+    "answer": "Buick Estate Wagon (SW): 225 hp at 3,086 lbs.",
+    "SQL": "WITH c AS (SELECT * FROM cars WHERE Horsepower IS NOT NULL), f AS (SELECT AVG(Weight_in_lbs) AS mx, AVG(Horsepower) AS my, COVAR_POP(Weight_in_lbs, Horsepower) / VAR_POP(Weight_in_lbs) AS b FROM c) SELECT Name, Horsepower, Weight_in_lbs FROM c, f ORDER BY ABS(Horsepower - (my + b * (Weight_in_lbs - mx))) DESC LIMIT 1;",
+    "primitive": "find_anomalies"
+  },
+  {
+    "question": "Coloring the wine-review points by country, which country's reviews form a distinct cluster separate from the main mass?",
+    "answer": "Italy.",
+    "SQL": "SELECT country, COUNT(*) AS n, AVG(projection_x) AS cx, AVG(projection_y) AS cy FROM wines GROUP BY country ORDER BY n DESC;",
+    "primitive": "cluster"
+  },
+  {
+    "question": "In the penguin embedding projector, coloring the points by species, which species forms a cluster clearly separated from the others?",
+    "answer": "Gentoo.",
+    "SQL": "SELECT species, AVG(culmen_depth_mm), AVG(flipper_length_mm), AVG(body_mass_g) FROM penguins GROUP BY species;",
+    "primitive": "cluster"
+  },
+  {
+    "question": "What is the correlation between wine price and points (scores)?",
+    "answer": "Positive; mean price rises with points, steeply above about 95.",
+    "SQL": "SELECT points, AVG(price) AS mean_price FROM wines GROUP BY points ORDER BY points;",
+    "primitive": "correlate"
+  },
+  {
+    "question": "What is the correlation between car horsepower and miles per gallon?",
+    "answer": "Strongly negative (r ≈ -0.78).",
+    "SQL": "SELECT CORR(Horsepower, Miles_per_Gallon) FROM cars;",
+    "primitive": "correlate"
+  }
+]
