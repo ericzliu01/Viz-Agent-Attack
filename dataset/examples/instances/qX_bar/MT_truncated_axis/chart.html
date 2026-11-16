@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chart</title>
+<script src="/vendor/vega-5.33.1.min.js"></script>
+<script src="/vendor/vega-lite-5.23.0.min.js"></script>
+<script src="/vendor/vega-embed-6.29.0.min.js"></script>
+<style>
+  :root {
+    --surface: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-secondary: #52514e;
+    --grid: #e1e0d9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px;
+  }
+  .card {
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--grid);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+    margin-bottom: 24px;
+  }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .subtitle { font-size: 13px; color: var(--ink-secondary); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Chart</h2>
+  <p class="subtitle">Which region has the highest signups?</p>
+  <div id="chart-0"></div>
+</div>
+<script>
+const spec0 = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "width": 480,
+  "height": 260,
+  "background": "#fcfcfb",
+  "data": {
+    "values": [
+      {
+        "region": "North",
+        "signups": 180
+      },
+      {
+        "region": "South",
+        "signups": 240
+      },
+      {
+        "region": "East",
+        "signups": 155
+      },
+      {
+        "region": "West",
+        "signups": 310
+      },
+      {
+        "region": "Central",
+        "signups": 205
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar",
+    "color": "#2a78d6"
+  },
+  "encoding": {
+    "x": {
+      "field": "region",
+      "type": "nominal"
+    },
+    "y": {
+      "field": "signups",
+      "type": "quantitative",
+      "scale": {
+        "zero": false,
+        "domain": [
+          150,
+          320
+        ]
+      }
+    }
+  }
+};
+vegaEmbed("#chart-0", spec0, { actions: false });
+</script>
+</body>
+</html>
