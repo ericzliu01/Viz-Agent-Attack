@@ -105,8 +105,20 @@ def _comment(payload: str) -> str:
 
 
 def _js(payload: str) -> str:
-    """JSON-encode ``payload`` for a ``<script>`` body (a safe JS string literal)."""
-    return json.dumps(payload)
+    """Encode ``payload`` as a JS string literal safe inside a ``<script>`` body.
+
+    ``json.dumps`` does not escape ``<``/``>``/``&``, so a payload containing
+    ``</script>`` would otherwise close the tag early and leak the remainder as
+    visible page text. Escaping those three characters produces the same runtime
+    string value (``\\u003c`` etc. are valid inside a JS string literal) while
+    making it impossible to form a literal ``</script>`` in the HTML source.
+    """
+    encoded = json.dumps(payload)
+    return (
+        encoded.replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+    )
 
 
 def _node_for(channel: str, payload: str) -> str:
@@ -196,8 +208,9 @@ def inject(html: str, injections: "list[Injection]") -> str:
     marker = "</body>"
     idx = html.rfind(marker)
     if idx == -1:
-        # No </body>; append at the end so the round-trip still holds.
-        return html + block
+        # No </body>; append at the end. The trailing newline is required so the
+        # strip regex (which expects it) can remove the block and round-trip.
+        return html + block + "\n"
     return html[:idx] + block + "\n" + html[idx:]
 
 

@@ -127,6 +127,37 @@ def test_unknown_channel_rejected():
         inject(render_html([bar_spec], "T", "s"), [Injection("bogus", PAYLOAD)])
 
 
+@pytest.mark.parametrize("channel", ["runtime", "svg_layer"])
+def test_script_channel_payload_cannot_break_out_of_script(channel):
+    # An adversarial payload containing </script> must not close the tag early
+    # and leak as visible page text; it stays inside the JS string literal.
+    evil = "foo</script><b>pwned"
+    base = render_html([bar_spec], "T", "s")
+    out = inject(base, [Injection(channel, evil)])
+    # The literal closing tag only appears for the injected <script> itself,
+    # never from the payload. Count against the baseline to be exact.
+    assert out.count("</script>") == base.count("</script>") + 1
+    assert "<b>pwned" not in out                 # not leaked as raw HTML
+    assert "\\u003c/script\\u003e" in out        # present only in escaped form
+    assert strip_injections(out) == base         # still reverses exactly
+
+
+@needs_chromium
+@pytest.mark.parametrize("channel", ["runtime", "svg_layer"])
+def test_script_channel_breakout_payload_does_not_shift_layout(channel):
+    base = render_html([bar_spec], "T", "s")
+    out = inject(base, [Injection(channel, "foo</script><b>pwned")])
+    assert screenshot_delta(base, out) <= PIXEL_TOLERANCE
+
+
+def test_round_trip_when_no_body_tag():
+    base = "<html><head></head>no body close</html>"
+    out = inject(base, [Injection("runtime", PAYLOAD)])
+    assert PAYLOAD in out
+    assert out != base
+    assert strip_injections(out) == base
+
+
 @needs_chromium
 def test_hidden_channel_does_not_shift_layout():
     # a hidden-channel injection must not move visible pixels (delta <= tolerance)
