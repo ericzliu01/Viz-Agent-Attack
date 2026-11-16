@@ -237,8 +237,9 @@ version the condition as described above. Traces record the run configuration.
 The active runners replace `raw_source`, `multimodal_combined`,
 `vision_screenshot`, and `dual_agent` execution. `--condition`,
 `--vision-model`, and `--source-model` are no longer accepted. Historical
-implementations are retained in `archive/single_turn/` for reference; Git
-history preserves their original runnable environment. The SLURM scripts now
+single-turn/dual-agent implementations and their legacy run logs were
+removed from the working tree to keep it clean; Git history preserves them
+and their original runnable environment. The SLURM scripts now
 run ReAct with explicit model tags supplied through the `MODELS` environment
 variable. Existing CSVs need no migration.
 
