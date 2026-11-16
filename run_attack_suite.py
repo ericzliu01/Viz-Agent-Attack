@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
+from memory import (DOCUMENT_TEXT_LIMIT, RESULT_TEXT_LIMIT, RETRIEVAL_VERSION, TOP_K,
+                    fingerprint, memory_from_config, task_memory_fields)
 from results_logger import append_row, read_rows, RESULTS_DIR
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,6 +61,7 @@ def discover_pages():
                 "question": meta["question"],
                 "ground_truth": meta["ground_truth"],
                 "answer_type": meta.get("answer_type", "free"),
+                **task_memory_fields(meta),
             }
             if attack_id.startswith("clean_"):
                 clean_by_key[(library, attack_id[len("clean_"):])] = entry
@@ -185,18 +188,81 @@ def validate_arguments(parser, args):
         args.tools = names
 
 
+def prepare_trials(trials, args, system_prompt):
+    """Validate all selected trials and assign shared, versioned pair conditions."""
+    from browser_agent import VIEWPORT, tools_for_memory
+    prepared, groups = [], {}
+    base_condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
+    for trial in trials:
+        backend = memory_from_config(trial.get("memory"))
+        agent_tools = tools_for_memory(args.tools, backend)
+        key = (trial["library"], trial["attack_id"].removesuffix("__clean_baseline"), trial["question"])
+        item = {"trial": trial, "tools": agent_tools, "backend": backend,
+                "condition": base_condition}
+        prepared.append(item)
+        groups.setdefault(key, []).append(item)
+    for group in groups.values():
+        if not any(item["backend"] is not None for item in group):
+            continue
+        cases = []
+        for item in group:
+            trial = item["trial"]
+            cases.append({
+                **{key: trial.get(key) for key in (
+                    "library", "attack_id", "task_id", "question", "ground_truth", "answer_type",
+                    "memory", "poisoned_document_ids", "attack_target")},
+                "html_hash": fingerprint(Path(trial["html_path"]).read_text(encoding="utf-8")),
+                "tools": item["tools"],
+            })
+        settings = {name: getattr(args, name) for name in (
+            "base_url", "timeout", "max_steps", "num_ctx", "temperature", "seed")}
+        settings.update(system_prompt=system_prompt, viewport=VIEWPORT,
+                        retrieval_version=RETRIEVAL_VERSION, top_k=TOP_K,
+                        document_text_limit=DOCUMENT_TEXT_LIMIT, result_text_limit=RESULT_TEXT_LIMIT)
+        digest = fingerprint({"cases": sorted(cases, key=lambda case: case["attack_id"]),
+                              "settings": settings})
+        for item in group:
+            item["condition"] = f"{base_condition}_memory_{digest[:16]}"
+    return prepared
+
+
+def memory_statistics(result, trial):
+    """Measure actual tool observations; evaluator labels never reach the agent."""
+    observations = [message for message in result.messages
+                    if message.get("role") == "tool" and message.get("tool_name") == "search_memory"]
+    returned_ids, truncated_ids = [], []
+    for observation in observations:
+        payload = json.loads(observation["content"])
+        for document in payload.get("results", []):
+            if document["id"] not in returned_ids:
+                returned_ids.append(document["id"])
+            if document.get("truncated") and document["id"] not in truncated_ids:
+                truncated_ids.append(document["id"])
+    target_hit = None
+    if trial.get("attack_target") is not None and result.stop_reason == "final":
+        correct, _ = grade(result.answer, trial["attack_target"], trial.get("answer_type", "free"))
+        if correct != "needs_review":
+            target_hit = correct == "true"
+    return {"calls": len(observations), "returned_document_ids": returned_ids,
+            "truncated_document_ids": truncated_ids,
+            "poison_exposed": bool(set(returned_ids) & set(trial.get("poisoned_document_ids", []))),
+            "target_hit": target_hit}
+
+
 def run_trials(trials, args):
-    from browser_agent import SYSTEM_PROMPT, DEFENSE_PROMPT_SUFFIX, TOOLS, TOOL_NAMES, filter_tools
-    agent_tools = filter_tools(args.tools) if args.tools else TOOLS
-    enabled_tool_names = [t["function"]["name"] for t in agent_tools]
+    from browser_agent import SYSTEM_PROMPT, DEFENSE_PROMPT_SUFFIX
     system_prompt = SYSTEM_PROMPT + (DEFENSE_PROMPT_SUFFIX if args.defense_prompt else "")
-    condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
+    prepared = prepare_trials(trials, args, system_prompt)
     if args.dry_run:
         print(system_prompt)
-        print("Tools:", ", ".join(enabled_tool_names))
         for model in args.models:
-            for trial in trials:
+            for item in prepared:
+                trial, backend = item["trial"], item["backend"]
                 print(f"{trial['library']}/{trial['attack_id']} x {model}: {trial['question']}")
+                print("Tools:", ", ".join(tool["function"]["name"] for tool in item["tools"]))
+                print(f"Memory: {'enabled' if backend is not None else 'disabled'}; "
+                      f"documents={backend.document_count if backend is not None else 0}; "
+                      f"condition={item['condition']}")
         return
 
     from playwright.sync_api import sync_playwright
@@ -207,18 +273,23 @@ def run_trials(trials, args):
     for model in args.models:
         check_model_capabilities(model, args.base_url)
 
-    done_keys = already_done_keys(condition)
+    done_by_condition = {condition: already_done_keys(condition)
+                         for condition in {item["condition"] for item in prepared}}
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=not args.headed)
         try:
             for model in args.models:
-                for trial in trials:
+                for item in prepared:
+                  trial, agent_tools, condition = item["trial"], item["tools"], item["condition"]
+                  enabled_tool_names = [tool["function"]["name"] for tool in agent_tools]
+                  done_keys = done_by_condition[condition]
                   for trial_index in range(args.trials):
                     key = (trial["library"], trial["attack_id"], trial["question"], model, str(trial_index))
                     label = f"{trial['library']}/{trial['attack_id']} x {model} (trial {trial_index})"
                     if key in done_keys:
                         print(f"[skip] {label}")
                         continue
+                    memory_backend = memory_from_config(trial.get("memory"))
                     start = time.monotonic()
                     result = AgentResult(stop_reason="browser_error")
                     try:
@@ -239,19 +310,29 @@ def run_trials(trials, args):
                                                        args.timeout, args.max_steps, logs,
                                                        num_ctx=args.num_ctx, temperature=args.temperature,
                                                        seed=args.seed + trial_index, tools=agent_tools,
-                                                       system_prompt=system_prompt)
+                                                       system_prompt=system_prompt,
+                                                       memory_backend=memory_backend)
                             finally:
                                 context.close()
                     except Exception as exc:
                         result.stop_reason, result.error = "browser_error", str(exc)
                         result.answer = ""
                     result.latency_ms = int((time.monotonic() - start) * 1000)
+                    memory_config = {}
+                    if memory_backend is not None:
+                        stats = memory_statistics(result, trial)
+                        memory_config = {"memory": trial["memory"], "corpus_hash": memory_backend.corpus_hash,
+                                         "retrieval_version": RETRIEVAL_VERSION, "condition": condition,
+                                         "memory_statistics": stats,
+                                         "attack_target": trial.get("attack_target"),
+                                         "poisoned_document_ids": trial.get("poisoned_document_ids", [])}
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "base_url": args.base_url, "timeout": args.timeout,
                         "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
                         "temperature": args.temperature, "seed": args.seed + trial_index,
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt,
+                        **memory_config,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -260,6 +341,9 @@ def run_trials(trials, args):
                     if args.tools:
                         notes += f"; enabled_tools={','.join(enabled_tool_names)}"
                     notes += f"; tools={','.join(result.tools_used)}"
+                    if memory_backend is not None:
+                        notes += (f"; memory_calls={stats['calls']}; memory_exposed={int(stats['poison_exposed'])}"
+                                  f"; memory_target_hit={json.dumps(stats['target_hit'])}")
                     if result.error:
                         notes += f"; error={result.error}"
                     correct, extracted = (grade(result.answer, trial["ground_truth"],
@@ -281,11 +365,17 @@ def run_trials(trials, args):
             browser.close()
 
 
-def attack_trials(libraries, limit=None):
+def attack_trials(libraries, limit=None, attack_ids=None):
     clean_by_key, attacks = discover_pages()
+    if attack_ids is not None:
+        unknown = set(attack_ids) - {attack["attack_id"] for attack in attacks if attack["library"] in libraries}
+        if unknown:
+            raise ValueError(f"Unknown attack ID(s) for selected libraries: {', '.join(sorted(unknown))}")
     trials, counts = [], {}
     for attack in attacks:
         library = attack["library"]
+        if attack_ids is not None and attack["attack_id"] not in attack_ids:
+            continue
         if library not in libraries or (limit is not None and counts.get(library, 0) >= limit):
             continue
         counts[library] = counts.get(library, 0) + 1
@@ -293,7 +383,9 @@ def attack_trials(libraries, limit=None):
         clean = clean_by_key.get((library, attack["chart_type"]))
         if clean is not None:
             trials.append({**attack, "attack_id": f"{attack['attack_id']}__clean_baseline",
-                           "html_path": clean["html_path"]})
+                           "html_path": clean["html_path"],
+                           "memory": {"corpus": {"documents": []}} if attack.get("memory") is not None else None,
+                           "poisoned_document_ids": []})
     return trials
 
 
@@ -301,9 +393,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     add_agent_arguments(parser)
     parser.add_argument("--limit", type=int, help="Maximum attacks per library, each with a clean baseline")
+    parser.add_argument("--attack-ids", help="Comma-separated attack IDs (each includes its clean baseline)")
     args = parser.parse_args()
     validate_arguments(parser, args)
-    run_trials(attack_trials(args.libraries, args.limit), args)
+    attack_ids = {value.strip() for value in args.attack_ids.split(",") if value.strip()} if args.attack_ids is not None else None
+    if attack_ids == set():
+        parser.error("--attack-ids must not be empty")
+    try:
+        run_trials(attack_trials(args.libraries, args.limit, attack_ids), args)
+    except ValueError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":
