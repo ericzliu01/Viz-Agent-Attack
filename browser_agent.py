@@ -243,17 +243,21 @@ class BrowserTools:
 
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
-              options=None, tools=None, system_prompt=None, memory_backend=None):
+              options=None, tools=None, system_prompt=None, memory_backend=None,
+              workspace_dir=None):
     """Run native tool calls; screenshots stay in role=tool messages with images."""
     if max_steps < 1 or timeout <= 0:
         raise ValueError("max_steps and timeout must be positive")
+    from pipeline.file_tools import FileWorkspace, tools_for_workspace
     start = time.monotonic()
     messages = [{"role": "system", "content": system_prompt if system_prompt is not None else SYSTEM_PROMPT},
                 {"role": "user", "content": question}]
     result = AgentResult(messages=messages)
+    resolve = tools_for_workspace if workspace_dir is not None else tools_for_memory
+    gate = workspace_dir if workspace_dir is not None else memory_backend
     if tools is not None:
-        tools_for_memory([t["function"]["name"] for t in tools], memory_backend)
-    agent_tools = tools if tools is not None else tools_for_memory(None, memory_backend)
+        resolve([t["function"]["name"] for t in tools], gate)
+    agent_tools = tools if tools is not None else resolve(None, gate)
     enabled_names = {t["function"]["name"] for t in agent_tools}
     browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page),
                                  enabled_tools=enabled_names)
@@ -303,6 +307,19 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
                     if not isinstance(arguments, dict) or set(arguments) != {"query"}:
                         raise ValueError("search_memory requires exactly one argument: query")
                     content = json.dumps(memory_backend.search(arguments["query"]), ensure_ascii=False)
+                    images = []
+                elif name in ("list_files", "read_file"):
+                    if name not in enabled_names or workspace_dir is None:
+                        raise ValueError(f"Tool not enabled for this run: {name}")
+                    workspace = FileWorkspace(workspace_dir)
+                    if name == "list_files":
+                        if not isinstance(arguments, dict) or arguments:
+                            raise ValueError("list_files takes no arguments")
+                        content = json.dumps(workspace.list_files(), ensure_ascii=False)
+                    else:
+                        if not isinstance(arguments, dict) or set(arguments) != {"path"}:
+                            raise ValueError("read_file requires exactly one argument: path")
+                        content = workspace.read_file(arguments["path"])
                     images = []
                 else:
                     content, images = browser_tools.execute(name, arguments)

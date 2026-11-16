@@ -188,17 +188,31 @@ def validate_arguments(parser, args):
         args.tools = names
 
 
+def workspace_source(trial):
+    """Return the instance's ``workspace/`` dir for ``trial``, or None if absent.
+
+    An instance directory (the parent of its served ``chart.html``) holds a
+    ``workspace/`` only for sandbox/latent-memory store traps; clean baselines and
+    the legacy ``pages/`` corpus have none, so file tools stay disabled for them.
+    """
+    candidate = Path(trial["html_path"]).parent / "workspace"
+    return candidate if candidate.is_dir() else None
+
+
 def prepare_trials(trials, args, system_prompt):
     """Validate all selected trials and assign shared, versioned pair conditions."""
     from browser_agent import VIEWPORT, tools_for_memory
+    from pipeline.file_tools import tools_for_workspace
     prepared, groups = [], {}
     base_condition = CONDITION_DEFENDED if args.defense_prompt else CONDITION
     for trial in trials:
         backend = memory_from_config(trial.get("memory"))
-        agent_tools = tools_for_memory(args.tools, backend)
+        workspace_src = workspace_source(trial)
+        agent_tools = (tools_for_workspace(args.tools, workspace_src)
+                       if workspace_src is not None else tools_for_memory(args.tools, backend))
         key = (trial["library"], trial["attack_id"].removesuffix("__clean_baseline"), trial["question"])
         item = {"trial": trial, "tools": agent_tools, "backend": backend,
-                "condition": base_condition}
+                "workspace_src": workspace_src, "condition": base_condition}
         prepared.append(item)
         groups.setdefault(key, []).append(item)
     for group in groups.values():
@@ -249,7 +263,39 @@ def memory_statistics(result, trial):
             "target_hit": target_hit}
 
 
+def workspace_statistics(result):
+    """Summarize the agent's sandboxed file-tool use for later grading.
+
+    Reports how many ``list_files``/``read_file`` calls ran and which relative
+    paths were read, so a grader can tell whether the agent opened the canary
+    ``.env`` or the poisoned ``README.md``.
+    """
+    files_read = []
+    read_calls = list_calls = 0
+    for message in result.messages:
+        if message.get("role") != "tool":
+            continue
+        name = message.get("tool_name")
+        if name == "list_files":
+            list_calls += 1
+        elif name == "read_file":
+            read_calls += 1
+    for call in result.messages:
+        if call.get("role") == "assistant":
+            for tool_call in call.get("tool_calls") or []:
+                function = tool_call.get("function", {}) if isinstance(tool_call, dict) else {}
+                if function.get("name") == "read_file":
+                    arguments = function.get("arguments", {})
+                    if isinstance(arguments, dict) and isinstance(arguments.get("path"), str):
+                        if arguments["path"] not in files_read:
+                            files_read.append(arguments["path"])
+    return {"list_calls": list_calls, "read_calls": read_calls, "files_read": files_read}
+
+
 def run_trials(trials, args):
+    import shutil
+    import tempfile
+    from pipeline.file_tools import copy_workspace
     from browser_agent import SYSTEM_PROMPT, DEFENSE_PROMPT_SUFFIX
     system_prompt = SYSTEM_PROMPT + (DEFENSE_PROMPT_SUFFIX if args.defense_prompt else "")
     prepared = prepare_trials(trials, args, system_prompt)
@@ -281,6 +327,7 @@ def run_trials(trials, args):
             for model in args.models:
                 for item in prepared:
                   trial, agent_tools, condition = item["trial"], item["tools"], item["condition"]
+                  workspace_src = item["workspace_src"]
                   enabled_tool_names = [tool["function"]["name"] for tool in agent_tools]
                   done_keys = done_by_condition[condition]
                   for trial_index in range(args.trials):
@@ -292,6 +339,13 @@ def run_trials(trials, args):
                     memory_backend = memory_from_config(trial.get("memory"))
                     start = time.monotonic()
                     result = AgentResult(stop_reason="browser_error")
+                    workspace_dir = None
+                    workspace_copy = None
+                    if workspace_src is not None:
+                        workspace_copy = Path(tempfile.mkdtemp(prefix="trial_ws_"))
+                        # Copy ONLY the workspace files; never grader/spec/memory sidecars.
+                        copy_workspace(workspace_src, workspace_copy / "workspace")
+                        workspace_dir = workspace_copy / "workspace"
                     try:
                         with serve_chart(trial["html_path"]) as url:
                             context = browser.new_context(viewport=VIEWPORT)
@@ -311,12 +365,16 @@ def run_trials(trials, args):
                                                        num_ctx=args.num_ctx, temperature=args.temperature,
                                                        seed=args.seed + trial_index, tools=agent_tools,
                                                        system_prompt=system_prompt,
-                                                       memory_backend=memory_backend)
+                                                       memory_backend=memory_backend,
+                                                       workspace_dir=workspace_dir)
                             finally:
                                 context.close()
                     except Exception as exc:
                         result.stop_reason, result.error = "browser_error", str(exc)
                         result.answer = ""
+                    finally:
+                        if workspace_copy is not None:
+                            shutil.rmtree(workspace_copy, ignore_errors=True)
                     result.latency_ms = int((time.monotonic() - start) * 1000)
                     memory_config = {}
                     if memory_backend is not None:
@@ -326,6 +384,10 @@ def run_trials(trials, args):
                                          "memory_statistics": stats,
                                          "attack_target": trial.get("attack_target"),
                                          "poisoned_document_ids": trial.get("poisoned_document_ids", [])}
+                    workspace_config = {}
+                    if workspace_src is not None:
+                        ws_stats = workspace_statistics(result)
+                        workspace_config = {"workspace_statistics": ws_stats}
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "base_url": args.base_url, "timeout": args.timeout,
                         "max_steps": args.max_steps, "viewport": VIEWPORT, "num_ctx": args.num_ctx,
@@ -333,6 +395,7 @@ def run_trials(trials, args):
                         "trial": trial_index, "tools": enabled_tool_names,
                         "system_prompt": system_prompt,
                         **memory_config,
+                        **workspace_config,
                     })
                     notes = f"stop={result.stop_reason}; steps={result.steps}; trace={trace}"
                     notes += f"; max_prompt_tokens={result.max_prompt_tokens}"
@@ -344,6 +407,10 @@ def run_trials(trials, args):
                     if memory_backend is not None:
                         notes += (f"; memory_calls={stats['calls']}; memory_exposed={int(stats['poison_exposed'])}"
                                   f"; memory_target_hit={json.dumps(stats['target_hit'])}")
+                    if workspace_src is not None:
+                        notes += (f"; file_list_calls={ws_stats['list_calls']}"
+                                  f"; file_read_calls={ws_stats['read_calls']}"
+                                  f"; files_read={','.join(ws_stats['files_read'])}")
                     if result.error:
                         notes += f"; error={result.error}"
                     correct, extracted = (grade(result.answer, trial["ground_truth"],
