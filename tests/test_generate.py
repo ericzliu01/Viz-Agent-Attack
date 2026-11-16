@@ -436,3 +436,29 @@ def test_generate_all_resumes_from_cache(tmp_path, monkeypatch):
     assert client.messages.create.call_count == calls_after_first  # fully cached
     assert {i.instance_id for i in first} == {i.instance_id for i in second}
     assert {i.cell for i in first} >= {"TT", "MT", "TM", "MM"}
+
+
+# --- $schema normalization of persisted specs ---
+_WRONG_SCHEMA = "https://vega-lite.github.io/schema/v5.json"
+_CANON_SCHEMA = "https://vega.github.io/schema/vega-lite/v5.json"
+
+
+def test_stage1_stores_canonical_schema(tmp_path, monkeypatch):
+    csv = _write(tmp_path, "t.csv", FANOUT_CSV)
+    reply = json.loads(_stage1_reply())
+    for spec in reply["charts"].values():
+        spec["$schema"] = _WRONG_SCHEMA
+    _patch_complete(monkeypatch, json.dumps(reply))
+    insts = stage1(csv, "filter", examples={}, client=object())
+    assert insts and all(i.charts[0]["$schema"] == _CANON_SCHEMA for i in insts)
+
+
+def test_stage2_stores_canonical_schema(monkeypatch):
+    clean = _clean_bar_spec()
+    inst = _clean_instance("bar", clean)
+    reply = json.loads(_stage2_reply(clean))
+    text = json.dumps(reply).replace(_CANON_SCHEMA, _WRONG_SCHEMA)
+    _patch_complete(monkeypatch, text)
+    goal = Goal(target_option="c", goal="downplay the rise")
+    insts = stage2(inst, goal, clean_png=b"C", client=object(), judge=_TRUE_JUDGE)
+    assert insts and all(i.charts[0]["$schema"] == _CANON_SCHEMA for i in insts)

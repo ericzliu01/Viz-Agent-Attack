@@ -14,6 +14,18 @@ repo's existing ``browser_agent.chart_rendered`` sanity check.
 import html as html_lib
 import json
 
+# Canonical Vega-Lite schema URL. An LLM-authored spec sometimes carries a
+# slightly wrong host, which makes vega-embed throw and render nothing.
+VEGA_LITE_SCHEMA = "https://vega.github.io/schema/vega-lite/v5.json"
+
+
+def canonical_schema(spec: dict) -> dict:
+    """Return a shallow copy of ``spec`` with ``$schema`` set to the canonical URL."""
+    out = dict(spec)
+    out["$schema"] = VEGA_LITE_SCHEMA
+    return out
+
+
 # Vendored library filenames (relative to vendor_prefix). Never a CDN URL.
 VEGA_JS = "vega-5.33.1.min.js"
 VEGA_LITE_JS = "vega-lite-5.23.0.min.js"
@@ -60,7 +72,7 @@ def render_html(charts: list[dict], title: str, subtitle: str,
     for index, spec in enumerate(charts):
         chart_id = f"chart-{index}"
         cards.append(f'  <div id="{chart_id}"></div>')
-        pretty = json.dumps(spec, indent=2)
+        pretty = json.dumps(canonical_schema(spec), indent=2)
         scripts.append(
             f'const spec{index} = {pretty};\n'
             f'vegaEmbed("#{chart_id}", spec{index}, {{ actions: false }});'

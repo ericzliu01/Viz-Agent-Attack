@@ -265,7 +265,7 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
             correct_index=correct_index,
             sql=qa["sql"],
             description=qa.get("description", ""),
-            charts=[spec],
+            charts=[charts.canonical_schema(spec)],
             library=library,
         ))
 
@@ -465,6 +465,9 @@ def stage2_all(clean_instances, shared_goal, clean_pngs=None, client=None,
 def _accept_misleader(clean_spec, spec, mid, ci, shared_goal, judge, clean_png, client):
     if spec is None:
         return False
+    # Normalize first: the clean spec's $schema is canonical, so a wrong host in
+    # the authored spec would otherwise trip the allowed_changed_keys invariant.
+    spec = charts.canonical_schema(spec)
     try:
         misleader_invariant(clean_spec, spec, mid)
     except (InvariantError, KeyError, TypeError):
@@ -483,7 +486,7 @@ def _mt_instance(clean_instance, shared_goal, mid, spec, desc) -> InstanceSpec:
         instance_id=f"{clean_instance.base_id}:MT:{mid}",
         cell="MT",
         direction="none",
-        charts=[spec],
+        charts=[charts.canonical_schema(spec)],
         misleader={
             "misleader_id": mid,
             "goal": shared_goal.goal,

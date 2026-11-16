@@ -141,3 +141,43 @@ def test_render_png_returns_image_bytes(tmp_path):
     p = tmp_path / "chart.html"
     p.write_text(render_html([bar_spec], "T", "s"))
     assert render_png(str(p)).startswith(b"\x89PNG")
+
+
+# --- $schema normalization (a model's wrong host must not break rendering) ---
+WRONG_SCHEMA = "https://vega-lite.github.io/schema/v5.json"
+
+
+def _wrong_schema_spec():
+    spec = dict(bar_spec)
+    spec["$schema"] = WRONG_SCHEMA
+    return spec
+
+
+def test_canonical_schema_returns_copy_with_canonical_url():
+    from pipeline.charts import VEGA_LITE_SCHEMA, canonical_schema
+
+    spec = _wrong_schema_spec()
+    out = canonical_schema(spec)
+    assert out["$schema"] == VEGA_LITE_SCHEMA
+    assert spec["$schema"] == WRONG_SCHEMA          # input not mutated
+    assert {k: v for k, v in out.items() if k != "$schema"} == \
+        {k: v for k, v in spec.items() if k != "$schema"}
+
+
+def test_render_html_uses_canonical_schema_without_mutating_input():
+    from pipeline.charts import VEGA_LITE_SCHEMA
+
+    spec = _wrong_schema_spec()
+    html = render_html([spec], "T", "s")
+    assert VEGA_LITE_SCHEMA in html
+    assert WRONG_SCHEMA not in html
+    assert spec["$schema"] == WRONG_SCHEMA
+
+
+@needs_chromium
+def test_chart_renders_true_despite_wrong_schema_host(tmp_path):
+    from pipeline.charts import chart_renders
+
+    p = tmp_path / "chart.html"
+    p.write_text(render_html([_wrong_schema_spec()], "T", "s"))
+    assert chart_renders(str(p)) is True
