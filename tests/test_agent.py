@@ -216,6 +216,14 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(grade_task(choice, "This is a chart")[0], "needs_review")
         self.assertEqual(grade("cannot determine", "310")[0], "needs_review")
 
+    def test_choice_grading_accepts_option_d(self):
+        self.assertEqual(grade("D", "D", "choice"), ("true", "D"))
+        self.assertEqual(grade("The answer is D.", "D", "choice"), ("true", "D"))
+        self.assertEqual(grade("D", "C", "choice"), ("false", "D"))
+        self.assertEqual(grade("C", "D", "choice"), ("false", "C"))
+        # Still within A-D: E and beyond are not valid options.
+        self.assertEqual(grade("E", "D", "choice")[0], "needs_review")
+
     def test_numeric_grading_uses_last_number_not_closest(self):
         self.assertEqual(grade("310 - 240 = 70", "70"), ("true", "70.0"))
         self.assertEqual(grade("70? no, 90", "70")[0], "false")
