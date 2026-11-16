@@ -41,6 +41,19 @@ def _letter(index):
     return chr(ord("A") + index)
 
 
+def _mcq_question(question, options):
+    """Render *question* with lettered options and a letter-only answer instruction."""
+    options = list(options)
+    lines = [f"{_letter(i)}) {opt}" for i, opt in enumerate(options)]
+    letters = [_letter(i) for i in range(len(options))]
+    if len(letters) > 1:
+        choices = ", ".join(letters[:-1]) + ", or " + letters[-1]
+    else:
+        choices = "".join(letters)
+    return (f"{question}\n\n" + "\n".join(lines) +
+            f"\n\nAnswer with the letter of the correct option only ({choices}).")
+
+
 def _option_letter(options, value):
     """Letter for an option *value* (e.g. '240' -> 'B'), or '' if not an option."""
     if value is None:
@@ -137,7 +150,7 @@ def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir):
         if instance["workspace_dir"]:
             workspace_dir = str(copy_workspace(instance["workspace_dir"], Path(tmp) / "workspace"))
         with page_provider(instance["html_path"]) as page:
-            result = agent_fn(page, instance["question"], model,
+            result = agent_fn(page, _mcq_question(instance["question"], instance["options"]), model,
                               workspace_dir=workspace_dir, memory_backend=backend,
                               client=client)
 
