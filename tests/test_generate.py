@@ -462,3 +462,26 @@ def test_stage2_stores_canonical_schema(monkeypatch):
     goal = Goal(target_option="c", goal="downplay the rise")
     insts = stage2(inst, goal, clean_png=b"C", client=object(), judge=_TRUE_JUDGE)
     assert insts and all(i.charts[0]["$schema"] == _CANON_SCHEMA for i in insts)
+
+
+# --- _parse_misleaders: flat and nested shapes ---
+def test_parse_misleaders_flat_shape():
+    text = json.dumps({"misleaders": [
+        {"misleader_id": "truncated_axis", "spec": {"a": 1}, "description": "d"}]})
+    assert list(generate._parse_misleaders(text)) == [("truncated_axis", {"a": 1}, "d")]
+
+
+def test_parse_misleaders_nested_charts_shape():
+    text = json.dumps({"charts": {"bar": {"misleaders": [
+        {"misleader_id": "highlight_decoy", "spec": {"b": 2}, "description": "d"}]}}})
+    assert list(generate._parse_misleaders(text)) == [("highlight_decoy", {"b": 2}, "d")]
+
+
+def test_stage2_tolerates_nested_charts_reply(monkeypatch):
+    clean = _clean_bar_spec()
+    inst = _clean_instance("bar", clean)
+    flat = json.loads(_stage2_reply(clean))
+    _patch_complete(monkeypatch, json.dumps({"charts": {"bar": flat}}))
+    goal = Goal(target_option="c", goal="downplay the rise")
+    insts = stage2(inst, goal, clean_png=b"C", client=object(), judge=_TRUE_JUDGE)
+    assert insts and all(i.cell == "MT" for i in insts)

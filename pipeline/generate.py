@@ -497,15 +497,29 @@ def _mt_instance(clean_instance, shared_goal, mid, spec, desc) -> InstanceSpec:
 
 
 def _parse_misleaders(text):
-    """Yield ``(misleader_id, spec, description)`` from a stage-2 reply."""
+    """Yield ``(misleader_id, spec, description)`` from a stage-2 reply.
+
+    Tolerates both documented shapes: flat ``{"misleaders": [...]}`` and nested
+    (batched) ``{"charts": {"bar": {"misleaders": [...]}, ...}}``.
+    """
     try:
         obj = parse_json_block(text)
     except LLMFormatError:
         return
-    for entry in obj.get("misleaders", []):
-        if isinstance(entry, dict):
-            yield (entry.get("misleader_id"), entry.get("spec"),
-                   entry.get("description", ""))
+    if not isinstance(obj, dict):
+        return
+    lists = [obj.get("misleaders")]
+    charts = obj.get("charts")
+    if isinstance(charts, dict):
+        lists.extend(v.get("misleaders") for v in charts.values()
+                     if isinstance(v, dict))
+    for entries in lists:
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if isinstance(entry, dict):
+                yield (entry.get("misleader_id"), entry.get("spec"),
+                       entry.get("description", ""))
 
 
 def _clean_png_map(clean_instances, clean_pngs):
