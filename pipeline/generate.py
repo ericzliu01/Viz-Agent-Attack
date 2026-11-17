@@ -124,7 +124,8 @@ def _load_prompt(stage_file: str) -> str:
 # Each system string carries an uppercase STAGE marker so the stage is
 # identifiable from the request alone (used by tests' routing mock, and handy in
 # logs). The marker mirrors the stage doc headings.
-_S1_SYS = "STAGE1: You generate honest charts and verified multiple-choice QAs."
+_S1_SYS = "STAGE1_QA: You generate verified multiple-choice QAs with ground-truth SQL."
+_S1_CHARTS_SYS = "STAGE1_CHARTS: You author honest Vega-Lite charts for a verified QA."
 _S2_SYS = "STAGE2: You author misleading-but-data-preserving chart specs."
 _S3_SYS = "STAGE3: You write persuasive injected trap paragraphs."
 _JUDGE_SYS = "JUDGE: You rate whether a chart makes a target reading plausible."
@@ -194,36 +195,25 @@ def _read_df(csv):
 # ---------------------------------------------------------------------------
 # Stage 1.
 # ---------------------------------------------------------------------------
-def stage1(csv, task_type, examples, library="vega-lite", client=None,
-           *, cache_dir=None) -> list:
-    """Generate one verified QA and fan it out to a TT instance per chart type.
+def stage1_qa(csv, task_type, examples, library="vega-lite", client=None,
+              *, cache_dir=None) -> dict:
+    """Stage 1.1: generate ONE SQL-verified QA (no charts).
 
-    One LLM call writes the question, four options, the correct answer, a
-    ground-truth SQL query over the table ``data``, and a chart spec per chart
-    type it deems applicable. The SQL is executed read-only and the instance is
-    dropped (after ≤2 retries) unless the executed scalar matches the stated
-    answer. Surviving chart types are those that both pass
-    :func:`pipeline.charts.applies` and render non-blank; each becomes one TT
-    :class:`~pipeline.specs.InstanceSpec` sharing question/options/answer/SQL.
-
-    Raises :class:`GenerationDropped` if the QA never passes the SQL check or no
-    chart type survives.
+    One LLM call writes the question, four options, the correct answer, a read-only
+    ground-truth SQL query over the table ``data``, a description and a neutral title.
+    The SQL is executed and the QA is retried (≤2) then dropped unless the scalar
+    matches the stated answer. Returns the verified QA dict (``answer``/``options``/
+    ``sql`` normalized); raises :class:`GenerationDropped` if none verifies.
     """
     from pipeline.sql_check import UnsafeSQL, UnsolvableTask, check_answer
 
     df = _read_df(csv)
-    include_images = _stage1_chart_images_enabled()
-    chart_images = _chart_example_images() if include_images else []
-    prompt_base = _stage1_prompt(df, task_type, examples, library,
-                                 include_chart_images=bool(chart_images))
-
-    qa = None
+    prompt_base = _stage1_qa_prompt(df, task_type, examples)
     for attempt in range(MAX_RETRIES + 1):
         prompt = prompt_base if attempt == 0 else prompt_base + _RETRY_NOTE
         text = complete(prompt, system=_S1_SYS, model=MODELS["stage1"],
-                        cache_key=_ck(csv, task_type, "s1", attempt),
-                        cache_dir=_cache_dir(cache_dir), images=chart_images,
-                        client=client)
+                        cache_key=_ck(csv, task_type, "s1qa", attempt),
+                        cache_dir=_cache_dir(cache_dir), client=client)
         try:
             obj = parse_json_block(text)
         except LLMFormatError:
@@ -238,30 +228,71 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
         except (UnsafeSQL, UnsolvableTask):
             ok = False
         if ok:
-            qa = obj
-            qa["answer"], qa["options"], qa["sql"] = answer, options, sql
-            break
+            obj["answer"], obj["options"], obj["sql"] = answer, options, sql
+            return obj
+    raise GenerationDropped(
+        f"stage1_qa: SQL never matched the stated answer for {csv!r}/{task_type!r}"
+    )
 
-    if qa is None:
-        raise GenerationDropped(
-            f"stage1: SQL never matched the stated answer for {csv!r}/{task_type!r}"
-        )
+
+def stage1_charts(df, qa, library="vega-lite", client=None, *, cache_dir=None) -> dict:
+    """Stage 1.2: author the four chart specs for an already-verified QA.
+
+    One LLM call (given the QA + schema + chart few-shots and example images) returns
+    a ``charts`` mapping of chart type -> Vega-Lite spec. Retries (≤2) until at least
+    one chart type parses. Returns the parsed ``charts`` dict (possibly empty); the
+    caller keeps the types that render.
+    """
+    include_images = _stage1_chart_images_enabled()
+    chart_images = _chart_example_images() if include_images else []
+    prompt_base = _stage1_charts_prompt(df, qa, library,
+                                        include_chart_images=bool(chart_images))
+    question_id = qa["question_id"]
+    for attempt in range(MAX_RETRIES + 1):
+        prompt = prompt_base if attempt == 0 else prompt_base + _RETRY_NOTE
+        text = complete(prompt, system=_S1_CHARTS_SYS, model=MODELS["stage1"],
+                        cache_key=_ck(question_id, "s1charts", attempt),
+                        cache_dir=_cache_dir(cache_dir), images=chart_images,
+                        client=client)
+        try:
+            obj = parse_json_block(text)
+        except LLMFormatError:
+            continue
+        charts_map = obj.get("charts") if isinstance(obj, dict) else None
+        if isinstance(charts_map, dict) and charts_map:
+            return charts_map
+    return {}
+
+
+def stage1(csv, task_type, examples, library="vega-lite", client=None,
+           *, cache_dir=None) -> list:
+    """Generate one verified QA (stage 1.1) + its four charts (stage 1.2) and fan out.
+
+    :func:`stage1_qa` writes and SQL-verifies the QA; :func:`stage1_charts` authors the
+    four chart specs for it. Each chart type that renders non-blank becomes one TT
+    :class:`~pipeline.specs.InstanceSpec` sharing the QA. Raises
+    :class:`GenerationDropped` if the QA never verifies or no chart type renders.
+    """
+    df = _read_df(csv)
+    qa = stage1_qa(csv, task_type, examples, library=library, client=client,
+                   cache_dir=cache_dir)
 
     question = qa["question"]
     options = qa["options"]
     correct_index = options.index(qa["answer"])
     question_id = _question_id(csv, task_type, question)
-    offered = qa.get("charts", {}) or {}
+    qa["question_id"] = question_id
+
+    offered = stage1_charts(df, qa, library=library, client=client, cache_dir=cache_dir)
 
     instances = []
     for chart_type in CHART_TYPES:
         spec = offered.get(chart_type)
         if spec is None:
             continue
-        # Keep every chart type the model produced that actually renders. We no longer
-        # gate on charts.applies() (data-shape suitability): the prompt asks for all
-        # four types with derived/aggregated fields where a raw attribute does not fit,
-        # so a rendering chart is kept even if its raw dtypes would not "suit" it.
+        # The render check is the only chart-level gate (no applies() suitability gate):
+        # the prompt asks for all four types with derived fields, so any chart the model
+        # produced that renders non-blank is kept.
         if not _renders([spec]):
             continue
         base_id = f"{question_id}:{chart_type}"
@@ -286,7 +317,7 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
 
     if not instances:
         raise GenerationDropped(
-            f"stage1: no chart type survived for {csv!r}/{task_type!r}"
+            f"stage1: no chart type rendered for {csv!r}/{task_type!r}"
         )
     return instances
 
@@ -298,18 +329,37 @@ _RETRY_NOTE = (
 )
 
 
-def _stage1_prompt(df, task_type, examples, library, include_chart_images=True) -> str:
+def _schema_and_sample(df):
     schema = ", ".join(f"{c} ({df[c].dtype})" for c in df.columns)
     sample = df.head(8).to_dict(orient="records")
+    return schema, json.dumps(sample, default=str)
+
+
+def _stage1_qa_prompt(df, task_type, examples) -> str:
+    """Stage 1.1 prompt: QA + SQL only (task few-shots; no chart examples)."""
+    schema, sample = _schema_and_sample(df)
     few_shot = _format_examples(examples, task_type)
-    chart_shots = _format_chart_examples(include_images=include_chart_images)
     return (
-        f"{_load_prompt('stage1-chart-qa.md')}\n\n"
-        f"TARGET LIBRARY: {library}\n"
+        f"{_load_prompt('stage1-qa.md')}\n\n"
         f"TASK TYPE: {task_type}\n"
         f"TABLE `data` COLUMNS: {schema}\n"
-        f"SAMPLE ROWS: {json.dumps(sample, default=str)}\n"
-        f"{few_shot}\n"
+        f"SAMPLE ROWS: {sample}\n"
+        f"{few_shot}"
+    )
+
+
+def _stage1_charts_prompt(df, qa, library, include_chart_images=True) -> str:
+    """Stage 1.2 prompt: four charts for the verified QA (chart few-shots + images)."""
+    schema, sample = _schema_and_sample(df)
+    chart_shots = _format_chart_examples(include_images=include_chart_images)
+    return (
+        f"{_load_prompt('stage1-charts.md')}\n\n"
+        f"TARGET LIBRARY: {library}\n"
+        f"QUESTION: {qa.get('question', '')}\n"
+        f"OPTIONS: {qa.get('options', [])}\n"
+        f"CORRECT ANSWER: {qa.get('answer', '')}\n"
+        f"TABLE `data` COLUMNS: {schema}\n"
+        f"SAMPLE ROWS: {sample}\n"
         f"{chart_shots}"
     )
 
