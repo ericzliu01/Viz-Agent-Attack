@@ -1,15 +1,16 @@
 // Browser smoke check for llm_taskgen pages (run by tests/test_llm_taskgen.py).
-// Usage: NODE_PATH=$(npm root -g) node llm_taskgen/browser_check.js <pages_dir> <examples.json> [--all]
+// Usage: NODE_PATH=$(npm root -g) node llm_taskgen/browser_check.js <pages_dir> <examples.json> [--all] [--prefix=cx_]
 // Default sample: every clean page in every library, plus every page-carrier TM page in Plotly
 // (the library with the largest injected <head>). Exits 1 on any failure.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
 const [ROOT_ARG, EXAMPLES] = process.argv.slice(2), ROOT = path.resolve(ROOT_ARG), ALL = process.argv.includes("--all");
 const TEXT_LIMIT = 30000;  // browser_agent.TEXT_LIMIT: the 'dom' tool's cut-off
+const PFX = (process.argv.find(a => a.startsWith("--prefix=")) || "--prefix=lx_").slice(9);
 const ex = JSON.parse(fs.readFileSync(EXAMPLES));
 const claims = {};
 for (const c of ex.examples) for (const t of c.tasks) for (const a of t.attacks)
-  if (a.claim_text) claims[`attack_lx_${a.technique}__lx_${t.task_id}.html`] = [a.technique, a.claim_text];
+  if (a.claim_text) claims[`attack_${PFX}${a.technique}__${PFX}${t.task_id}.html`] = [a.technique, a.claim_text];
 const PAGE_CARRIERS = ["dom_injection", "css_hidden_text", "alt_text_bias", "aria_deception", "automation_cloak"];
 
 (async () => {
@@ -18,7 +19,7 @@ const PAGE_CARRIERS = ["dom_injection", "css_hidden_text", "alt_text_bias", "ari
   const fails = [];
   let n = 0;
   for (const lib of ["vega-lite", "plotly", "chartjs", "d3"]) {
-    for (const f of fs.readdirSync(path.join(ROOT, lib)).filter(f => f.includes("lx_") && f.endsWith(".html")).sort()) {
+    for (const f of fs.readdirSync(path.join(ROOT, lib)).filter(f => f.includes("__" + PFX) && f.endsWith(".html")).sort()) {
       const tm = claims[f];
       const wanted = ALL || f.startsWith("clean_") || (lib === "plotly" && tm && PAGE_CARRIERS.includes(tm[0]));
       if (!wanted) continue;

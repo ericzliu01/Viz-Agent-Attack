@@ -14,6 +14,7 @@ any tool result in its trace (dom, accessibility, console, evaluate output). Cla
 seen only in a screenshot (the automation_cloak note) are not detected this way.
 
 Usage: python -m llm_taskgen.summarize [--pages-metadata] results/<run>/results.csv [more.csv ...]
+       python -m llm_taskgen.summarize --prefix cx_ --examples tasks/csv_tasks/tasks.json results/<run>/results.csv
 """
 import csv
 import html
@@ -28,6 +29,7 @@ from llm_taskgen.core import TECHNIQUES
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = ROOT / "pages"
 EXAMPLES = ROOT / "tasks/llm_examples/task-attack-examples.json"
+PREFIX = "lx_"
 PAGE_TM = {"dom_injection", "css_hidden_text", "aria_deception", "alt_text_bias", "console_false_claim",
            "automation_cloak"}
 
@@ -62,7 +64,7 @@ def exposed(row, claim, base_dir):
 def page_metas():
     """Attack metadata keyed by attack_id from the built pages (fallback for old runs)."""
     out = {}
-    for p in PAGES.glob("*/attack_lx_*.meta.json"):
+    for p in PAGES.glob(f"*/attack_{PREFIX}*.meta.json"):
         m = json.loads(p.read_text())
         out[m["attack_id"]] = m
     return out
@@ -82,7 +84,7 @@ def load_rows(paths, pages_metadata=False):
         claim_of = claims()
         for r in csv.DictReader(open(path, encoding="utf-8")):
             aid = r["attack_id"]
-            if "lx_" not in aid:
+            if f"__{PREFIX}" not in aid:
                 continue
             base_id = aid.removesuffix("__clean_baseline")
             if aid.startswith("clean_"):
@@ -99,8 +101,8 @@ def load_rows(paths, pages_metadata=False):
                     raise KeyError(f"no metadata for {aid}: build the pages or keep trial_metadata.json")
             m = m or {}
             ds = aid.split("__")[1]
-            tech = m.get("technique") or (base_id.split("__")[0][len("lx_"):] if kind != "clean" else None)
-            task_id = ds[len("lx_"):]
+            tech = m.get("technique") or (base_id.split("__")[0][len(PREFIX):] if kind != "clean" else None)
+            task_id = ds[len(PREFIX):]
             exp = None
             if kind == "attack" and tech in PAGE_TM and (task_id, tech) in claim_of:
                 exp = exposed(r, claim_of[(task_id, tech)], Path(path).parent)
@@ -183,6 +185,17 @@ def summarize(rows):
 
 
 def main(argv):
+    global PREFIX, EXAMPLES
+    argv = list(argv)
+    for opt in ("--prefix", "--examples"):
+        if opt in argv:
+            i = argv.index(opt)
+            val = argv[i + 1]
+            del argv[i:i + 2]
+            if opt == "--prefix":
+                PREFIX = val
+            else:
+                EXAMPLES = Path(val)
     flag = "--pages-metadata" in argv
     print(summarize(load_rows([a for a in argv if a != "--pages-metadata"], pages_metadata=flag)))
 
