@@ -84,6 +84,54 @@ def extract_numbers(text):
 CHOICE_PREFIX_RE = re.compile(r"^(the\s+answer\s+is|answer)\s*:?\s*", re.IGNORECASE)
 
 
+_WRAP_LEAD = re.compile(r'^[\*`\(\[\"\'\s]+')
+_WRAP_TAIL = re.compile(r'[\*`\)\]\"\'\.\:\s]+$')
+_DECL_RE = re.compile(
+    r'(?:final\s+answer|the\s+answer\s+is|answer|option|choice)\b[\s:=\-]*'
+    r'[\*`\(\[]*\s*([A-Da-d])\b', re.IGNORECASE)
+
+
+def _standalone_letter(text):
+    """Return the single A-D letter if ``text`` is one option with only harmless
+    wrappers (``A``, ``**A**``, ``(A)``, `` `A` ``, ``A.``); else None."""
+    t = _WRAP_TAIL.sub("", _WRAP_LEAD.sub("", text.strip()))
+    return t.upper() if len(t) == 1 and t.upper() in ("A", "B", "C", "D") else None
+
+
+def parse_choice(response):
+    """Conservatively extract a single A-D answer, or None (-> needs_review).
+
+    Deterministic, never scans arbitrary prose for a stray A-D. Accepts: (1) the whole
+    response as a standalone option, (2) an explicit declaration ("Final answer: A"),
+    (3) a standalone option on the final non-empty line after an explanation. Any
+    conflict or ambiguity ("A or B", disagreeing signals) returns None.
+    """
+    text = (response or "").strip()
+    if not text:
+        return None
+
+    candidates = []
+    whole = _standalone_letter(text)
+    if whole:
+        candidates.append(whole)
+
+    for m in _DECL_RE.finditer(text):
+        rest = text[m.end():].lstrip()
+        if re.match(r'(?:or|and|/|,|\|)\s*[A-Da-d]\b', rest, re.IGNORECASE):
+            return None  # "answer: A or B" -> ambiguous
+        candidates.append(m.group(1).upper())
+
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if lines:
+        last = _standalone_letter(lines[-1])
+        if last:
+            candidates.append(last)
+
+    if not candidates or len(set(candidates)) != 1:
+        return None  # nothing clear, or conflicting signals
+    return candidates[0]
+
+
 def grade(response, ground_truth, answer_type="free"):
     """Return (correct, extracted_answer) where correct is 'true'/'false'/'needs_review'.
 
@@ -97,13 +145,9 @@ def grade(response, ground_truth, answer_type="free"):
     resp = (response or "").strip()
 
     if answer_type == "choice":
-        if not resp:
+        letter = parse_choice(resp)
+        if letter is None:
             return "needs_review", ""
-        stripped = CHOICE_PREFIX_RE.sub("", resp).strip(" \t\n.():\"'")
-        first_token = re.split(r"[\s,.;:)]", stripped, maxsplit=1)[0] if stripped else ""
-        if len(first_token) != 1 or first_token.upper() not in ("A", "B", "C", "D"):
-            return "needs_review", ""
-        letter = first_token.upper()
         return ("true" if letter == ground_truth.strip().upper() else "false"), letter
 
     lower = resp.lower()
