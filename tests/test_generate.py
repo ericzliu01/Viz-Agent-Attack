@@ -372,6 +372,19 @@ def test_stage3_variants_share_identical_payload():
     assert tm.trap["trap_group_id"] == mm.trap["trap_group_id"]
 
 
+def test_stage3_variants_tm_target_matches_payload_target():
+    # correct = "136" (index 0), so the FIRST wrong option is "200". The goal's
+    # target here is "90" (NOT the first wrong option). A TM-only variant must
+    # carry the payload's target ("90"), not the recomputed first distractor.
+    options = ["136", "200", "90", "310"]
+    clean = _clean_instance("bar", _clean_bar_spec(), options=options)
+    variants = stage3_variants(clean, None, "perception_facts", "css_hidden",
+                               "same", payload="PAYLOAD", target="90")
+    tm = next(v for v in variants if v.cell == "TM")
+    assert tm.trap["target_option"] == "90"
+    assert tm.trap["target_option"] != "200"  # not the first wrong option
+
+
 def test_stage3_variants_skip_incompatible_channel():
     options = ["136", "200", "90", "310"]
     clean = _clean_instance("bar", _clean_bar_spec(), options=options)

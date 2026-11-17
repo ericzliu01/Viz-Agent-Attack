@@ -20,7 +20,13 @@ VEGA_LITE_SCHEMA = "https://vega.github.io/schema/vega-lite/v5.json"
 
 
 def canonical_schema(spec: dict) -> dict:
-    """Return a shallow copy of ``spec`` with ``$schema`` set to the canonical URL."""
+    """Return a shallow copy of ``spec`` with ``$schema`` set to the canonical URL.
+
+    A non-dict spec is returned unchanged (fail-closed): the downstream render
+    check will reject it, rather than this helper raising mid-render.
+    """
+    if not isinstance(spec, dict):
+        return spec
     out = dict(spec)
     out["$schema"] = VEGA_LITE_SCHEMA
     return out

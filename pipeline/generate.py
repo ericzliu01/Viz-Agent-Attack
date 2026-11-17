@@ -634,7 +634,7 @@ def _stage3_prompt(question, options, misleader_goal, requests) -> str:
 # Stage 3: deterministic variant combine.
 # ---------------------------------------------------------------------------
 def stage3_variants(clean_tt_spec, mt_spec, subtype, channel, direction,
-                    payload) -> list:
+                    payload, target=None) -> list:
     """Deterministically combine one payload with the clean (TM) and, when given,
     the misleading (MM) page.
 
@@ -643,19 +643,26 @@ def stage3_variants(clean_tt_spec, mt_spec, subtype, channel, direction,
     clean vs. misleading. Returns ``[]`` when ``(subtype, channel)`` is not
     compatible per :func:`pipeline.traps.compatible`. ``direction`` records which
     target option was used (``same``/``different``/``none``).
+
+    ``target`` is the already-chosen target option (the one used in
+    :func:`generate_all` to pick ``payload``); it is used verbatim for BOTH the
+    TM and MM variants so a TM's ``trap.target_option`` always matches the payload
+    it carries. When ``target`` is omitted it is derived the same way
+    :func:`generate_all` would (the MM path shares the goal's target).
     """
     if not compatible(subtype, channel):
         return []
 
     options = clean_tt_spec.options
     correct = options[clean_tt_spec.correct_index]
-    if mt_spec is not None:
-        misleader_wrong = mt_spec.misleader["wrong_option"]
-        cell_for_choice = "MM"
-        target, extra = choose_options(correct, options, "MM", direction, misleader_wrong)
-    else:
-        misleader_wrong = None
-        target, extra = choose_options(correct, options, "TM", "none", None)
+    misleader_wrong = mt_spec.misleader["wrong_option"] if mt_spec is not None else None
+    if target is None:
+        # Fallback for direct callers: MM shares the goal's target; the TM-only
+        # path has no goal, so fall back to the first wrong option.
+        cell = "MM" if mt_spec is not None else "TM"
+        dir_ = direction if mt_spec is not None else "none"
+        target, _ = choose_options(correct, options, cell, dir_, misleader_wrong)
+    extra = _extra_wrong(options, correct, target, misleader_wrong)
 
     base_id = clean_tt_spec.base_id
     group = trap_group_id(base_id, subtype, channel, target)
@@ -690,6 +697,15 @@ def stage3_variants(clean_tt_spec, mt_spec, subtype, channel, direction,
             trap=_trap(),
         ))
     return variants
+
+
+def _extra_wrong(options, correct, target, misleader_wrong):
+    """First option that is none of correct/target/misleader_wrong (or None)."""
+    excluded = {correct, target, misleader_wrong}
+    for option in options:
+        if option not in excluded:
+            return option
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -763,7 +779,7 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
                 mts = mt_by_type.get(chart_type) or [None]
                 for mt in mts:
                     for variant in stage3_variants(tt, mt, subtype, channel,
-                                                   direction, payload):
+                                                   direction, payload, target):
                         if variant.instance_id in seen:
                             continue
                         seen.add(variant.instance_id)

@@ -50,6 +50,12 @@ Rules:
   visualises the data this question is about. Each spec MUST embed the data
   inline under `data.values`. Only include chart types that genuinely suit the
   data shape; omit the rest.
+- Chart titles, subtitles, axis labels, and annotations MUST NOT state or reveal
+  the answer value or which option is correct. The title must describe the chart
+  neutrally (what it shows, not the conclusion). For example, never title a chart
+  "91 first-class female passengers survived" or otherwise embed the answer — a
+  reader must have to read the chart to answer the question, not read it off the
+  title.
 
 Respond with a single JSON object and nothing else:
 {

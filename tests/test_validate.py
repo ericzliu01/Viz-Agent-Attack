@@ -148,6 +148,15 @@ def test_sql_in_served_file_is_leak(tmp_path):
     assert any("leak" in m for m in failures)
 
 
+def test_sql_in_spec_json_is_leak(tmp_path):
+    # spec.json is a served file, so the leak scan must cover it too (guards
+    # against a future split_grader regression that lets the SQL reach it).
+    spec, inst, grader = _build_tm(tmp_path)
+    (inst / "spec.json").write_text(json.dumps({"sql": SQL}))
+    failures = validate_instance(spec, inst, grader)
+    assert any("leak" in m and "spec.json" in m for m in failures)
+
+
 def test_displayed_wrong_option_is_not_leak(tmp_path):
     # The four choices (incl. the wrong ones) ARE meant to be on the page: the
     # embedded chart data already carries the option values (180/240/155/310).
