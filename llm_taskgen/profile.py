@@ -2,7 +2,9 @@
 
 Each column gets one role:
   measure   numeric with many distinct values (mean is meaningful)
-  category  2-30 distinct values (strings, booleans or small integer codes)
+  category  2-100 distinct values (strings, booleans or integer codes with <= 12 values); also
+            panel columns with <= 300 levels that each repeat >= 5 times, and long-tail columns
+            whose 8 most common levels cover >= 60% of rows (only the top levels are charted)
   binary    a category with exactly two values (also usable as a rate: % of rows at one level)
   year      integer years, or a date column (a derived <col>_year column is added)
   skip      ids, codes, coordinates, free text, multi-valued lists, mostly-missing columns
@@ -51,8 +53,36 @@ def read_table(path):
     sep = "\t" if path.suffix.lower() in (".tsv", ".tab") else None
     df = pd.read_csv(path, sep=sep, engine="python" if sep is None else "c",
                      encoding="utf-8-sig", encoding_errors="replace", on_bad_lines="skip")
-    df.columns = [str(c).strip() for c in df.columns]
+    cols, seen = [], {}
+    for c in (str(c).strip() for c in df.columns):  # headers equal after trimming get .1, .2
+        seen[c] = seen.get(c, -1) + 1
+        cols.append(c if seen[c] == 0 else f"{c}.{seen[c]}")
+    df.columns = cols
     return df
+
+
+THOUSANDS = re.compile(r"^-?\d{1,3}(,\d{3})+(\.\d+)?$")
+DECIMAL_COMMA = re.compile(r"^-?\d+,\d+$")
+DATE_SHAPE = re.compile(r"\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,4})?|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec", re.I)
+
+
+def coerce_numeric(s):
+    """Numbers, also when written with thousands separators, a decimal comma, or a
+    leading $ / trailing % or + (e.g. "1,234", "15,34", "$7.99", "45%", "10,000+")."""
+    if s.dtype == bool:
+        return s.astype(float)
+    num = pd.to_numeric(s, errors="coerce")
+    v = s.dropna().astype(str).str.strip()
+    if v.empty or num.notna().sum() >= 0.95 * len(v):
+        return num
+    t = v.str.replace(r"^\$|[%+]$", "", regex=True).str.strip()
+    if t.str.match(THOUSANDS).mean() + t.str.fullmatch(r"-?\d+(\.\d+)?").mean() >= 0.95:
+        t = t.str.replace(",", "", regex=False)
+    elif t.str.match(DECIMAL_COMMA).mean() >= 0.5:
+        t = t.str.replace(",", ".", regex=False)
+    out = pd.Series(np.nan, index=s.index)
+    out[v.index] = pd.to_numeric(t, errors="coerce")
+    return out
 
 
 def _is_multivalued(s):
@@ -88,7 +118,7 @@ def _id_like(num):
 def _dates(s):
     """Parsed dates if >= 90% of the non-blank values are dates spanning >= 5 years, else None."""
     v = s.dropna().astype(str)
-    if v.empty or v.str.fullmatch(r"-?\d+(\.\d+)?").mean() > 0.5:
+    if v.empty or v.str.fullmatch(r"-?\d+(?:[.,]\d+)?").mean() > 0.5 or v.str.contains(DATE_SHAPE).mean() < 0.9:
         return None
     sample = v.sample(min(len(v), 500), random_state=0)
     import warnings
@@ -132,7 +162,7 @@ def profile(path, sidecar=None):
         info = {"column": orig, "label": labels_override.get(key, humanize(orig))}
         role = roles_override.get(key)
         missing = s.isna().mean() if n else 1.0
-        num = pd.to_numeric(s, errors="coerce") if s.dtype != bool else s.astype(float)
+        num = coerce_numeric(s)
         nonnull = s.notna().sum()
         numeric_share = num.notna().sum() / nonnull if nonnull else 0
         nuniq = s.nunique(dropna=True)
@@ -209,9 +239,13 @@ def profile(path, sidecar=None):
         if c["role"] in ("category", "binary") and LONG_FORMAT_NAME.search(c["column"]) and "where" not in sidecar:
             warnings.append(f"column {c['column']!r} looks like a measure-name column (long-format data); means may "
                             "mix different quantities. Add a 'where' filter in a sidecar if so.")
+    long_format = bool(warnings)
+    if long_format:
+        warnings.append("means of measure columns are not used for this file (counts and rates still are)")
     name = sidecar.get("name", humanize(path.stem))
     return {"path": str(path), "name": name, "slug": slug(sidecar.get("slug", path.stem)),
-            "noun": sidecar.get("noun", "records"), "rows": n, "columns": cols, "warnings": warnings}, df
+            "noun": sidecar.get("noun", "records"), "rows": n, "columns": cols, "warnings": warnings,
+            "long_format": long_format}, df
 
 
 def _positive(levels, override):

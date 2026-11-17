@@ -526,6 +526,8 @@ def build(examples_path, pages_dir, libraries=None, prefix=PREFIX):
     for lib in libraries or LIBRARIES:
         out = Path(pages_dir) / lib
         out.mkdir(parents=True, exist_ok=True)
+        for old in out.glob(f"*__{prefix}*"):  # pages of tasks no longer in the examples file
+            old.unlink()
         for group in doc["examples"]:
             spec = group["chart"]
             ct = spec["chart_type"]

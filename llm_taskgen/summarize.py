@@ -190,12 +190,16 @@ def main(argv):
     for opt in ("--prefix", "--examples"):
         if opt in argv:
             i = argv.index(opt)
+            if i + 1 >= len(argv):
+                raise SystemExit(f"{opt} needs a value")
             val = argv[i + 1]
             del argv[i:i + 2]
             if opt == "--prefix":
                 PREFIX = val
             else:
                 EXAMPLES = Path(val)
+    if PREFIX != "lx_" and EXAMPLES == ROOT / "tasks/llm_examples/task-attack-examples.json":
+        raise SystemExit(f"--prefix {PREFIX} needs --examples <the tasks file the pages were built from>")
     flag = "--pages-metadata" in argv
     print(summarize(load_rows([a for a in argv if a != "--pages-metadata"], pages_metadata=flag)))
 

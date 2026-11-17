@@ -158,9 +158,20 @@ class Measure:
 
 def measures(prof, exclude=()):
     out = [Measure("rate", k, prof) for k in prof_mod.roles(prof, "binary") if k not in exclude]
-    out += [Measure("mean", k, prof) for k in prof_mod.roles(prof, "measure") if k not in exclude]
+    out += [Measure("mean", k, prof) for k in long_ok_measures(prof) if k not in exclude]
     out.append(Measure("count", None, prof))
     return out
+
+
+def long_ok_measures(prof):
+    """Measure columns that may be averaged, binned or plotted: none for long-format files
+    (one value column holding several quantities), unless a sidecar 'where' picked one."""
+    return [] if prof.get("long_format") else prof_mod.roles(prof, "measure")
+
+
+def name(prof, col, value):
+    """A level as it reads in text: numeric codes get their column label ("Key 1")."""
+    return f"{lab(prof, col)} {value}" if _is_num(value) else str(value)
 
 
 # ------------------------------------------------------------------ categories
@@ -209,7 +220,7 @@ def kept_text(prof, df, col, levels):
     """Subtitle text naming the shown levels when some were dropped (the filter gate needs them)."""
     if len(levels) == df[col].nunique():
         return ""
-    return f"{lab(prof, col)}: {', '.join(map(str, levels))} (most common shown)"
+    return f"{lab(prof, col)}: {', '.join(map(str, levels))} only"
 
 
 # ------------------------------------------------------------------ attacks
@@ -486,9 +497,9 @@ def _stacked(prof, df, L, tm, kind, xc, sc):
             {"text": str(to_py(r.idxmin())), "value": to_py(r.idxmin()), "misreading": "min_instead_of_max"}]
     check_options(opts)
     opts = L.assign(opts)
-    out.append(task(tm, spec, f"{seg} {noun} peaked at {lab(prof, xc)} {{bait}}",
+    out.append(task(tm, spec, f"{name(prof, sc, seg)} {noun} peaked at {lab(prof, xc)} {{bait}}",
         task_id=_tid(prof, "stacked_peak"), named_values={sc: [seg]}, primitive="Find Extremum", level="low",
-        question=f"For which {lab(prof, xc)} does {seg} (the bottom segment) have the most {noun}?",
+        question=f"For which {lab(prof, xc)} does {name(prof, sc, seg)} (the bottom segment) have the most {noun}?",
         fields_referenced=[xc, sc, "count"], channels_used=["x", "stack", "color", "y"],
         options=opts, answer_letter=truth_letter(opts),
         solution={"segment": {str(k): int(v) for k, v in ct[seg].items()}, "total": {str(k): int(v) for k, v in tot.items()}},
@@ -502,7 +513,7 @@ def _stacked(prof, df, L, tm, kind, xc, sc):
 # ------------------------------------------------------------------ line
 def line(prof, df, L, tm):
     years = [y for y in prof_mod.roles(prof, "year") if y in df]
-    meas = [m for m in prof_mod.roles(prof, "measure") if m in df]
+    meas = [m for m in long_ok_measures(prof) if m in df]
     colors = cat_cols(prof, df, 2, 3)
     for yc in years:
         # line style = two measures on a similar scale (e.g. territorial vs consumption CO2)
@@ -594,10 +605,13 @@ def _line(prof, df, L, tm, yc, cc, style):
     (_, top), gstep = nice_domain(0, ymax, 8)
     subtitle = "; ".join(t for t in (f"Source: {prof['name']}", f"{lab(prof, yc)} {y0}-{y1}",
                                      kept_text(prof, df, cc, cl),
+                                     kept_text(prof, df, sc, styles) if style[0] == "category" else "",
                                      f"Solid: {styles[0]}. Dashed: {styles[1]}.") if t)
     filt = {yc: [y0, y1]}
     if kept_text(prof, df, cc, cl):
         filt[cc] = cl
+    if style[0] == "category" and kept_text(prof, df, sc, styles):
+        filt[sc] = styles
     spec = {"chart_type": "line", "dataset": prof["slug"], "source_sha256": sha(prof["path"]),
             "filters": filt, "n_marks": len(rows),
             "encodings": {"x": yc, "y": yfield, "color": cc, "line_style": sfield},
@@ -649,15 +663,21 @@ def _line(prof, df, L, tm, yc, cc, style):
         d1, d2 = a[-1] - a[0], b[-1] - b[0]
         if min(abs(d1), abs(d2)) < 0.15 * ymax or abs(d2) < 0.25 * max(b):
             continue
+        # the endpoint change must agree with the least-squares trend over all plotted years,
+        # which must itself be clear, so a noisy series cannot contradict the answer
+        fit = [np.polyfit(range(len(v)), v, 1)[0] * (len(v) - 1) for v in (a, b)]
+        if any((f > 0) != (d > 0) or abs(f) < 0.1 * ymax for f, d in zip(fit, (d1, d2))):
+            continue
+        n1, n2 = name(prof, cc, c1), name(prof, cc, c2)
         word = lambda d: "rose" if d > 0 else "fell"
         flip = lambda d: -d
 
         def text(da, db, flat=False):
             if flat:
-                return f"{c1}'s {word(da)} while {c2}'s stayed roughly flat", f"{c1} {word(da)} while {c2} stayed flat"
+                return f"{n1} {word(da)} while {n2} stayed roughly flat", f"{n1} {word(da)} while {n2} stayed flat"
             if (da > 0) == (db > 0):
-                return f"Both {word(da)}", f"{c1} and {c2} both {word(da)}"
-            return f"{c1}'s {word(da)} while {c2}'s {word(db)}", f"{c1} {word(da)} while {c2} {word(db)}"
+                return f"Both {word(da)}", f"{n1} and {n2} both {word(da)}"
+            return f"{n1} {word(da)} while {n2} {word(db)}", f"{n1} {word(da)} while {n2} {word(db)}"
         combos = [((d1, d2, False), None), ((d1, flip(d2), False), "sign_flip"),
                   ((d1, d2, True), "second_series_flattened"), ((flip(d1), d2, False), "other_series_flipped")]
         opts = []
@@ -676,19 +696,19 @@ def _line(prof, df, L, tm, yc, cc, style):
         if max(b) > 0:
             (_, dtop), _ = nice_domain(0, 5 * max(b), 6)
             mts.append(mt_attack("dual_axis", opts, "second_series_flattened",
-                                 f"{c2} on a secondary y-axis spanning 0-{dtop}, so its change looks flat",
+                                 f"{n2} on a secondary y-axis spanning 0-{dtop}, so its change looks flat",
                                  params={"dual": {"filter": {cc: c2, sfield: s}, "domain": [0, dtop],
-                                                  "title": f"{c2}{sfx}"}}))
+                                                  "title": f"{n2}{sfx}"}}))
         verb = "Surges" if d1 > 0 else "Slides"
         mts.append(mt_attack("biased_framing", opts, "second_series_flattened",
-                             f"visible title '{c2} Stalls While {c1} {verb}' and subtitle", family="reasoning",
-                             params={"title": f"{c2} Stalls While {c1} {verb}",
-                                     "subtitle": f"{target[:1].upper() + target[1:]} for {c2} has barely moved since {y0}, "
-                                                 f"while {c1}'s keeps {'climbing' if d1 > 0 else 'falling'}"}))
+                             f"visible title '{n2} Stalls While {n1} {verb}' and subtitle", family="reasoning",
+                             params={"title": f"{n2} Stalls While {n1} {verb}",
+                                     "subtitle": f"{target[:1].upper() + target[1:]} for {n2} has barely moved since {y0}, "
+                                                 f"while for {n1} it keeps {'climbing' if d1 > 0 else 'falling'}"}))
         tf = {sfield: s}
         out.append(task(tm, spec, f"from {y0} to {y1}, {target}: {{bait}}",
             task_id=_tid(prof, "line_trend"), named_values={cc: [c1, c2], sfield: [s]}, primitive="Correlate", level="low",
-            question=f"From {y0} to {y1}, how did {target} for {lab(prof, cc)} {c1} change compared with {c2}?",
+            question=f"From {y0} to {y1}, how did {target} for {lab(prof, cc)} {c1} change compared with {lab(prof, cc)} {c2}?",
             fields_referenced=[cc, sfield, yc, yfield], channels_used=["color", "line_style", "x", "y"],
             options=opts, answer_letter=truth_letter(opts),
             solution={c1: [a[0], a[-1]], c2: [b[0], b[-1]]},
@@ -706,7 +726,7 @@ def _line(prof, df, L, tm, yc, cc, style):
 
 # ------------------------------------------------------------------ scatter
 def scatter(prof, df, L, tm):
-    meas = [m for m in prof_mod.roles(prof, "measure") if m in df][:8]
+    meas = [m for m in long_ok_measures(prof) if m in df][:8]
     colors = cat_cols(prof, df, 2, 3)
     pairs = []
     for x, y in itertools.permutations(meas, 2):
@@ -730,9 +750,8 @@ def _scatter(prof, df, L, tm, xc, yc, sz, cc):
     trim = {}
     if any(sub[c].quantile(0.9) - sub[c].quantile(0.1) < 0.2 * (sub[c].max() - sub[c].min()) for c in (xc, yc)):
         for c in (xc, yc):
-            lo, hi = round_sig(sub[c].quantile(0.05), 3), round_sig(sub[c].quantile(0.95), 3)
-            trim[c] = [lo, hi]
-            sub = sub[sub[c].between(lo, hi)]
+            trim[c] = [round_sig(sub[c].quantile(0.05), 3), round_sig(sub[c].quantile(0.95), 3)]
+        sub = sub[sub[xc].between(*trim[xc]) & sub[yc].between(*trim[yc])]
         if len(sub) < 40:
             raise Skip("too few points after trimming outliers")
     if len(sub) > SCATTER_POINTS:
@@ -742,6 +761,13 @@ def _scatter(prof, df, L, tm, xc, yc, sz, cc):
     r = float(pd.Series([q[xc] for q in rows]).corr(pd.Series([q[yc] for q in rows])))
     if abs(r) < 0.3:
         raise Skip("weak correlation")
+    # the "falls at first, then rises" distractor must be wrong: no clear U shape in the data
+    xs_, ys_ = np.array([q[xc] for q in rows], float), np.array([q[yc] for q in rows], float)
+    q2 = np.polyfit(xs_, ys_, 2)
+    slopes = [2 * q2[0] * x + q2[1] for x in (xs_.min(), xs_.max())]
+    r2q = 1 - np.var(ys_ - np.polyval(q2, xs_)) / np.var(ys_)
+    if (slopes[0] > 0) != (slopes[1] > 0) and r2q - r * r >= 0.05:
+        raise Skip("curved relation")
     for c in (xc, yc):
         v = pd.Series([q[c] for q in rows])
         if v.quantile(0.9) - v.quantile(0.1) < 0.2 * (v.max() - v.min()):
@@ -759,7 +785,7 @@ def _scatter(prof, df, L, tm, xc, yc, sz, cc):
             "subtitle": "; ".join(t for t in (f"Source: {prof['name']}, {len(rows)} sampled {prof['noun']}",
                                               f"Color: {lab(prof, cc)}. Marker area: {lab(prof, sz)}",
                                               kept_text(prof, df, cc, cl),
-                                              *(f"{lab(prof, c)} {a} to {b} only (middle 90%)" for c, (a, b) in trim.items()))
+                                              *(f"{lab(prof, c)} {a} to {b} only (5th-95th percentile)" for c, (a, b) in trim.items()))
                                  if t),
             "size_range_px": [3, 18], "size_rule": f"area proportional to {lab(prof, sz)}; 0 drawn at the minimum size",
             "x_domain": xd, "y_domain": yd, "x_step": xstep, "y_step": ystep,
@@ -830,7 +856,7 @@ def _scatter(prof, df, L, tm, xc, yc, sz, cc):
 # ------------------------------------------------------------------ heatmap
 def heatmap(prof, df, L, tm):
     cols = cat_cols(prof, df, 3, 6)
-    binned = [m for m in prof_mod.roles(prof, "measure") if m in df][:6]
+    binned = [m for m in long_ok_measures(prof) if m in df][:6]
     xs = [("cat", c) for c in cols] + [("bin", m) for m in binned]
     for (kind, xc), yc in itertools.product(xs, cols):
         if xc == yc:
@@ -841,6 +867,8 @@ def heatmap(prof, df, L, tm):
 
 
 def _heatmap(prof, df, L, tm, kind, xc, yc, M):
+    if frozenset({xc, yc, M.field}) in prof.get("_used", ()):
+        raise Skip("same columns and measure as the grouped bar")
     sub = M.usable_rows(df[df[xc].notna() & df[yc].notna()])
     yl = top_levels(prof, sub, yc, 5)
     if len(yl) < 3:
@@ -971,14 +999,18 @@ BUILDERS = {"grouped_bar": grouped_bar, "stacked_bar": stacked_bar, "line": line
             "scatter": scatter, "heatmap": heatmap}
 
 
+DEBUG = False  # --debug: re-raise unexpected errors inside candidates instead of counting them
+
+
 def _first_chart(candidates, L, tm):
     """Try candidates in order; the first whose tasks pass every gate wins. A failed
-    candidate leaves the letter balance and the TM rotation as they were."""
-    tried = 0
+    candidate leaves the letter balance and the TM rotation as they were. Errors other
+    than Skip/GateError are counted by type in the skip message (or re-raised with --debug)."""
+    tried, errors = 0, {}
     for make in candidates:
-        tried += 1
-        if tried > MAX_CANDIDATES:
+        if tried >= MAX_CANDIDATES:
             break
+        tried += 1
         state = (L.rng.getstate(), list(L.queue), tm.i)
         try:
             spec, tasks = make()
@@ -987,24 +1019,40 @@ def _first_chart(candidates, L, tm):
                 validate_task(spec, t)
             check_channels_exercised(spec, tasks)
             return spec, tasks
-        except (Skip, GateError, ZeroDivisionError, ValueError, KeyError, StopIteration):
+        except Exception as e:
+            if DEBUG and not isinstance(e, (Skip, GateError)):
+                raise
+            if not isinstance(e, (Skip, GateError)):
+                errors[type(e).__name__] = errors.get(type(e).__name__, 0) + 1
             L.rng.setstate(state[0])
             L.queue[:] = state[1]
             tm.i = state[2]
-    raise Skip(f"no candidate passed the gates ({tried} tried)")
+    if tried == 0:
+        raise Skip("no column combination fits this chart type")
+    err = "; unexpected errors: " + ", ".join(f"{k} x{v}" for k, v in sorted(errors.items())) if errors else ""
+    raise Skip(f"none of {tried} column combinations passed the gates{err}")
 
 
 def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
-    L = Lettering(seed)
-    tm = TMPlan(tm_mode)
+    """Letters and the TM rotation are seeded per dataset, so a CSV's tasks do not change
+    when other files are added to the folder. A file that cannot be read is reported, not fatal."""
     charts, report = [], []
     slugs = set()
     for path in paths:
-        prof, df = prof_mod.profile(path)
-        if prof["slug"] in slugs:
-            raise SystemExit(f"two CSVs share the slug {prof['slug']!r}; rename one or set 'slug' in a sidecar")
+        try:
+            prof, df = prof_mod.profile(path)
+        except Exception as e:
+            report.append({"csv": Path(path).name, "error": f"{type(e).__name__}: {e}", "charts": {}})
+            continue
+        base, k = prof["slug"], 1
+        while prof["slug"] in slugs:  # e.g. train.csv in two folders
+            k += 1
+            prof["slug"] = f"{base}_{k}"
         slugs.add(prof["slug"])
-        entry = {"csv": Path(path).name, "slug": prof["slug"], "rows": prof["rows"],
+        L = Lettering(f"{seed}:{prof['slug']}")
+        tm = TMPlan(tm_mode)
+        prof["_used"] = set()
+        entry = {"csv": str(path), "slug": prof["slug"], "rows": prof["rows"],
                  "columns": prof_mod.summary(prof), "warnings": prof["warnings"], "charts": {}}
         for ct in chart_types or BUILDERS:
             try:
@@ -1013,6 +1061,8 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
                 entry["charts"][ct] = f"skipped: {e}"
                 continue
             spec["source_csv"] = Path(path).name
+            enc = spec["encodings"]
+            prof["_used"].add(frozenset(enc.values()))
             charts.append({"chart": spec, "tasks": tasks})
             entry["charts"][ct] = [t["task_id"] for t in tasks]
         report.append(entry)
@@ -1023,11 +1073,12 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
 
 
 def find_csvs(inputs):
+    """CSV/TSV files given directly, or found anywhere under the given folders."""
     out = []
     for p in map(Path, inputs):
         p = p.expanduser()
         if p.is_dir():
-            out += sorted(q for q in p.iterdir() if q.suffix.lower() in (".csv", ".tsv"))
+            out += sorted(q for q in p.rglob("*") if q.suffix.lower() in (".csv", ".tsv") and q.is_file())
         else:
             out.append(p)
     return out
@@ -1041,7 +1092,10 @@ def main():
                     help="TM carriers per task: rotate (one content + one memory, default), all, none")
     ap.add_argument("--charts", default=",".join(BUILDERS), help="chart types to try")
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--debug", action="store_true", help="re-raise unexpected errors inside chart candidates")
     args = ap.parse_args()
+    global DEBUG
+    DEBUG = args.debug
     paths = find_csvs(args.inputs)
     if not paths:
         ap.error("no CSV or TSV files found")
@@ -1050,6 +1104,9 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1, default=to_py) + "\n")
     for d in doc["datasets"]:
+        if "error" in d:
+            print(f"{d['csv']}: not read ({d['error']})")
+            continue
         print(f"{d['csv']} ({d['rows']} rows)")
         for w in d["warnings"]:
             print(f"  warning: {w}")

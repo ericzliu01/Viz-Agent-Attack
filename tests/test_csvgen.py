@@ -85,6 +85,33 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(set(df["segment"].unique()), {"Retail", "Online"})
         self.assertEqual(csvgen.top_levels(prof, df, "region", 6), ["North", "South", "East", "West"])
 
+    def test_number_formats(self):
+        s = pd.Series(["1,234", "15", "2,000,000", None])
+        self.assertEqual(list(profile.coerce_numeric(s).dropna()), [1234.0, 15.0, 2000000.0])
+        self.assertEqual(list(profile.coerce_numeric(pd.Series(["15,34", "2,5", "7,0"]))), [15.34, 2.5, 7.0])
+        self.assertEqual(list(profile.coerce_numeric(pd.Series(["$7.99", "45%", "10+"]))), [7.99, 45.0, 10.0])
+        self.assertIsNone(profile._dates(pd.Series(["15,34", "2,5", "7,01", "33,2", "1,9", "20,5"] * 5)))
+        self.assertIsNotNone(profile._dates(pd.Series([f"20{10 + i}-03-0{i % 9 + 1}" for i in range(10)])))
+
+    def test_long_format_drops_means(self):
+        tmp = self.tmp / "long.csv"
+        rows = [{"country": c, "year": y, "indicator": ind, "value": v}
+                for c in "ABCDE" for y in range(2000, 2015) for ind, v in (("gdp", 1e9 * (y - 1990)), ("pop", 5e6))]
+        pd.DataFrame(rows).to_csv(tmp, index=False)
+        prof, _ = profile.profile(tmp)
+        self.assertTrue(prof["long_format"])
+        self.assertFalse([m for m in csvgen.measures(prof) if m.kind == "mean"])
+        prof, _ = profile.profile(tmp, sidecar={"where": {"indicator": "gdp"}})
+        self.assertFalse(prof["long_format"])
+
+    def test_bad_and_duplicate_files_do_not_stop_the_run(self):
+        (self.tmp / "a").mkdir()
+        (self.tmp / "a" / "shop.csv").write_bytes(self.csv.read_bytes())
+        (self.tmp / "empty.csv").write_text("")
+        doc = csvgen.build(csvgen.find_csvs([self.tmp]), chart_types=["grouped_bar"])
+        self.assertTrue(any("error" in d for d in doc["datasets"]))
+        self.assertEqual(sorted(d["slug"] for d in doc["datasets"] if "slug" in d), ["shop", "shop_2"])
+
     def test_same_quantity(self):
         self.assertTrue(csvgen.same_quantity("co2_per_capita", "consumption_co2_per_capita"))
         self.assertTrue(csvgen.same_quantity("average_playtime", "median_playtime"))
@@ -200,6 +227,16 @@ class PageTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp)
+
+    def test_rebuild_removes_stale_pages(self):
+        stale = self.pages / "d3" / "clean_bar__cx_gone_task.html"
+        stale.write_text("old")
+        keep = self.pages / "d3" / "clean_bar__lx_other.html"
+        keep.write_text("other prefix")
+        pages.build(self.ex, self.pages, ["d3"], prefix="cx_")
+        self.assertFalse(stale.exists())
+        self.assertTrue(keep.exists())
+        keep.unlink()
 
     def test_counts_and_prefix(self):
         n = sum(1 + len(t["attacks"]) for c in self.doc["examples"] for t in c["tasks"])
