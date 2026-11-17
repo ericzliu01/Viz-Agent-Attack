@@ -58,6 +58,7 @@ CHART_TYPES = ("bar", "line", "scatter", "stacked_bar")
 MAX_RETRIES = 2  # a stage retries up to this many extra times, then drops.
 
 _STAGES_DIR = Path(__file__).parent / "stages"
+_CHARTS_DIR = Path(__file__).parent / "examples" / "charts"
 _DEFAULT_CACHE_DIR = Path(
     os.getenv("VIZTRAP_CACHE_DIR", Path.home() / ".cache" / "viztrap-llm")
 )
@@ -205,14 +206,18 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
     from pipeline.sql_check import UnsafeSQL, UnsolvableTask, check_answer
 
     df = _read_df(csv)
-    prompt_base = _stage1_prompt(df, task_type, examples, library)
+    include_images = _stage1_chart_images_enabled()
+    chart_images = _chart_example_images() if include_images else []
+    prompt_base = _stage1_prompt(df, task_type, examples, library,
+                                 include_chart_images=bool(chart_images))
 
     qa = None
     for attempt in range(MAX_RETRIES + 1):
         prompt = prompt_base if attempt == 0 else prompt_base + _RETRY_NOTE
         text = complete(prompt, system=_S1_SYS, model=MODELS["stage1"],
                         cache_key=_ck(csv, task_type, "s1", attempt),
-                        cache_dir=_cache_dir(cache_dir), client=client)
+                        cache_dir=_cache_dir(cache_dir), images=chart_images,
+                        client=client)
         try:
             obj = parse_json_block(text)
         except LLMFormatError:
@@ -284,17 +289,19 @@ _RETRY_NOTE = (
 )
 
 
-def _stage1_prompt(df, task_type, examples, library) -> str:
+def _stage1_prompt(df, task_type, examples, library, include_chart_images=True) -> str:
     schema = ", ".join(f"{c} ({df[c].dtype})" for c in df.columns)
     sample = df.head(8).to_dict(orient="records")
     few_shot = _format_examples(examples, task_type)
+    chart_shots = _format_chart_examples(include_images=include_chart_images)
     return (
         f"{_load_prompt('stage1-chart-qa.md')}\n\n"
         f"TARGET LIBRARY: {library}\n"
         f"TASK TYPE: {task_type}\n"
         f"TABLE `data` COLUMNS: {schema}\n"
         f"SAMPLE ROWS: {json.dumps(sample, default=str)}\n"
-        f"{few_shot}"
+        f"{few_shot}\n"
+        f"{chart_shots}"
     )
 
 
@@ -306,6 +313,77 @@ def _format_examples(examples, task_type) -> str:
         return f"FEW-SHOT EXAMPLES: {json.dumps(examples, default=str)[:4000]}"
     matching = [t for t in tasks if t.get("primitive") == task_type] or tasks
     return f"FEW-SHOT EXAMPLES: {json.dumps(matching[:4], default=str)}"
+
+
+# ---------------------------------------------------------------------------
+# Chart few-shots (pipeline/examples/charts). Loaded once; the manifest distils
+# each exemplar to mark/encoding/description, which teaches stage 1 the spec shape
+# per chart type without embedding the bulky example data.
+# ---------------------------------------------------------------------------
+_CHART_MANIFEST = None
+
+
+def _chart_manifest() -> list:
+    global _CHART_MANIFEST
+    if _CHART_MANIFEST is None:
+        try:
+            _CHART_MANIFEST = json.loads((_CHARTS_DIR / "manifest.json").read_text()).get("charts", [])
+        except (OSError, json.JSONDecodeError):
+            _CHART_MANIFEST = []
+    return _CHART_MANIFEST
+
+
+def _chart_examples_by_type(per_type: int) -> list:
+    """``[(chart_type, [entry, ...]), ...]`` in ``CHART_TYPES`` order, ``per_type`` each."""
+    return [
+        (ct, [e for e in _chart_manifest() if e.get("chart_type") == ct][:per_type])
+        for ct in CHART_TYPES
+    ]
+
+
+def _stage1_chart_images_enabled() -> bool:
+    """Whether stage 1 attaches example chart images (default on; off = cheaper)."""
+    return os.getenv("VIZTRAP_STAGE1_CHART_IMAGES", "1").lower() not in ("0", "false", "no")
+
+
+def _format_chart_examples(per_type: int = 2, include_images: bool = True) -> str:
+    groups = _chart_examples_by_type(per_type)
+    if not any(entries for _, entries in groups):
+        return ""
+    lines = [
+        "CHART EXAMPLES (reference Vega-Lite shapes per chart type; copy the "
+        "structure and field typing, author your own data under data.values):"
+    ]
+    for ct, entries in groups:
+        if not entries:
+            continue
+        lines.append(f"{ct}:")
+        for entry in entries:
+            enc = json.dumps(entry.get("encoding", {}), separators=(",", ":"))
+            lines.append(
+                f"  - mark={entry.get('mark')}, encoding={enc} "
+                f"({entry.get('n_rows', '?')} rows) -- {entry.get('description', '')}"
+            )
+    if include_images:
+        shown = [ct for ct, entries in _chart_examples_by_type(1) if entries]
+        if shown:
+            lines.append(
+                "The attached example chart images show one chart of each type, in "
+                f"this order: {', '.join(shown)}."
+            )
+    return "\n".join(lines)
+
+
+def _chart_example_images(per_type: int = 1) -> list:
+    """PNG bytes for ``per_type`` exemplar(s) of each chart type, in ``CHART_TYPES`` order."""
+    images = []
+    for _ct, entries in _chart_examples_by_type(per_type):
+        for entry in entries:
+            try:
+                images.append((_CHARTS_DIR / entry.get("image", "")).read_bytes())
+            except OSError:
+                pass
+    return images
 
 
 # ---------------------------------------------------------------------------

@@ -260,6 +260,30 @@ def test_stage1_prunes_inapplicable_chart_type(tmp_path, monkeypatch):
     assert "scatter" not in {i.chart_type for i in insts}
 
 
+def test_stage1_wires_chart_few_shots_and_images(tmp_path, monkeypatch):
+    csv = _write(tmp_path, "t.csv", FANOUT_CSV)
+    mock = _patch_complete(monkeypatch, _stage1_reply())
+    stage1(csv, "filter", examples={}, client=object())
+    prompt = mock.call_args.args[0]
+    assert "CHART EXAMPLES" in prompt
+    for ct in ("bar", "line", "scatter", "stacked_bar"):
+        assert f"{ct}:" in prompt
+    images = mock.call_args.kwargs.get("images")
+    assert images and len(images) == 4  # one PNG per chart type
+    assert all(isinstance(b, (bytes, bytearray)) and b for b in images)
+
+
+def test_stage1_chart_images_can_be_disabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIZTRAP_STAGE1_CHART_IMAGES", "0")
+    csv = _write(tmp_path, "t.csv", FANOUT_CSV)
+    mock = _patch_complete(monkeypatch, _stage1_reply())
+    stage1(csv, "filter", examples={}, client=object())
+    assert mock.call_args.kwargs.get("images") == []
+    prompt = mock.call_args.args[0]
+    assert "CHART EXAMPLES" in prompt  # text few-shots stay even with images off
+    assert "attached example chart images" not in prompt
+
+
 # ---------------------------------------------------------------------------
 # Shared goal.
 # ---------------------------------------------------------------------------
