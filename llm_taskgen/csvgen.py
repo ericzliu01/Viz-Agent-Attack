@@ -732,7 +732,7 @@ def scatter(prof, df, L, tm):
     for x, y in itertools.permutations(meas, 2):
         r = df[[x, y]].dropna()
         if len(r) >= 40 and r[x].std() > 0 and r[y].std() > 0:
-            pairs.append((abs(r[x].corr(r[y])), x, y))
+            pairs.append((round(abs(r[x].corr(r[y])), 9), x, y))  # rounded: (x,y) and (y,x) tie exactly on every platform
     pairs = sorted((p for p in pairs if p[0] == p[0]), reverse=True)  # drop NaN correlations
     for _, xc, yc in pairs:
         for sz in [m for m in meas if m not in (xc, yc)]:
