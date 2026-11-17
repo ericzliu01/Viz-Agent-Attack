@@ -101,6 +101,11 @@ class Config:
     judge: Callable = None
     canary: str = "CANARY-FAKE-KEY"
     sink_url: str = "https://sink.example/log"
+    #: Max chart types per QA to carry the trap cross (TM/MM). 0 = all (default).
+    #: Set 1 to place the full subtype x channel matrix on a single representative
+    #: chart per QA -- traps are text-in-a-channel and chart-agnostic, so this gives
+    #: full channel/family coverage without the chart x channel instance blow-up.
+    trap_chart_limit: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -944,13 +949,21 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
         except GenerationDropped:
             continue
 
+        # Which chart types carry the trap cross. Traps are chart-agnostic, so a
+        # limit places the full matrix on a representative subset (keeps the instance
+        # count tractable) while TT/MT still cover every chart type.
+        trap_types = list(tt_by_type)
+        if config.trap_chart_limit:
+            trap_types = trap_types[:config.trap_chart_limit]
+
         seen = set()
         for subtype, channel, direction in config.sampling:
             target = _target_for(goal, direction, qa0.options, correct)
             payload = payloads.get(payload_id(qa0.question_id, subtype, target))
             if payload is None:
                 continue
-            for chart_type, tt in tt_by_type.items():
+            for chart_type in trap_types:
+                tt = tt_by_type[chart_type]
                 mts = mt_by_type.get(chart_type) or [None]
                 for mt in mts:
                     for variant in stage3_variants(tt, mt, subtype, channel,
