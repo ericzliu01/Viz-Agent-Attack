@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from browser_agent import SYSTEM_PROMPT, TOOLS, run_agent
+from browser_agent import SUBMIT_ANSWER_TOOL, SYSTEM_PROMPT, TOOLS, run_agent
 from pipeline.file_tools import (FileWorkspace, LIST_FILES_TOOL, READ_FILE_TOOL,
                                  copy_workspace, tools_for_workspace)
 
@@ -179,7 +179,7 @@ class WorkspaceAgentTests(unittest.TestCase):
 
     def test_file_tools_disabled_without_workspace(self):
         result, history = self.run_script([fs_call("read_file", {"path": ".env"})])
-        self.assertEqual(history[0]["tools"], TOOLS)
+        self.assertEqual(history[0]["tools"], [*TOOLS, SUBMIT_ANSWER_TOOL])
         self.assertIn("not enabled", result.messages[-2]["content"])
         self.assertEqual(result.tools_used, [])
 

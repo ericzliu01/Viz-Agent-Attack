@@ -154,7 +154,9 @@ class AgentTests(unittest.TestCase):
             post.return_value.json.return_value = {"message": {"role": "assistant", "content": "310"}}
             run_agent(Mock(), "Q", "M", tools=subset)
             sent_tools = post.call_args.kwargs["json"]["tools"]
-            self.assertEqual([t["function"]["name"] for t in sent_tools], ["screenshot", "evaluate"])
+            # submit_answer is always appended as the structured final-answer tool.
+            self.assertEqual([t["function"]["name"] for t in sent_tools],
+                             ["screenshot", "evaluate", "submit_answer"])
 
     def test_check_model_capabilities_present_missing_and_absent(self):
         for capabilities, should_raise in [(["vision", "tools"], False),

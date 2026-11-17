@@ -165,7 +165,7 @@ def test_mcq_question_renders_lettered_options_and_instruction():
     assert text.startswith("What is the value?")
     assert "A) 91" in text and "B) 240" in text
     assert "C) 5" in text and "D) 7" in text
-    assert "Answer with the letter of the correct option only (A, B, C, or D)." in text
+    assert "call submit_answer with your choice (A, B, C, or D)" in text
 
 
 def test_run_eval_passes_mcq_prompt_so_letter_grades(tmp_path):
@@ -179,7 +179,7 @@ def test_run_eval_passes_mcq_prompt_so_letter_grades(tmp_path):
     run_eval(EXAMPLES, tmp_path, model="m", agent_fn=fake_agent,
              page_provider=_stub_provider())
     assert seen
-    assert all("A)" in q and "Answer with the letter" in q for q in seen)
+    assert all("A)" in q and "submit_answer" in q for q in seen)
     with open(tmp_path / "trial_results.csv", newline="") as handle:
         written = list(csv.DictReader(handle))
     assert all(r["predicted_option"] == "D" and r["status"] != "needs_review"

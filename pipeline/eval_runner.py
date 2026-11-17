@@ -51,7 +51,8 @@ def _mcq_question(question, options):
     else:
         choices = "".join(letters)
     return (f"{question}\n\n" + "\n".join(lines) +
-            f"\n\nAnswer with the letter of the correct option only ({choices}).")
+            f"\n\nWhen you are done inspecting the chart, call submit_answer with your "
+            f"choice ({choices}) and a brief explanation.")
 
 
 def _option_letter(options, value):

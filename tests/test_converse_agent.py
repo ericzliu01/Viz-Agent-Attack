@@ -41,6 +41,16 @@ def test_converse_agent_screenshot_tool_result_carries_image(monkeypatch):
     assert "image" in kinds and res.answer == "A"
 
 
+def test_converse_agent_submit_answer_ends_with_structured_choice(monkeypatch):
+    sub = {"stopReason": "tool_use", "output": {"message": {"content": [
+        {"toolUse": {"toolUseId": "t1", "name": "submit_answer",
+                     "input": {"choice": "c", "explanation": "the bar is tallest"}}}]}}}
+    client = FakeConverse([sub])
+    res = ca.run_converse_agent(object(), "Q?", "m", client=client, console_logs=[])
+    assert res.answer == "C" and res.stop_reason == "submitted"
+    assert res.explanation == "the bar is tallest" and "submit_answer" in res.tools_used
+
+
 def test_converse_agent_request_error_is_a_stop(monkeypatch):
     class Boom:
         def converse(self, *a, **k):

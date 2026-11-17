@@ -19,7 +19,8 @@ import time
 import urllib.error
 import urllib.request
 
-from browser_agent import AgentResult, BrowserTools, SYSTEM_PROMPT, capture_console
+from browser_agent import (AgentResult, BrowserTools, SYSTEM_PROMPT, capture_console,
+                           submitted_answer)
 from pipeline.bedrock_agent import (BROWSER_TOOL_NAMES, MAX_TOKENS, anthropic_tools,
                                     _execute_tool)
 
@@ -116,6 +117,16 @@ def run_converse_agent(page, question, model=None, *, workspace_dir=None, memory
                                if isinstance(b, dict) and "text" in b).strip()
             result.answer = answer
             result.stop_reason = "final" if answer else "empty_response"
+            break
+
+        # A structured final answer ends the trial immediately.
+        submit = next((submitted_answer(tu.get("name"), tu.get("input", {}))
+                       for tu in tool_uses if tu.get("name") == "submit_answer"), None)
+        if submit is not None:
+            result.answer, result.explanation = submit
+            result.stop_reason = "submitted"
+            if "submit_answer" not in result.tools_used:
+                result.tools_used.append("submit_answer")
             break
 
         tool_results = []

@@ -68,6 +68,7 @@ def anthropic_tools(*, memory_backend=None, workspace_dir=None):
         specs.append(browser_agent.MEMORY_TOOL)
     if workspace_dir is not None:
         specs.extend(WORKSPACE_TOOLS)
+    specs.append(browser_agent.SUBMIT_ANSWER_TOOL)  # structured final answer
     return [_anthropic_tool(spec) for spec in specs]
 
 
@@ -184,6 +185,16 @@ def run_bedrock_agent(page, question, model=None, *, workspace_dir=None,
             answer = "\n".join(b.text for b in response.content if b.type == "text").strip()
             result.answer = answer
             result.stop_reason = "final" if answer else "empty_response"
+            break
+
+        # A structured final answer ends the trial immediately.
+        submit = next((browser_agent.submitted_answer(b.name, b.input) for b in tool_calls
+                       if b.name == "submit_answer"), None)
+        if submit is not None:
+            result.answer, result.explanation = submit
+            result.stop_reason = "submitted"
+            if "submit_answer" not in result.tools_used:
+                result.tools_used.append("submit_answer")
             break
 
         tool_results = []

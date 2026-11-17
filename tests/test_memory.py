@@ -12,7 +12,7 @@ from types import ModuleType
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-from browser_agent import (AgentResult, SYSTEM_PROMPT, TEXT_LIMIT, TOOLS, filter_tools,
+from browser_agent import (AgentResult, SUBMIT_ANSWER_TOOL, SYSTEM_PROMPT, TEXT_LIMIT, TOOLS, filter_tools,
                            run_agent, tools_for_memory)
 from memory import MemoryBackend, memory_from_config, task_memory_fields
 import results_logger
@@ -151,7 +151,7 @@ class MemoryAgentTests(unittest.TestCase):
 
     def test_disabled_execution_and_explicit_tool_selection(self):
         result, history = self.run_script([tool_call("Mobile")])
-        self.assertEqual(history[0]["tools"], TOOLS)
+        self.assertEqual(history[0]["tools"], [*TOOLS, SUBMIT_ANSWER_TOOL])
         self.assertIn("not enabled", result.messages[3]["content"])
         self.assertEqual(result.tools_used, [])
         backend = memory_from_config(config())

@@ -52,12 +52,36 @@ MEMORY_TOOL = tool(
     "search_memory", "Search historical notes and dataset context when useful for the question.",
     {"query": STRING}, ["query"],
 )
-AVAILABLE_TOOLS = [*TOOLS, MEMORY_TOOL]
+
+#: Structured final-answer tool. The agent calls this exactly once to finish, so the
+#: grader reads a clean option letter from ``choice`` instead of parsing free text.
+CHOICE_ENUM = {"type": "string", "enum": ["A", "B", "C", "D"]}
+SUBMIT_ANSWER_TOOL = tool(
+    "submit_answer",
+    "Submit your FINAL multiple-choice answer and stop. Call this exactly once when you "
+    "are done inspecting the chart. 'choice' is the option letter (A, B, C or D); "
+    "'explanation' is a brief justification.",
+    {"choice": CHOICE_ENUM, "explanation": STRING}, ["choice"],
+)
+AVAILABLE_TOOLS = [*TOOLS, MEMORY_TOOL, SUBMIT_ANSWER_TOOL]
+
+
+def submitted_answer(name, arguments):
+    """If ``name`` is the final-answer tool, return ``(choice, explanation)``; else None.
+
+    ``choice`` is upper-cased and stripped; invalid/missing args yield ``("", ...)`` so
+    the caller records it as an empty submission rather than crashing.
+    """
+    if name != "submit_answer":
+        return None
+    args = arguments if isinstance(arguments, dict) else {}
+    return str(args.get("choice", "")).strip().upper(), str(args.get("explanation", ""))
 
 
 @dataclass
 class AgentResult:
     answer: str = ""
+    explanation: str = ""
     stop_reason: str = "max_steps"
     steps: int = 0
     latency_ms: int = 0
@@ -255,6 +279,8 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     if tools is not None:
         resolve([t["function"]["name"] for t in tools], gate)
     agent_tools = tools if tools is not None else resolve(None, gate)
+    if not any(t["function"]["name"] == "submit_answer" for t in agent_tools):
+        agent_tools = [*agent_tools, SUBMIT_ANSWER_TOOL]   # structured final answer
     enabled_names = {t["function"]["name"] for t in agent_tools}
     browser_tools = BrowserTools(page, console_logs if console_logs is not None else capture_console(page),
                                  enabled_tools=enabled_names)
@@ -290,9 +316,14 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             result.answer = answer.strip() if isinstance(answer, str) else ""
             result.stop_reason = "final" if result.answer else "empty_response"
             break
+        submit = None
         for call in calls:
             function = call.get("function", {}) if isinstance(call, dict) else {}
             name = function.get("name", "") if isinstance(function, dict) else ""
+            got = submitted_answer(name, function.get("arguments", {}) if isinstance(function, dict) else {})
+            if got is not None:            # structured final answer -> end the trial
+                submit = got
+                break
             observation = {"role": "tool", "tool_name": name, "content": ""}
             if isinstance(call, dict) and call.get("id"):
                 observation["tool_call_id"] = call["id"]
@@ -328,6 +359,12 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             except Exception as exc:
                 observation["content"] = json.dumps({"error": str(exc)})
             messages.append(observation)
+        if submit is not None:
+            result.answer, result.explanation = submit
+            result.stop_reason = "submitted"
+            if "submit_answer" not in result.tools_used:
+                result.tools_used.append("submit_answer")
+            break
     if num_ctx and result.max_prompt_tokens >= 0.95 * num_ctx:
         result.ctx_overflow_risk = True
     result.latency_ms = int((time.monotonic() - start) * 1000)
