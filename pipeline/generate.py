@@ -272,6 +272,7 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
             correct_index=correct_index,
             sql=qa["sql"],
             description=qa.get("description", ""),
+            title=str(qa.get("title", "")).strip(),
             charts=[charts.canonical_schema(spec)],
             library=library,
         ))

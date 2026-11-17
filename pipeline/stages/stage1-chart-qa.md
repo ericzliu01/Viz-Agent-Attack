@@ -45,6 +45,10 @@ Rules:
 - Provide a one-line `distractor_rationale` explaining why each distractor is
   wrong (evaluator-only; never shown to the agent).
 - Provide a short `description` of what the chart shows.
+- Provide a brief, neutral `title` for the page (2-6 words) that names the
+  dataset/topic only. Like the chart title, it MUST NOT state or reveal the
+  answer value, which option is correct, or the question's conclusion — e.g.
+  "Titanic survival by class", never "Third class had 72 survivors".
 - Provide a `charts` object mapping each applicable chart type (any of "bar",
   "line", "scatter", "stacked_bar") to a complete, valid Vega-Lite v5 spec that
   visualises the data this question is about. Each spec MUST embed the data
@@ -65,6 +69,7 @@ Respond with a single JSON object and nothing else:
   "sql": "SELECT ... FROM data ...",
   "distractor_rationale": "...",
   "description": "...",
+  "title": "...",
   "charts": { "bar": { ...vega-lite... }, "line": { ... } }
 }
 <!-- PROMPT:END -->

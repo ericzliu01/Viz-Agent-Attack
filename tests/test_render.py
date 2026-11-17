@@ -11,6 +11,7 @@ The render check inside ``validate_instance`` needs Playwright + Chromium; the
 validation-exercising tests skip when it is absent.
 """
 import json
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -149,6 +150,34 @@ def test_render_instance_writes_served_and_grader(tmp_path, csv_path):
     # Keys returned are relative to out_root and map to sha256 hex digests.
     assert all("/" in k for k in manifest)
     assert all(len(v) == 64 for v in manifest.values())
+
+
+def _chart_html(root):
+    return next(root.glob("instances/*/*/chart.html")).read_text()
+
+
+def test_page_title_uses_neutral_stage1_title(tmp_path, csv_path):
+    spec = replace(_tt_spec(csv_path), title="Signups by region",
+                   description="Bar chart of signups per region")
+    render_instance(spec, tmp_path)
+    html = _chart_html(tmp_path)
+    assert "<title>Signups by region</title>" in html
+    # The chart description is never used as the title.
+    assert "Bar chart of signups per region" not in html
+
+
+def test_page_title_falls_back_when_title_leaks_answer(tmp_path, csv_path):
+    # CORRECT_INDEX=3 -> answer "310"; a title containing it must not be rendered.
+    spec = replace(_tt_spec(csv_path), title="West leads with 310 signups")
+    render_instance(spec, tmp_path)
+    html = _chart_html(tmp_path)
+    assert "<title>Chart</title>" in html
+    assert "310 signups" not in html
+
+
+def test_page_title_defaults_when_absent(tmp_path, csv_path):
+    render_instance(_tt_spec(csv_path), tmp_path)  # title="" by default
+    assert "<title>Chart</title>" in _chart_html(tmp_path)
 
 
 def test_grader_json_carries_payload_and_group_id(tmp_path, csv_path):

@@ -51,6 +51,7 @@ class InstanceSpec:
     correct_index: int = 0  # index into options
     sql: str = ""  # ground-truth query (evaluator-only)
     description: str = ""
+    title: str = ""  # brief neutral page title (served, non-answer-revealing)
     charts: list = field(default_factory=list)  # list[dict]
     misleader: dict = None  # dict | None
     trap: dict = None  # dict | None

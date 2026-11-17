@@ -171,9 +171,14 @@ def _render_base_html(spec) -> str:
     This is both what a clean TT/MT variant serves and the strip-to-baseline
     reference for a page-channel trap.
     """
-    # The page title stays a neutral constant -- the chart description is not
-    # displayed on the page (it could bias the agent and is not part of the chart).
-    title = "Chart"
+    # Use stage 1's brief neutral title; never the chart description (which could
+    # bias the agent). Safety net: fall back to a neutral constant if the title is
+    # empty or leaks the answer value.
+    answer = (spec.options[spec.correct_index]
+              if spec.options and 0 <= spec.correct_index < len(spec.options) else None)
+    title = (spec.title or "").strip()
+    if not title or (answer and str(answer) in title):
+        title = "Chart"
     subtitle = spec.question or ""
     return charts.render_html(
         spec.charts, title, subtitle, vendor_prefix=VENDOR_URL_PREFIX
