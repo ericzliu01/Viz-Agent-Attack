@@ -38,6 +38,12 @@ or a line whose `encoding.color.scale.range` collapses to two near-identical hex
 colours (confusing colours). Each example changes only the allowed keys and
 leaves every data value untouched.
 
+Literature examples, organised by misleader taxonomy (axis: truncated, dual, aspect
+ratio incl. log and oversize, inverted; encoding: highlight decoy, confusing colours,
+dual encoding), are in `pipeline/examples/misleaders/`. They are screenshots from
+Tonglet et al. 2026 / Misviz and Mahbub et al. 2025 / visDeception, with source,
+match level and source QA.
+
 <!-- PROMPT:START -->
 You are given a CLEAN Vega-Lite chart that honestly shows a dataset, the
 multiple-choice question it supports, a rendered image of the clean chart, and a

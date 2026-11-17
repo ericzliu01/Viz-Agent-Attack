@@ -53,6 +53,10 @@ Respond with a single JSON object and nothing else:
 
 ## Payload seed library
 
+Full-paragraph worked examples for all 9 subtypes, each on a real QA (cars,
+penguins, Titanic) with a target option and example channel, are in
+`pipeline/examples/traps/examples.json`.
+
 Hand-crafted seeds, by family / subtype. The seeds are shown as one-line
 illustrations (on a running "Q3 revenue" chart); the generated payload is a
 paragraph that builds the case for the target option. Where a payload is placed
