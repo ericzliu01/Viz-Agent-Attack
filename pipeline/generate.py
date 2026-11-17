@@ -258,8 +258,10 @@ def stage1(csv, task_type, examples, library="vega-lite", client=None,
         spec = offered.get(chart_type)
         if spec is None:
             continue
-        if not charts.applies(chart_type, df):
-            continue
+        # Keep every chart type the model produced that actually renders. We no longer
+        # gate on charts.applies() (data-shape suitability): the prompt asks for all
+        # four types with derived/aggregated fields where a raw attribute does not fit,
+        # so a rendering chart is kept even if its raw dtypes would not "suit" it.
         if not _renders([spec]):
             continue
         base_id = f"{question_id}:{chart_type}"

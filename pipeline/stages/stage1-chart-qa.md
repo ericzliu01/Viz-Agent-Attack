@@ -49,11 +49,17 @@ Rules:
   dataset/topic only. Like the chart title, it MUST NOT state or reveal the
   answer value, which option is correct, or the question's conclusion — e.g.
   "Titanic survival by class", never "Third class had 72 survivors".
-- Provide a `charts` object mapping each applicable chart type (any of "bar",
-  "line", "scatter", "stacked_bar") to a complete, valid Vega-Lite v5 spec that
-  visualises the data this question is about. Each spec MUST embed the data
-  inline under `data.values`. Only include chart types that genuinely suit the
-  data shape; omit the rest.
+- Provide a `charts` object mapping ALL FOUR chart types ("bar", "line",
+  "scatter", "stacked_bar") to a complete, valid Vega-Lite v5 spec. Produce every
+  one of the four. Each spec MUST embed its data inline under `data.values` and
+  MUST let a reader answer THIS question by reading the chart.
+- The four charts need NOT share the same fields or encodings. When a raw single
+  attribute does not suit a chart type, DERIVE or aggregate appropriate quantities
+  so that type still works and still shows the answer — e.g. counts/percentages per
+  category, group means or rates, binned distributions, or an ordered index on the
+  x-axis for a line. Derived numeric fields are encouraged where they make a chart
+  type genuinely answerable. Do not omit a chart type; construct answerable data
+  for it instead.
 - Chart titles, subtitles, axis labels, and annotations MUST NOT state or reveal
   the answer value or which option is correct. The title must describe the chart
   neutrally (what it shows, not the conclusion). For example, never title a chart
@@ -70,7 +76,7 @@ Respond with a single JSON object and nothing else:
   "distractor_rationale": "...",
   "description": "...",
   "title": "...",
-  "charts": { "bar": { ...vega-lite... }, "line": { ... } }
+  "charts": { "bar": {...}, "line": {...}, "scatter": {...}, "stacked_bar": {...} }
 }
 <!-- PROMPT:END -->
 

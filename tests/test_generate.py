@@ -253,11 +253,13 @@ def test_stage1_fans_out_one_qa_across_chart_types(tmp_path, monkeypatch):
     assert all(i.cell == "TT" and i.options[i.correct_index] == "136" for i in insts)
 
 
-def test_stage1_prunes_inapplicable_chart_type(tmp_path, monkeypatch):
+def test_stage1_keeps_every_rendering_chart_type(tmp_path, monkeypatch):
+    # No applies() gating: every chart type the model produces that renders is kept,
+    # even on a frame whose raw dtypes would not "suit" it (derived fields are fine).
     csv = _write(tmp_path, "p.csv", PRUNE_CSV)
-    _patch_complete(monkeypatch, _stage1_reply())  # LLM offers a scatter too
+    _patch_complete(monkeypatch, _stage1_reply())  # offers all four chart types
     insts = stage1(csv, "find_extremum", examples={}, client=object())
-    assert "scatter" not in {i.chart_type for i in insts}
+    assert {i.chart_type for i in insts} == {"bar", "line", "scatter", "stacked_bar"}
 
 
 def test_stage1_wires_chart_few_shots_and_images(tmp_path, monkeypatch):
