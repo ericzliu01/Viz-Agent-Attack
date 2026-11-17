@@ -388,12 +388,11 @@ def test_stage3_prompt_includes_trap_examples(monkeypatch):
     mock = _patch_complete(monkeypatch, _stage3_reply())
     stage3_payloads(_qa(), [("perception_facts", "136"), ("reasoning_persona", "200")],
                     misleader_goal="collapse", client=object())
-    # The first call requests every subtype (retries re-request only the unsatisfied ones).
-    prompt = mock.call_args_list[0].args[0]
-    assert "TRAP EXAMPLES" in prompt
-    # One worked example per requested subtype is fed in.
-    assert "perception_facts [example question:" in prompt
-    assert "reasoning_persona [example question:" in prompt
+    # Payloads are batched per subtype, so each call carries that subtype's example.
+    prompts = [c.args[0] for c in mock.call_args_list]
+    assert all("TRAP EXAMPLES" in p for p in prompts)
+    assert any("perception_facts [example question:" in p for p in prompts)
+    assert any("reasoning_persona [example question:" in p for p in prompts)
 
 
 def test_stage3_short_payload_is_dropped(monkeypatch):

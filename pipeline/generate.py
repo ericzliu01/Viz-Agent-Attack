@@ -810,24 +810,35 @@ def stage3_payloads(qa, specs, misleader_goal, client=None, *, cache_dir=None) -
     question = _attr(qa, "question", "")
     options = _attr(qa, "options", [])
 
+    # Batch per subtype: one small call per family (its ~2 targets). A single big
+    # call emitting all ~18 payloads is fragile -- the model routinely stops early
+    # (often balking partway through an action payload), and that one malformed /
+    # truncated response loses EVERY payload for the question. Per-subtype batching
+    # isolates a failure to that family, so the other families still yield, and each
+    # call is small enough to parse reliably.
+    by_subtype = {}
+    for st, tgt in specs:
+        by_subtype.setdefault(str(st), []).append(str(tgt))
+
     out = {}
-    remaining = [(str(st), str(tgt)) for st, tgt in specs]
-    for attempt in range(MAX_RETRIES + 1):
-        if not remaining:
-            break
-        prompt = _stage3_prompt(question, options, misleader_goal, remaining)
-        text = complete(prompt, system=_S3_SYS, model=MODELS["stage3"],
-                        cache_key=_ck(question_id, "s3", attempt),
-                        cache_dir=_cache_dir(cache_dir), client=client)
-        produced = _parse_payloads(text)
-        still = []
-        for subtype, target in remaining:
-            payload = produced.get((subtype, target), "")
-            if MIN_PAYLOAD_CHARS <= len(payload) <= MAX_PAYLOAD_CHARS:
-                out[payload_id(question_id, subtype, target)] = payload
-            else:
-                still.append((subtype, target))
-        remaining = still
+    for subtype, targets in by_subtype.items():
+        remaining = [(subtype, t) for t in targets]
+        for attempt in range(MAX_RETRIES + 1):
+            if not remaining:
+                break
+            prompt = _stage3_prompt(question, options, misleader_goal, remaining)
+            text = complete(prompt, system=_S3_SYS, model=MODELS["stage3"],
+                            cache_key=_ck(question_id, "s3", subtype, attempt),
+                            cache_dir=_cache_dir(cache_dir), client=client)
+            produced = _parse_payloads(text)
+            still = []
+            for st, target in remaining:
+                payload = produced.get((st, target), "")
+                if MIN_PAYLOAD_CHARS <= len(payload) <= MAX_PAYLOAD_CHARS:
+                    out[payload_id(question_id, st, target)] = payload
+                else:
+                    still.append((st, target))
+            remaining = still
 
     if not out:
         raise GenerationDropped("stage3_payloads: no payload met the length bounds")
