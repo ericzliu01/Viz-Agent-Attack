@@ -114,6 +114,21 @@ def test_run_eval_is_resumable_and_skips_completed_trials(tmp_path):
         assert len(list(csv.DictReader(handle))) == 5  # not duplicated
 
 
+def test_run_eval_select_restricts_to_chosen_instances(tmp_path):
+    def fake_agent(page, question, model, **kwargs):
+        return AgentResult(answer="D", stop_reason="final", steps=1, latency_ms=1,
+                           messages=[{"role": "user", "content": "x"}])
+
+    _, attacks = discover_pipeline_instances(EXAMPLES)
+    chosen = attacks[0]["instance_id"]
+    rows = run_eval(EXAMPLES, tmp_path, model="m", agent_fn=fake_agent,
+                    page_provider=_stub_provider(), select={chosen})
+    # Only the chosen attack runs, plus its auto-included TT baseline.
+    assert any(r["instance_id"] == chosen for r in rows)
+    assert all(r["instance_id"] == chosen or r["cell"] == "TT" for r in rows)
+    assert sum(1 for r in rows if r["cell"] == "TT") == 1
+
+
 def test_run_eval_writes_run_config(tmp_path):
     def fake_agent(page, question, model, **kwargs):
         return AgentResult(answer="D", stop_reason="final", steps=1, latency_ms=1,

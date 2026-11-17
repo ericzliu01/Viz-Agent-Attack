@@ -213,7 +213,7 @@ def _completed_trials(csv_path):
 
 
 def run_eval(instances_root, out_dir, *, model=None, client=None, agent_fn=None,
-             page_provider=None, repetitions=1, seed=0, run_config=None):
+             page_provider=None, repetitions=1, seed=0, run_config=None, select=None):
     """Evaluate every unique instance (attacks + one TT baseline per base) and write
     ``trial_results.csv``.
 
@@ -233,6 +233,12 @@ def run_eval(instances_root, out_dir, *, model=None, client=None, agent_fn=None,
     csv_path = out_dir / "trial_results.csv"
 
     clean_by_base, attacks = discover_pipeline_instances(instances_root)
+    if select is not None:
+        # Restrict to a chosen set of attack/MT instance_ids (e.g. a stratified sample);
+        # each selected attack's TT baseline is still auto-included via base_id below so
+        # the SAME selection evaluates identically across models.
+        select = set(select)
+        attacks = [a for a in attacks if a["instance_id"] in select]
     planned = list(attacks)
     seen_bases = set()
     for attack in attacks:
