@@ -84,14 +84,18 @@ _CHROMIUM_STATE = None  # cached: True/False after first probe
 
 
 def _chromium_available():
-    """Whether Playwright + a Chromium build are usable (cached)."""
+    """Whether Playwright + a Chromium build are usable (cached).
+
+    Reuses the process-wide shared browser (``pipeline.charts._shared_browser``)
+    rather than cold-starting its own, so the availability probe does not add a
+    Chromium launch per instance.
+    """
     global _CHROMIUM_STATE
     if _CHROMIUM_STATE is None:
         try:
-            from playwright.sync_api import sync_playwright
+            from pipeline.charts import _shared_browser
 
-            with sync_playwright() as pw:
-                pw.chromium.launch(headless=True).close()
+            _shared_browser()
             _CHROMIUM_STATE = True
         except Exception:  # pragma: no cover - environment dependent
             _CHROMIUM_STATE = False

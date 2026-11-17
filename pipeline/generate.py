@@ -512,22 +512,24 @@ def vision_judge(question, options, target_option, mt_png, clean_png=None,
 
 
 def stage2(clean_instance, shared_goal, clean_png=None, client=None,
-           judge=vision_judge, *, cache_dir=None) -> list:
-    """Author, validate, and judge both misleaders of one chart type.
+           judge=None, *, cache_dir=None) -> list:
+    """Author and validate both misleaders of one chart type.
 
     A single LLM call writes both misleading specs aimed at
-    ``shared_goal.target_option``; each is validated against the clean spec by
-    :func:`pipeline.misleaders.misleader_invariant`, rendered, and gated by
-    ``judge``. A misleader that fails either check is regenerated (≤2) then
-    dropped. Returns one MT instance per survivor (empty list if both fail), each
-    carrying ``misleader = {misleader_id, goal, description, wrong_option}`` with
-    ``goal == shared_goal.goal`` preserved verbatim.
+    ``shared_goal.target_option``; each is accepted iff it passes
+    :func:`pipeline.misleaders.misleader_invariant` (a data-preserving diff). A
+    misleader that fails the invariant is regenerated (≤2) then dropped. Returns one
+    MT instance per survivor. ``judge`` (default ``None``) is an OPTIONAL, non-gating
+    plausibility check: when supplied it renders the MT and records
+    ``misleader["judge_plausible"]`` but never drops a valid misleader -- so as many
+    misleaders as the data permits are kept. The clean PNG is rendered only when a
+    judge is supplied.
     """
     chart_type = clean_instance.chart_type
     clean_spec = clean_instance.charts[0]
     want = set(misleaders_for(chart_type))
     if clean_png is None:
-        clean_png = _png([clean_spec])
+        clean_png = _png([clean_spec])  # authoring image (and judge input, if any)
 
     survivors = {}
     for attempt in range(MAX_RETRIES + 1):
@@ -542,16 +544,19 @@ def stage2(clean_instance, shared_goal, clean_png=None, client=None,
         for mid, spec, desc in _parse_misleaders(text):
             if mid not in missing or mid in survivors:
                 continue
-            if _accept_misleader(clean_spec, spec, mid, clean_instance,
-                                 shared_goal, judge, clean_png, client):
-                survivors[mid] = (spec, desc)
+            ok, norm = _accept_misleader(clean_spec, spec, mid)
+            if not ok:
+                continue
+            verdict = (_judge_verdict(clean_instance, shared_goal, norm, clean_png,
+                                      judge, client) if judge is not None else None)
+            survivors[mid] = (norm, desc, verdict)
 
-    return [_mt_instance(clean_instance, shared_goal, mid, spec, desc)
-            for mid, (spec, desc) in survivors.items()]
+    return [_mt_instance(clean_instance, shared_goal, mid, spec, desc, verdict)
+            for mid, (spec, desc, verdict) in survivors.items()]
 
 
 def stage2_all(clean_instances, shared_goal, clean_pngs=None, client=None,
-               judge=vision_judge, *, cache_dir=None) -> list:
+               judge=None, *, cache_dir=None) -> list:
     """Batched stage 2: one LLM call emits every chart type's misleaders.
 
     Trades per-misleader retries for maximal shared context and a single call per
@@ -583,43 +588,60 @@ def stage2_all(clean_instances, shared_goal, clean_pngs=None, client=None,
         for mid, spec, desc in _parse_misleaders(json.dumps(block)):
             if mid not in want:
                 continue
-            if _accept_misleader(clean_spec, spec, mid, ci, shared_goal, judge,
-                                 pngs[chart_type], client):
-                out.append(_mt_instance(ci, shared_goal, mid, spec, desc))
+            ok, norm = _accept_misleader(clean_spec, spec, mid)
+            if not ok:
+                continue
+            verdict = (_judge_verdict(ci, shared_goal, norm, pngs[chart_type],
+                                      judge, client) if judge is not None else None)
+            out.append(_mt_instance(ci, shared_goal, mid, norm, desc, verdict))
     return out
 
 
-def _accept_misleader(clean_spec, spec, mid, ci, shared_goal, judge, clean_png, client):
+def _accept_misleader(clean_spec, spec, mid):
+    """Accept iff the authored spec is a valid data-preserving diff (invariant only).
+
+    Returns ``(ok, normalized_spec)``. Gating is correctness-only: the vision judge
+    is applied separately and is NON-gating (it records a plausibility verdict but
+    never drops an invariant-valid misleader), so as many misleaders as the data
+    permits are kept. ``$schema`` is canonicalized first so a wrong host does not
+    trip the allowed-keys check.
+    """
     if spec is None:
-        return False
-    # Normalize first: the clean spec's $schema is canonical, so a wrong host in
-    # the authored spec would otherwise trip the allowed_changed_keys invariant.
+        return False, None
     spec = charts.canonical_schema(spec)
     try:
         misleader_invariant(clean_spec, spec, mid)
     except (InvariantError, KeyError, TypeError):
-        return False
+        return False, None
+    return True, spec
+
+
+def _judge_verdict(ci, shared_goal, mt_spec, clean_png, judge, client):
+    """Run the (optional) vision judge; return True/False, or None if it errored."""
     try:
-        mt_png = _png([spec])
-    except Exception:
-        return False
-    return bool(judge(ci.question, ci.options, shared_goal.target_option,
-                      mt_png, clean_png, client=client))
+        return bool(judge(ci.question, ci.options, shared_goal.target_option,
+                          _png([mt_spec]), clean_png, client=client))
+    except Exception:  # noqa: BLE001 -- judge is advisory; never drop on its failure
+        return None
 
 
-def _mt_instance(clean_instance, shared_goal, mid, spec, desc) -> InstanceSpec:
+def _mt_instance(clean_instance, shared_goal, mid, spec, desc,
+                 judge_plausible=None) -> InstanceSpec:
+    misleader = {
+        "misleader_id": mid,
+        "goal": shared_goal.goal,
+        "description": desc,
+        "wrong_option": shared_goal.target_option,
+    }
+    if judge_plausible is not None:
+        misleader["judge_plausible"] = judge_plausible
     return replace(
         clean_instance,
         instance_id=f"{clean_instance.base_id}:MT:{mid}",
         cell="MT",
         direction="none",
         charts=[charts.canonical_schema(spec)],
-        misleader={
-            "misleader_id": mid,
-            "goal": shared_goal.goal,
-            "description": desc,
-            "wrong_option": shared_goal.target_option,
-        },
+        misleader=misleader,
     )
 
 
@@ -877,7 +899,7 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
     rerun with the same ``config.cache_dir`` makes no new model calls.
     """
     cache_dir = _cache_dir(config.cache_dir)
-    judge = config.judge or vision_judge
+    judge = config.judge  # None => the non-gating judge is skipped entirely (keep all)
 
     for csv, task_type in config.jobs:
         try:

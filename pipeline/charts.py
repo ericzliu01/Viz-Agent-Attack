@@ -11,6 +11,7 @@ drawn from it. ``chart_renders`` and ``render_png`` serve the page through
 ``browser_environment.serve_chart`` and drive Playwright/Chromium, reusing the
 repo's existing ``browser_agent.chart_rendered`` sanity check.
 """
+import atexit
 import html as html_lib
 import json
 
@@ -153,31 +154,66 @@ def applies(chart_type: str, df) -> bool:
     raise ValueError(f"Unknown chart_type: {chart_type!r}")
 
 
+#: Process-wide Playwright + Chromium, launched once and reused across every render.
+#: Launching Chromium per call dominated generation time (each instance's render and
+#: validation cold-started a browser); reuse makes each render a cheap new context.
+#: The sync Playwright browser is NOT thread-safe -- callers must render serially.
+_PLAYWRIGHT = None
+_BROWSER = None
+
+
+def _shared_browser():
+    """Return the process-wide headless Chromium, launching it once on first use."""
+    global _PLAYWRIGHT, _BROWSER
+    if _BROWSER is None:
+        from playwright.sync_api import sync_playwright
+
+        _PLAYWRIGHT = sync_playwright().start()
+        _BROWSER = _PLAYWRIGHT.chromium.launch(headless=True)
+    return _BROWSER
+
+
+def close_shared_browser():
+    """Tear down the shared browser/Playwright (idempotent; registered at exit)."""
+    global _PLAYWRIGHT, _BROWSER
+    if _BROWSER is not None:
+        try:
+            _BROWSER.close()
+        except Exception:  # noqa: BLE001 -- best-effort teardown
+            pass
+        _BROWSER = None
+    if _PLAYWRIGHT is not None:
+        try:
+            _PLAYWRIGHT.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        _PLAYWRIGHT = None
+
+
+atexit.register(close_shared_browser)
+
+
 def _with_rendered_page(html_path, fn):
     """Serve ``html_path`` and run ``fn(page)`` on a loaded Chromium page.
 
-    Mirrors how ``run_attack_suite.py`` drives ``serve_chart`` + Playwright:
-    navigate until network idle, settle briefly, then act on the page.
+    Reuses the process-wide browser (:func:`_shared_browser`); only a fresh context
+    and page are created per call. Mirrors how ``run_attack_suite.py`` drives the
+    page: navigate until network idle, settle briefly, then act.
     """
-    from playwright.sync_api import sync_playwright
-
     from browser_agent import VIEWPORT
     from browser_environment import serve_chart
 
-    with serve_chart(html_path) as url, sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+    browser = _shared_browser()
+    with serve_chart(html_path) as url:
+        context = browser.new_context(viewport=VIEWPORT)
         try:
-            context = browser.new_context(viewport=VIEWPORT)
-            try:
-                page = context.new_page()
-                page.set_default_timeout(10_000)
-                page.goto(url, wait_until="networkidle")
-                page.wait_for_timeout(700)
-                return fn(page)
-            finally:
-                context.close()
+            page = context.new_page()
+            page.set_default_timeout(10_000)
+            page.goto(url, wait_until="networkidle")
+            page.wait_for_timeout(700)
+            return fn(page)
         finally:
-            browser.close()
+            context.close()
 
 
 def chart_renders(html_path: str) -> bool:

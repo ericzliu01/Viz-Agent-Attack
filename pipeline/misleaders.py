@@ -105,6 +105,19 @@ def _is_allowed(path: str, allowed) -> bool:
     return False
 
 
+def _normalize_mark(spec):
+    """Return ``spec`` with a string ``mark`` rewritten to ``{"type": mark}``.
+
+    Vega-Lite treats ``"mark": "bar"`` and ``"mark": {"type": "bar"}`` as identical,
+    but a raw path diff sees a str-vs-dict type change and flags the whole ``mark``
+    path. Normalizing both sides before the diff removes that false positive (an
+    authored misleader that re-emits the mark in object form is not a real change).
+    """
+    if isinstance(spec, dict) and isinstance(spec.get("mark"), str):
+        return {**spec, "mark": {"type": spec["mark"]}}
+    return spec
+
+
 def _nested_data_paths(spec) -> list:
     """Normalized paths of every ``data`` key that appears BELOW the spec root.
 
@@ -324,6 +337,10 @@ def misleader_invariant(clean_spec, mt_spec, misleader_id) -> None:
     ``misleader_id`` is not in the catalog.
     """
     misleader = MISLEADERS[misleader_id]
+
+    # Normalize mark representation on both sides so "bar" == {"type": "bar"}.
+    clean_spec = _normalize_mark(clean_spec)
+    mt_spec = _normalize_mark(mt_spec)
 
     # (1) Data block unchanged.
     if data_block_hash(clean_spec) != data_block_hash(mt_spec):

@@ -312,13 +312,27 @@ def test_stage2_generates_both_misleaders_and_preserves_shared_goal(monkeypatch)
     assert all(data_block_hash(i.charts[0]) == data_block_hash(clean) for i in insts)
 
 
-def test_stage2_drops_misleader_when_vision_judge_rejects(monkeypatch):
+def test_stage2_judge_is_non_gating_and_records_verdict(monkeypatch):
+    # The vision judge no longer DROPS misleaders: an invariant-valid misleader is
+    # kept regardless of the verdict, and the verdict is recorded for later analysis.
     clean = _clean_bar_spec()
     inst = _clean_instance("bar", clean)
     _patch_complete(monkeypatch, _stage2_reply(clean))
     goal = Goal(target_option="c", goal="downplay the rise")
-    assert stage2(inst, goal, clean_png=b"C", client=object(),
-                  judge=lambda *a, **k: False) == []
+    insts = stage2(inst, goal, clean_png=b"C", client=object(),
+                   judge=lambda *a, **k: False)
+    assert {i.misleader["misleader_id"] for i in insts} == {"truncated_axis", "highlight_decoy"}
+    assert all(i.misleader["judge_plausible"] is False for i in insts)
+
+
+def test_stage2_without_judge_keeps_all_valid_and_records_no_verdict(monkeypatch):
+    clean = _clean_bar_spec()
+    inst = _clean_instance("bar", clean)
+    _patch_complete(monkeypatch, _stage2_reply(clean))
+    goal = Goal(target_option="c", goal="downplay the rise")
+    insts = stage2(inst, goal, clean_png=b"C", client=object())  # judge=None default
+    assert {i.misleader["misleader_id"] for i in insts} == {"truncated_axis", "highlight_decoy"}
+    assert all("judge_plausible" not in i.misleader for i in insts)
 
 
 def test_stage2_all_batches_whole_question_in_one_call(monkeypatch):

@@ -266,15 +266,17 @@ def _dataframe(spec):
     return None
 
 
-def render_from_jsonl(specs_jsonl, out_root) -> dict:
-    """Render every spec, run the validation gate, and write ``manifest.json``.
+def render_from_jsonl(specs_jsonl, out_root, *, validate=True) -> dict:
+    """Render every spec, (optionally) run the validation gate, and write ``manifest.json``.
 
-    Renders each spec with :func:`render_instance`, validates it with
-    :func:`validate_instance`, and validates each paired TM/MM group (shared
-    ``trap_group_id``) with :func:`validate_pair`. Raises
-    :class:`~pipeline.validate.ValidationFailed` on the first instance or pair
-    that fails. On success writes ``<out_root>/manifest.json`` with the merged
-    ``{relative_path: sha256}`` of every rendered file and returns that mapping.
+    Renders each spec with :func:`render_instance`; when ``validate`` is True (the
+    default), validates each instance with :func:`validate_instance` and each paired
+    TM/MM group (shared ``trap_group_id``) with :func:`validate_pair`, raising
+    :class:`~pipeline.validate.ValidationFailed` on the first failure. Passing
+    ``validate=False`` renders only (no Chromium render/strip checks, no SQL
+    re-execution) for fast iteration -- validate the frozen corpus in a separate pass
+    before evaluating. On success writes ``<out_root>/manifest.json`` and returns the
+    merged ``{relative_path: sha256}`` mapping.
 
     Deterministic: re-rendering the same specs into a same-depth ``out_root``
     yields byte-identical files and therefore an identical manifest.
@@ -296,21 +298,23 @@ def render_from_jsonl(specs_jsonl, out_root) -> dict:
         instance_dir = _instance_dir(out_root, spec)
         manifest.update(render_instance(spec, out_root))
 
-        grader = _validation_grader(spec, instance_dir, clean_specs)
-        failures = validate_instance(spec, instance_dir, grader)
-        if failures:
-            raise ValidationFailed(failures)
+        if validate:
+            grader = _validation_grader(spec, instance_dir, clean_specs)
+            failures = validate_instance(spec, instance_dir, grader)
+            if failures:
+                raise ValidationFailed(failures)
 
         if spec.trap and spec.cell in ("TM", "MM"):
             gid = spec.trap.get("trap_group_id")
             dirs_by_group.setdefault(gid, {})[spec.cell] = instance_dir
 
     # Cross-instance shared-trap rule for paired TM/MM.
-    for gid, cells in sorted(dirs_by_group.items()):
-        if "TM" in cells and "MM" in cells:
-            failures = validate_pair(cells["TM"], cells["MM"])
-            if failures:
-                raise ValidationFailed(failures)
+    if validate:
+        for gid, cells in sorted(dirs_by_group.items()):
+            if "TM" in cells and "MM" in cells:
+                failures = validate_pair(cells["TM"], cells["MM"])
+                if failures:
+                    raise ValidationFailed(failures)
 
     manifest_path = out_root / "manifest.json"
     manifest_path.write_text(
