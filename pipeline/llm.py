@@ -1,8 +1,8 @@
 """Bedrock LLM wrapper with a spec-hash cache.
 
 The three generation stages and the judge all reach Claude on AWS Bedrock through
-this one wrapper. :func:`complete` calls the ``AnthropicBedrockMantle`` client
-(the same client and request shape as ``AWS-API/aws-api-test.py``) and caches each
+this one wrapper. :func:`complete` calls the standard ``AnthropicBedrock`` client
+(see :func:`_build_client`; ``AnthropicBedrockMantle`` is opt-in) and caches each
 response in one file per ``cache_key`` under ``cache_dir``. The on-disk key folds
 in ``model``, so switching a stage's model re-generates only that stage. On a cache
 hit the cached text is returned without constructing a client or making any call.
@@ -91,21 +91,32 @@ def _image_block(data):
 
 
 def _build_client():
-    """The real AnthropicBedrockMantle, constructed exactly as aws-api-test.py does.
+    """Build the Bedrock client used for a cache miss.
+
+    Default: the standard ``AnthropicBedrock`` client, which reaches the full
+    5-series of Claude models via their cross-region inference-profile IDs
+    (``us.anthropic.claude-sonnet-5-5`` etc.) using the ``AWS_BEARER_TOKEN_BEDROCK``
+    credential. The ``AnthropicBedrockMantle`` workspace proxy only exposes a
+    restricted model allowlist (haiku-4-5 and older) and 404s on the 5-series, so
+    it is opt-in via ``VIZTRAP_BEDROCK_CLIENT=mantle`` for environments that need it.
 
     Imported lazily so the module (and its cache/JSON helpers) load without the
     ``anthropic[bedrock]`` extra installed; only a real cache miss needs it.
     """
-    from anthropic import AnthropicBedrockMantle
-
     region = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or DEFAULT_REGION
-    return AnthropicBedrockMantle(
-        aws_region=region,
-        aws_profile=os.getenv("AWS_PROFILE"),
-        default_headers={"anthropic-workspace-id": os.getenv("ANTHROPIC_WORKSPACE_ID", "default")},
-        max_retries=0,
-        timeout=120.0,
-    )
+    if os.getenv("VIZTRAP_BEDROCK_CLIENT", "").lower() == "mantle":
+        from anthropic import AnthropicBedrockMantle
+
+        return AnthropicBedrockMantle(
+            aws_region=region,
+            aws_profile=os.getenv("AWS_PROFILE"),
+            default_headers={"anthropic-workspace-id": os.getenv("ANTHROPIC_WORKSPACE_ID", "default")},
+            max_retries=0,
+            timeout=120.0,
+        )
+    from anthropic import AnthropicBedrock
+
+    return AnthropicBedrock(aws_region=region, max_retries=0, timeout=120.0)
 
 
 def complete(prompt, *, system, model, cache_key, cache_dir, images=(), client=None):

@@ -140,8 +140,9 @@ def run_bedrock_agent(page, question, model=None, *, workspace_dir=None,
                       system_prompt=None, console_logs=None, max_tokens=MAX_TOKENS):
     """Run the ReAct browser loop against Claude on Bedrock; return an AgentResult.
 
-    ``client`` is an ``AnthropicBedrockMantle`` (built lazily on first use when not
-    injected). Tests inject a mock client -- no real Bedrock or browser call is made.
+    ``client`` is built lazily via ``pipeline.llm._build_client`` on first use when
+    not injected (standard ``AnthropicBedrock`` by default; Mantle is opt-in).
+    Tests inject a mock client -- no real Bedrock or browser call is made.
     """
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
