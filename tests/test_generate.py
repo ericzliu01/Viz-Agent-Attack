@@ -337,6 +337,30 @@ def test_stage2_without_judge_keeps_all_valid_and_records_no_verdict(monkeypatch
     assert all("judge_plausible" not in i.misleader for i in insts)
 
 
+def test_stage2_wires_misleader_examples_and_overview_image(monkeypatch):
+    clean = _clean_bar_spec()
+    inst = _clean_instance("bar", clean)
+    mock = _patch_complete(monkeypatch, _stage2_reply(clean))
+    goal = Goal(target_option="c", goal="downplay the rise")
+    stage2(inst, goal, clean_png=b"C", client=object())
+    prompt = mock.call_args.args[0]
+    assert "MISLEADER EXAMPLES" in prompt
+    assert "truncated_axis" in prompt and "highlight_decoy" in prompt
+    images = mock.call_args.kwargs.get("images")
+    assert images[0] == b"C" and len(images) == 2  # clean chart + overview grid
+
+
+def test_stage2_example_image_can_be_disabled(monkeypatch):
+    monkeypatch.setenv("VIZTRAP_STAGE2_EXAMPLE_IMAGES", "0")
+    clean = _clean_bar_spec()
+    inst = _clean_instance("bar", clean)
+    mock = _patch_complete(monkeypatch, _stage2_reply(clean))
+    goal = Goal(target_option="c", goal="downplay the rise")
+    stage2(inst, goal, clean_png=b"C", client=object())
+    assert mock.call_args.kwargs.get("images") == [b"C"]  # no overview image
+    assert "MISLEADER EXAMPLES" in mock.call_args.args[0]  # text few-shot stays
+
+
 def test_stage2_all_batches_whole_question_in_one_call(monkeypatch):
     clean_bar = _clean_bar_spec()
     clean_line = _clean_line_spec()

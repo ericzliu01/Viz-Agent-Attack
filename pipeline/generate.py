@@ -597,7 +597,7 @@ def stage2(clean_instance, shared_goal, clean_png=None, client=None,
         prompt = _stage2_prompt(clean_instance, shared_goal, sorted(missing))
         text = complete(prompt, system=_S2_SYS, model=MODELS["stage2"],
                         cache_key=_ck(clean_instance.base_id, "s2", attempt),
-                        cache_dir=_cache_dir(cache_dir), images=[clean_png],
+                        cache_dir=_cache_dir(cache_dir), images=_stage2_images(clean_png),
                         client=client)
         for mid, spec, desc in _parse_misleaders(text):
             if mid not in missing or mid in survivors:
@@ -627,6 +627,8 @@ def stage2_all(clean_instances, shared_goal, clean_pngs=None, client=None,
 
     prompt = _stage2_all_prompt(clean_instances, shared_goal)
     images = [pngs[ci.chart_type] for ci in clean_instances]
+    if _stage2_example_images_enabled():
+        images.extend(_misleader_example_images())
     text = complete(prompt, system=_S2_SYS, model=MODELS["stage2"],
                     cache_key=_ck(clean_instances[0].question_id, "s2all"),
                     cache_dir=_cache_dir(cache_dir), images=images, client=client)
@@ -758,9 +760,68 @@ def _allowed_keys_block(misleader_ids) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# Misleader few-shots (pipeline/examples/misleaders): literature screenshots of real
+# misleading charts, one per misleader taxonomy, with an overview grid image. Feeds
+# stage 2 a visual + textual reference of what each distortion looks like.
+# ---------------------------------------------------------------------------
+_MISLEADERS_DIR = Path(__file__).parent / "examples" / "misleaders"
+_MISLEADER_EXAMPLES = None
+
+
+def _misleader_examples() -> list:
+    global _MISLEADER_EXAMPLES
+    if _MISLEADER_EXAMPLES is None:
+        try:
+            _MISLEADER_EXAMPLES = json.loads((_MISLEADERS_DIR / "examples.json").read_text())
+        except (OSError, json.JSONDecodeError):
+            _MISLEADER_EXAMPLES = []
+    return _MISLEADER_EXAMPLES
+
+
+def _stage2_example_images_enabled() -> bool:
+    """Whether stage 2 attaches the misleader overview image (default on; off = cheaper)."""
+    return os.getenv("VIZTRAP_STAGE2_EXAMPLE_IMAGES", "1").lower() not in ("0", "false", "no")
+
+
+def _format_misleader_examples(misleader_ids) -> str:
+    wanted = set(misleader_ids)
+    lines = [
+        f"- {e['pipeline_misleader_id']} ({e.get('chart_type', '')}, "
+        f"match={e.get('match', '')}): {e.get('definition', '')}"
+        for e in _misleader_examples()
+        if e.get("pipeline_misleader_id") in wanted
+    ]
+    if not lines:
+        return ""
+    return (
+        "MISLEADER EXAMPLES (real misleading charts from the literature, by type; the "
+        "attached overview image shows them visually -- reproduce the DISTORTION on THIS "
+        "chart's data, do not copy these example datasets):\n" + "\n".join(lines)
+    )
+
+
+def _misleader_example_images() -> list:
+    """The misleader overview grid image (one PNG), or empty if unavailable."""
+    try:
+        return [(_MISLEADERS_DIR / "overview.png").read_bytes()]
+    except OSError:
+        return []
+
+
+def _stage2_images(clean_png) -> list:
+    """Images for a stage 2 authoring call: the clean chart, plus the misleader
+    overview grid when enabled."""
+    images = [clean_png]
+    if _stage2_example_images_enabled():
+        images.extend(_misleader_example_images())
+    return images
+
+
 def _stage2_prompt(clean_instance, shared_goal, misleader_ids) -> str:
     return (
         f"{_load_prompt('stage2-misleader.md')}\n\n"
+        f"{_format_misleader_examples(misleader_ids)}\n"
         f"CHART TYPE: {clean_instance.chart_type}\n"
         f"REQUESTED MISLEADER IDS: {misleader_ids}\n"
         f"{_allowed_keys_block(misleader_ids)}\n"
@@ -785,6 +846,7 @@ def _stage2_all_prompt(clean_instances, shared_goal) -> str:
     return (
         f"{_load_prompt('stage2-misleader.md')}\n\n"
         "BATCHED MODE: emit misleaders for ALL chart types below.\n"
+        f"{_format_misleader_examples(all_ids)}\n"
         f"{_allowed_keys_block(all_ids)}\n"
         f"QUESTION: {ci0.question}\n"
         f"OPTIONS: {ci0.options}\n"
