@@ -3,6 +3,7 @@ page provider is injected (no browser launch).
 """
 import contextlib
 import csv
+import json
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -59,13 +60,14 @@ def test_run_eval_pairs_attack_with_tt_and_writes_csv(tmp_path):
         written = list(csv.DictReader(handle))
 
     expected_columns = ["instance_id", "base_id", "question_id", "cell", "direction",
-                        "misleader_id", "subtype", "channel", "model", "correct_option",
-                        "target_option", "predicted_option", "status", "latency_ms",
-                        "trace_path"]
+                        "misleader_id", "subtype", "channel", "model", "repetition",
+                        "seed", "correct_option", "target_option", "predicted_option",
+                        "status", "latency_ms", "trace_path"]
     assert list(written[0].keys()) == expected_columns
-    # Four attacks, each paired with its TT baseline -> 8 rows.
-    assert len(written) == 8
-    assert len(rows) == 8
+    # Four attacks + one TT baseline per base (one base here) -> 5 unique-instance rows.
+    assert len(written) == 5
+    assert len(rows) == 5
+    assert sum(1 for r in written if r["cell"] == "TT") == 1  # baseline evaluated once
     cells = {row["cell"] for row in written}
     assert "TT" in cells and cells - {"TT"}
     # Agent answered "D" everywhere -> correct option D graded true.
@@ -89,6 +91,58 @@ def test_run_eval_grades_wrong_answer_false(tmp_path):
     # Correct option is D everywhere; answering B is false (and is the MM target).
     assert all(row["status"] == "false" for row in written)
     assert all(row["predicted_option"] == "B" for row in written)
+
+
+def test_run_eval_is_resumable_and_skips_completed_trials(tmp_path):
+    calls = {"n": 0}
+
+    def fake_agent(page, question, model, **kwargs):
+        calls["n"] += 1
+        return AgentResult(answer="D", stop_reason="final", steps=1,
+                           latency_ms=3, messages=[{"role": "user", "content": "x"}])
+
+    first = run_eval(EXAMPLES, tmp_path, model="m", agent_fn=fake_agent,
+                     page_provider=_stub_provider())
+    after_first = calls["n"]
+    assert len(first) == 5 and after_first == 5
+    # Re-run against the same out_dir: everything already recorded -> no new agent calls.
+    second = run_eval(EXAMPLES, tmp_path, model="m", agent_fn=fake_agent,
+                      page_provider=_stub_provider())
+    assert second == []
+    assert calls["n"] == after_first  # no re-evaluation
+    with open(tmp_path / "trial_results.csv", newline="") as handle:
+        assert len(list(csv.DictReader(handle))) == 5  # not duplicated
+
+
+def test_run_eval_writes_run_config(tmp_path):
+    def fake_agent(page, question, model, **kwargs):
+        return AgentResult(answer="D", stop_reason="final", steps=1, latency_ms=1,
+                           messages=[{"role": "user", "content": "x"}])
+
+    run_eval(EXAMPLES, tmp_path, model="qwen3-vl:8b", seed=7, agent_fn=fake_agent,
+             page_provider=_stub_provider(), run_config={"target": "ollama"})
+    cfg = json.loads((tmp_path / "run_config.json").read_text())
+    assert cfg["model"] == "qwen3-vl:8b" and cfg["seed"] == 7
+    assert cfg["target"] == "ollama" and cfg["planned_instances"] == 5
+
+
+def test_ollama_agent_fn_adapts_run_agent_and_ignores_client(monkeypatch):
+    import browser_agent
+    seen = {}
+
+    def fake_run_agent(page, question, model, **kwargs):
+        seen.update(kwargs)
+        seen["model"] = model
+        return AgentResult(answer="A", stop_reason="final", steps=1, latency_ms=1,
+                           messages=[])
+
+    monkeypatch.setattr(browser_agent, "run_agent", fake_run_agent)
+    from pipeline.eval_runner import _ollama_agent_fn
+    fn = _ollama_agent_fn("http://msi:11434", seed=3)
+    fn(object(), "Q", "qwen3-vl:8b", workspace_dir="ws", memory_backend=None, client="IGNORED")
+    assert seen["base_url"] == "http://msi:11434" and seen["seed"] == 3
+    assert seen["workspace_dir"] == "ws" and seen["model"] == "qwen3-vl:8b"
+    assert "client" not in seen  # run_agent never receives a client
 
 
 def test_mcq_question_renders_lettered_options_and_instruction():

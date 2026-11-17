@@ -31,9 +31,9 @@ from pipeline.file_tools import copy_workspace
 from run_attack_suite import grade
 
 CSV_COLUMNS = ["instance_id", "base_id", "question_id", "cell", "direction",
-               "misleader_id", "subtype", "channel", "model", "correct_option",
-               "target_option", "predicted_option", "status", "latency_ms",
-               "trace_path"]
+               "misleader_id", "subtype", "channel", "model", "repetition", "seed",
+               "correct_option", "target_option", "predicted_option", "status",
+               "latency_ms", "trace_path"]
 
 
 def _letter(index):
@@ -142,7 +142,8 @@ def _memory_backend(instance):
     return memory_from_config(config)
 
 
-def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir):
+def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir,
+             repetition=0, seed=0):
     """Run the agent on one instance, grade it, and return a CSV row dict."""
     backend = _memory_backend(instance)
     with tempfile.TemporaryDirectory() as tmp:
@@ -169,6 +170,8 @@ def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir):
         "subtype": instance["subtype"],
         "channel": instance["channel"],
         "model": model,
+        "repetition": repetition,
+        "seed": seed,
         "correct_option": instance["correct_option"],
         "target_option": instance["target_option"],
         "predicted_option": predicted,
@@ -178,34 +181,101 @@ def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir):
     }
 
 
-def run_eval(instances_root, out_dir, *, model=None, client=None,
-             agent_fn=None, page_provider=None):
-    """Evaluate every attack variant and its paired TT baseline; write trial_results.csv.
+def _ollama_agent_fn(base_url="http://localhost:11434", *, seed=0, temperature=0.0,
+                     timeout=180):
+    """Adapt the real Qwen/Ollama target (``browser_agent.run_agent``) to the eval
+    ``agent_fn`` contract. ``run_agent`` takes no ``client``; it is accepted and
+    ignored so the same runner drives either the Bedrock proxy or the Ollama target.
+    """
+    from browser_agent import run_agent
 
-    Returns the list of per-trial row dicts (also written to
-    ``<out_dir>/trial_results.csv``). ``agent_fn`` / ``page_provider`` default to the
-    real Bedrock adapter and a Playwright page; tests inject mocks for both.
+    def agent_fn(page, question, model, *, workspace_dir=None, memory_backend=None,
+                 client=None):
+        return run_agent(page, question, model, base_url=base_url, timeout=timeout,
+                         temperature=temperature, seed=seed,
+                         memory_backend=memory_backend, workspace_dir=workspace_dir)
+
+    return agent_fn
+
+
+def _completed_trials(csv_path):
+    """``{(instance_id, repetition)}`` already recorded, for restart/dedup."""
+    done = set()
+    if not Path(csv_path).exists():
+        return done
+    with open(csv_path, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            try:
+                done.add((row["instance_id"], int(row.get("repetition", 0) or 0)))
+            except (KeyError, ValueError):
+                continue
+    return done
+
+
+def run_eval(instances_root, out_dir, *, model=None, client=None, agent_fn=None,
+             page_provider=None, repetitions=1, seed=0, run_config=None):
+    """Evaluate every unique instance (attacks + one TT baseline per base) and write
+    ``trial_results.csv``.
+
+    Resumable: each (instance, repetition) trial is appended and flushed as it
+    completes, and a rerun with the same ``out_dir`` skips trials already recorded, so
+    an interrupted MSI run resumes without re-evaluating. Each attack pairs with its
+    base's single TT run via ``base_id`` at report time (the baseline is evaluated once
+    per base, not once per attack). Returns the rows written *this call* (new trials
+    only). ``agent_fn``/``page_provider`` default to the Bedrock proxy and a Playwright
+    page; pass :func:`_ollama_agent_fn` as ``agent_fn`` to drive the real Qwen target.
     """
     model = model or AGENT_MODEL
     agent_fn = agent_fn or run_bedrock_agent
     page_provider = page_provider or _default_page_provider
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / "trial_results.csv"
 
     clean_by_base, attacks = discover_pipeline_instances(instances_root)
-    rows = []
+    planned = list(attacks)
+    seen_bases = set()
     for attack in attacks:
-        rows.append(_run_one(attack, model=model, client=client, agent_fn=agent_fn,
-                             page_provider=page_provider, out_dir=out_dir))
         baseline = clean_by_base.get(attack["base_id"])
-        if baseline is not None:
-            rows.append(_run_one(baseline, model=model, client=client, agent_fn=agent_fn,
-                                 page_provider=page_provider, out_dir=out_dir))
+        if baseline is not None and attack["base_id"] not in seen_bases:
+            planned.append(baseline)
+            seen_bases.add(attack["base_id"])
 
-    csv_path = out_dir / "trial_results.csv"
-    with open(csv_path, "w", newline="", encoding="utf-8") as handle:
+    done = _completed_trials(csv_path)
+    _write_run_config(out_dir, model=model, seed=seed, repetitions=repetitions,
+                      planned=len(planned), run_config=run_config)
+
+    needs_header = (not csv_path.exists()) or csv_path.stat().st_size == 0
+    rows = []
+    with open(csv_path, "a", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_COLUMNS)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
+        if needs_header:
+            writer.writeheader()
+            handle.flush()
+        for repetition in range(repetitions):
+            for instance in planned:
+                if (instance["instance_id"], repetition) in done:
+                    continue
+                row = _run_one(instance, model=model, client=client, agent_fn=agent_fn,
+                               page_provider=page_provider, out_dir=out_dir,
+                               repetition=repetition, seed=seed + repetition)
+                writer.writerow(row)
+                handle.flush()
+                rows.append(row)
     return rows
+
+
+def _write_run_config(out_dir, *, model, seed, repetitions, planned, run_config):
+    """Record the frozen run configuration beside the results (reproducibility)."""
+    import time
+
+    config = {
+        "model": model,
+        "seed": seed,
+        "repetitions": repetitions,
+        "planned_instances": planned,
+        "written_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+    if run_config:
+        config.update(run_config)
+    (Path(out_dir) / "run_config.json").write_text(json.dumps(config, indent=2))
