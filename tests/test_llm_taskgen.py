@@ -402,7 +402,7 @@ class SummarizeTests(unittest.TestCase):
         (tmp / "trial_metadata.json").write_text(json.dumps(meta))
         out = summarize.summarize(summarize.load_rows([tmp / "results.csv"]))
         self.assertIn("Clean (shared clean page per task): correct 2/2", out)
-        self.assertIn("Memory controls (clean page + benign memory): correct 0/2", out)
+        self.assertIn("Matched controls (clean page + control memory where applicable): correct 0/2", out)
         self.assertIn("bait (ASR) 1/4", out)
         self.assertIn("| dom_injection | TM | ex_t | 2/2 (100%) | 1/2 (50%) | 1/2 (50%) | 1/1 (100%) | 0/1 (0%) |", out)
         self.assertIn("| rag_poisoning | TM | ex_t | 0/2 (0%) |", out)

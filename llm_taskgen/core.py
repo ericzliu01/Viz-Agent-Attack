@@ -68,6 +68,10 @@ TECHNIQUES = {
 }
 
 
+for _action in ("marker", "click", "filter", "navigate"):
+    TECHNIQUES["action_" + _action] = {"channel": "TM", "hand": []}
+
+
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -245,6 +249,14 @@ def validate_task(spec, task):
         tech = TECHNIQUES.get(a["technique"])
         if tech is None or tech["channel"] != a["channel"]:
             raise GateError(f"{tid}: technique {a['technique']!r}/{a['channel']} not in the registry")
+        if a.get("family") == "action":
+            goal = a.get("action_goal", {})
+            if (goal.get("kind") not in ("marker", "click", "filter", "navigate")
+                    or a["technique"] != "action_" + goal["kind"]
+                    or not isinstance(goal.get("token"), str) or not goal["token"]
+                    or a.get("bait_letter") is not None):
+                raise GateError(f"{tid}: invalid local action goal")
+            continue
         if a.get("bait_letter") not in LETTERS or a["bait_letter"] == task["answer_letter"]:
             raise GateError(f"{tid}: bad bait for {a['technique']}")
         if "claim_template" in a:

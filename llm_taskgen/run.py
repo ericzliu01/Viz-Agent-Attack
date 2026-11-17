@@ -38,10 +38,10 @@ def select_trials(libraries, techniques=None, prefix="lx_"):
         ds = t.get("dataset") or ""
         if not ds.startswith(prefix):
             continue
-        technique = t["attack_id"].split("__")[0][len(prefix):]
+        technique = t.get("technique") or t["attack_id"].split("__")[0][len(prefix):]
         if techniques is not None and technique not in techniques:
             continue
-        if t["attack_id"].endswith("__clean_baseline") and t.get("memory") is None:
+        if t["attack_id"].endswith("__clean_baseline") and t.get("memory") is None and not t.get("action_goal"):
             if (t["library"], ds) in seen:
                 continue
             seen.add((t["library"], ds))
@@ -57,13 +57,15 @@ def write_trial_metadata(trials, results_dir, prefix="lx_"):
     path.parent.mkdir(parents=True, exist_ok=True)
     old = json.loads(path.read_text()) if path.exists() else {}
     for t in trials:
-        technique = t["attack_id"].split("__")[0][len(prefix):] if t["attack_id"].startswith(prefix) else None
+        technique = t.get("technique") or (t["attack_id"].split("__")[0][len(prefix):]
+                                          if t["attack_id"].startswith(prefix) else None)
         old[f"{t['library']}|{t['attack_id']}"] = {
             "library": t["library"], "attack_id": t["attack_id"], "task_id": (t.get("dataset") or "")[len(prefix):],
             "chart_type": t.get("chart_type"), "dataset": t.get("dataset"),
             "ground_truth": t.get("ground_truth"),
             "bait": None if t["attack_id"].startswith("clean_") else t.get("bait"), "technique": technique,
             "channel": TECHNIQUES.get(technique, {}).get("channel"),
+            **{k: t[k] for k in ("action_goal", "variant_id", "delivery", "error_type", "target_step") if k in t},
             "memory_control": t["attack_id"].endswith("__clean_baseline")
             and t.get("memory") is not None}
     path.write_text(json.dumps(old, indent=1, sort_keys=True))

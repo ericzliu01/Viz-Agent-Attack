@@ -364,7 +364,7 @@ class BrowserTools:
 def run_agent(page, question, model, base_url="http://localhost:11434", timeout=180,
               max_steps=15, console_logs=None, num_ctx=32768, temperature=0.0, seed=0,
               options=None, tools=None, system_prompt=None, memory=None, memory_backend=None,
-              repair_tool_calls=True, legacy_tools=False, backend="ollama"):
+              repair_tool_calls=True, legacy_tools=False, backend="ollama", action_observer=None):
     """Run native tool calls; screenshots stay in role=tool messages with images.
 
     memory: optional list of {"title", "source", "text"} documents, appended to
@@ -374,6 +374,7 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
     at the end of its thinking (see recover_tool_call), and when a reply has
     neither an answer nor a runnable call, ask once more (at most
     MAX_REPAIR_PROMPTS times per trial). Both are recorded on the result.
+    action_observer: optional evaluator callback sampled after tools and at completion.
     legacy_tools: dom/evaluate behave as before 2026-10-23 (see BrowserTools).
     backend: "ollama" (base_url, num_ctx, seed apply) or "bedrock" (AWS Converse
     API, see bedrock_backend; base_url, num_ctx, temperature and seed are ignored).
@@ -474,6 +475,10 @@ def run_agent(page, question, model, base_url="http://localhost:11434", timeout=
             except Exception as exc:
                 observation["content"] = json.dumps({"error": str(exc)})
             messages.append(observation)
+            if action_observer is not None:
+                action_observer(page)
+    if action_observer is not None:
+        action_observer(page)
     if backend != "bedrock" and num_ctx and result.max_prompt_tokens >= 0.95 * num_ctx:
         result.ctx_overflow_risk = True
     result.latency_ms = int((time.monotonic() - start) * 1000)

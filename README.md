@@ -601,3 +601,11 @@ python generated_attack_pipeline.py --mode bedrock --overwrite \
 
 Prices are conservative USD per million tokens used for local budget accounting,
 not a billing quote. Preserve the cache ledger when resuming a run.
+
+## Extended memory and action attacks
+
+The `llm_taskgen` pipeline supports verified compound memory variants, matched
+configurable corpora, four local action goals, and optional budgeted LLM framing.
+Use `python -m llm_taskgen.csvgen <csv> --extended-attacks` for defaults, or see
+[the extension workflow](docs/extended-attacks.md) for corpus controls, authoring,
+rendering and evaluation.

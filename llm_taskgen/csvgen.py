@@ -1093,6 +1093,8 @@ def main():
     ap.add_argument("--charts", default=",".join(BUILDERS), help="chart types to try")
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--debug", action="store_true", help="re-raise unexpected errors inside chart candidates")
+    ap.add_argument("--extended-attacks", action="store_true",
+                    help="Add verified memory variants and local action attacks with default matched corpora")
     args = ap.parse_args()
     global DEBUG
     DEBUG = args.debug
@@ -1100,6 +1102,9 @@ def main():
     if not paths:
         ap.error("no CSV or TSV files found")
     doc = build(paths, args.tm, [c.strip() for c in args.charts.split(",") if c.strip()], args.seed)
+    if args.extended_attacks:
+        from llm_taskgen.extended_attacks import extend
+        doc = extend(doc)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1, default=to_py) + "\n")

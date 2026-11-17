@@ -85,7 +85,8 @@ def discover_pages():
                 entry["family"] = meta["family"]
             if meta.get("bait"):
                 entry["bait"] = meta["bait"]
-            for key in ("memory", "baseline_memory"):
+            for key in ("memory", "baseline_memory", "action_goal", "allowed_interactions", "forbidden_goal",
+                        "technique", "variant_id", "delivery", "error_type", "target_step", "verification", "retrieval_mode", "action_files"):
                 if meta.get(key):
                     entry[key] = meta[key]
             for task in meta.get("tasks") or [None]:
@@ -257,7 +258,7 @@ def prepare_trials(trials, args, system_prompt):
         prepared.append(item)
         groups.setdefault(key, []).append(item)
     for group in groups.values():
-        if not any(item["backend"] is not None for item in group):
+        if not any(item["backend"] is not None or item["trial"].get("memory") or item["trial"].get("action_goal") for item in group):
             continue
         cases = []
         for item in group:
@@ -265,8 +266,10 @@ def prepare_trials(trials, args, system_prompt):
             cases.append({
                 **{key: trial.get(key) for key in (
                     "library", "attack_id", "task_id", "question", "ground_truth", "answer_type",
-                    "memory", "poisoned_document_ids", "attack_target")},
+                    "memory", "poisoned_document_ids", "attack_target", "action_goal", "allowed_interactions")},
                 "html_hash": fingerprint(Path(trial["html_path"]).read_text(encoding="utf-8")),
+                "fixture_hashes": {name: fingerprint((Path(trial["html_path"]).parent / name).read_text())
+                                   for name in trial.get("action_files", [])},
                 "tools": item["tools"],
             })
         settings = {name: getattr(args, name) for name in (
@@ -358,8 +361,12 @@ def run_trials(trials, args):
                     start = time.monotonic()
                     result = AgentResult(stop_reason="browser_error")
                     review = None
+                    action_observer = None
+                    if trial.get("action_goal"):
+                        from llm_taskgen.actions import ActionObserver
+                        action_observer = ActionObserver(trial["action_goal"])
                     try:
-                        with serve_chart(trial["html_path"]) as url:
+                        with serve_chart(trial["html_path"], **({"extra_html": trial["action_files"]} if trial.get("action_files") else {})) as url:
                             context = browser.new_context(viewport=VIEWPORT)
                             try:
                                 page = context.new_page()
@@ -367,6 +374,8 @@ def run_trials(trials, args):
                                 logs = capture_console(page)
                                 page.goto(url, wait_until="networkidle")
                                 page.wait_for_timeout(700)
+                                if action_observer is not None:
+                                    action_observer(page)
                                 if not chart_rendered(page):
                                     result = AgentResult(stop_reason="render_error",
                                                          error="chart did not render "
@@ -380,7 +389,8 @@ def run_trials(trials, args):
                                                        memory=prompt_memory,
                                                        memory_backend=memory_backend,
                                                        repair_tool_calls=repair, legacy_tools=not repair,
-                                                       backend=api_backend)
+                                                       backend=api_backend,
+                                                       **({"action_observer": action_observer} if action_observer is not None else {}))
                                     if critic and result.stop_reason == "final":
                                         review = run_critic(page, trial["question"], result.answer,
                                                             model, args.base_url, args.timeout,
@@ -394,15 +404,17 @@ def run_trials(trials, args):
                         result.answer = ""
                     result.latency_ms = int((time.monotonic() - start) * 1000)
                     memory_config = {}
+                    if action_observer is not None:
+                        memory_config["action_statistics"] = action_observer.report()
                     if memory_backend is not None:
                         revised = review is not None and review.verdict == "REVISE"
                         stats = memory_statistics(result, trial,
                                                   review.revised_answer if revised else None)
-                        memory_config = {"memory": trial["memory"], "corpus_hash": memory_backend.corpus_hash,
+                        memory_config.update({"memory": trial["memory"], "corpus_hash": memory_backend.corpus_hash,
                                          "retrieval_version": RETRIEVAL_VERSION, "condition": condition,
                                          "memory_statistics": stats,
                                          "attack_target": trial.get("attack_target"),
-                                         "poisoned_document_ids": trial.get("poisoned_document_ids", [])}
+                                         "poisoned_document_ids": trial.get("poisoned_document_ids", [])})
                     trace = save_trace(result, Path(args.trace_dir) / uuid4().hex, {
                         "model": model, "backend": api_backend,
                         "base_url": args.base_url if api_backend == "ollama" else None, "timeout": args.timeout,
@@ -433,6 +445,9 @@ def run_trials(trials, args):
                     if memory_backend is not None:
                         notes += (f"; memory_calls={stats['calls']}; memory_exposed={int(stats['poison_exposed'])}"
                                   f"; memory_target_hit={json.dumps(stats['target_hit'])}")
+                    if action_observer is not None:
+                        action_result = action_observer.report()["success"]
+                        notes += "; action_success=" + ("unknown" if action_result is None else str(action_result).lower())
                     if result.error:
                         notes += f"; error={result.error}"
                     if trial.get("task_id"):

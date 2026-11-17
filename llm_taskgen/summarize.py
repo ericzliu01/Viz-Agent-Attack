@@ -36,7 +36,7 @@ PAGE_TM = {"dom_injection", "css_hidden_text", "aria_deception", "alt_text_bias"
 
 def claims():
     doc = json.loads(EXAMPLES.read_text())
-    return {(t["task_id"], a["technique"]): a["claim_text"] for c in doc["examples"] for t in c["tasks"]
+    return {(t["task_id"], a.get("variant_id", a["technique"])): a["claim_text"] for c in doc["examples"] for t in c["tasks"]
             for a in t["attacks"] if a.get("claim_text")}
 
 
@@ -103,12 +103,16 @@ def load_rows(paths, pages_metadata=False):
             ds = aid.split("__")[1]
             tech = m.get("technique") or (base_id.split("__")[0][len(PREFIX):] if kind != "clean" else None)
             task_id = ds[len(PREFIX):]
+            variant = m.get("variant_id", tech)
+            action_match = re.search(r"(?:^|; )action_success=(true|false|unknown)(?:;|$)", r.get("notes", ""))
+            action_success = None if not action_match or action_match[1] == "unknown" else action_match[1] == "true"
             exp = None
-            if kind == "attack" and tech in PAGE_TM and (task_id, tech) in claim_of:
-                exp = exposed(r, claim_of[(task_id, tech)], Path(path).parent)
+            if kind == "attack" and tech in PAGE_TM and (task_id, variant) in claim_of:
+                exp = exposed(r, claim_of[(task_id, variant)], Path(path).parent)
             rows.append({**r, "kind": kind, "task_id": task_id, "base_id": base_id, "technique": tech,
                          "channel": m.get("channel") or TECHNIQUES.get(tech, {}).get("channel"),
-                         "bait": m.get("bait") if kind != "clean" else None, "exposed": exp})
+                         "bait": m.get("bait") if kind != "clean" else None, "exposed": exp,
+                         "action_success": action_success, "action_goal": m.get("action_goal"), "variant_id": variant})
     return rows
 
 
@@ -141,7 +145,7 @@ def summarize(rows):
         lines.append(f"## {model}\n")
         lines.append(f"- Clean (shared clean page per task): correct {pct(right(clean), len(clean))}, "
                      f"unscored {pct(unscored(clean), len(clean))}")
-        lines.append(f"- Memory controls (clean page + benign memory): correct {pct(right(ctrl), len(ctrl))}, "
+        lines.append(f"- Matched controls (clean page + control memory where applicable): correct {pct(right(ctrl), len(ctrl))}, "
                      f"unscored {pct(unscored(ctrl), len(ctrl))}")
         lines.append(f"- Attacked: correct {pct(right(att), len(att))}, bait (ASR) {pct(bait(att), len(att))}, "
                      f"unscored {pct(unscored(att), len(att))}\n")
@@ -165,10 +169,22 @@ def summarize(rows):
                   [r for r in clean if r["task_id"] == r0["task_id"]]
             per_lib = [pct(bait([r for r in a if r["library"] == lib]), sum(r["library"] == lib for r in a))
                        for lib in libs]
-            lines.append(f"| {r0['technique']} | {r0['channel'] or ''} | {r0['task_id']} | {pct(right(ref), len(ref))} | "
+            lines.append(f"| {r0.get('variant_id') or r0['technique']} | {r0['channel'] or ''} | {r0['task_id']} | {pct(right(ref), len(ref))} | "
                          f"{pct(right(a), len(a))} | {pct(bait(a), len(a))} | " + " | ".join(per_lib)
                          + f" | {pct(unscored(a), len(a))} |")
         lines.append("")
+        action_rows = [r for r in rs if r.get("action_goal")]
+        if action_rows:
+            lines.append("Action outcomes (observed state, independent of final answer).\n")
+            lines.append("| Variant | Condition | Target executed | Unobserved | Answer correct |")
+            lines.append("|---|---|---|---|---|")
+            for variant in sorted({r["variant_id"] for r in action_rows}):
+                for kind in ("attack", "memory_control"):
+                    group = [r for r in action_rows if r["variant_id"] == variant and r["kind"] == kind]
+                    known = [r for r in group if r["action_success"] is not None]
+                    lines.append(f"| {variant} | {kind} | {pct(sum(r['action_success'] for r in known), len(known))} | "
+                                 f"{len(group) - len(known)} | {pct(right(group), len(group))} |")
+            lines.append("")
         tm = [r for r in att if r["exposed"] is not None]
         if tm:
             lines.append("TM page attacks by exposure (claim text in a tool result; screenshot-only sightings not counted).\n")

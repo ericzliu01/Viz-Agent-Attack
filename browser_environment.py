@@ -25,14 +25,26 @@ def _resolve_vendor_file(url_path):
 
 
 @contextmanager
-def serve_chart(html_path):
+def serve_chart(html_path, extra_html=()):
     html = Path(html_path).read_bytes()
+    directory = Path(html_path).resolve().parent
+    extras = {}
+    for name in extra_html:
+        if not isinstance(name, str) or Path(name).name != name or not name.endswith(".html"):
+            raise ValueError("Extra trial pages must be HTML basenames")
+        target = (directory / name).resolve()
+        if target.parent != directory:
+            raise ValueError("Extra trial page escapes trial directory")
+        extras["/" + name] = target.read_bytes()
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             url_path = urlsplit(self.path).path
             if url_path == "/chart.html":
                 self._respond(html, "text/html; charset=utf-8")
+                return
+            if url_path in extras:
+                self._respond(extras[url_path], "text/html; charset=utf-8")
                 return
             vendor_file = _resolve_vendor_file(url_path)
             if vendor_file is not None:
