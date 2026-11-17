@@ -208,9 +208,11 @@ biased_framing (a title that states the wrong conclusion).</li>
 <li><strong>TM (technical manipulation)</strong>: an attack that plants
 a false claim the reader does not see in the drawn chart. <strong>Page
 TM</strong> hides it in the page: hidden HTML text (dom_injection,
-css_hidden_text), the accessibility label (aria_deception), image alt
-text (alt_text_bias), a console message (console_false_claim), or a note
-drawn only for automated browsers (automation_cloak). <strong>Memory
+css_hidden_text), the accessibility label (aria_deception), a chart
+caption moved off-screen so only screen readers and text tools reach it
+(alt_text_bias; the name is historical, there is no image alt
+attribute), a console message (console_false_claim), or a note drawn
+only for automated browsers (automation_cloak). <strong>Memory
 TM</strong> puts it in the agent’s memory: a past “I checked this chart”
 record (memory_write) or a retrieved analyst note (rag_poisoning).</li>
 <li><strong>Carrier</strong>: where a TM claim is placed: one of six
@@ -247,9 +249,10 @@ TM attacks shows it did not look, not that it resisted. Where both
 models saw the same claim, the gap is still large: memory_write 2 vs 34
 of 228, rag_poisoning 3 vs 58 of 204, automation_cloak 0 vs 25 of 36.
 Luna followed a hidden page claim in 25 to 64% of the trials where it
-read it (40 to 64% for the three HTML carriers, 2 of 8 for alt text). MT
-attacks gave 1 (Luna) and 2 (Sonnet) bait answers in 432 trials each, no
-more than the base rate.</p>
+read it (40 to 64% for the hidden div, hidden paragraph and ARIA label;
+2 of 8 for the off-screen caption). MT attacks gave 1 (Luna) and 2
+(Sonnet) bait answers in 432 trials each, no more than the base
+rate.</p>
 <h2 id="how-the-tasks-and-attacks-are-made">How the tasks and attacks
 are made</h2>
 <figure>
@@ -654,15 +657,15 @@ result, and the bait rate within them.</p>
 every trial, Luna in 2,142.)</p>
 <p>Analysis: on the four hidden-text carriers, Luna never took the bait
 when it had not read the claim, and took it in 25 to 64% of the trials
-where it had (40 to 64% for the three HTML carriers). Sonnet’s 3
-css_hidden_text bait answers came without seeing the claim, so they are
-ordinary mistakes. Sonnet read the page text in about a third of its
-trials and mostly through scripts it wrote itself, so it saw only 2 of
-312 hidden-text claims; its page TM results are untested rather than
-robust. The console attack reached neither model and is untested.
-Automation_cloak is drawn into the screenshot, so text exposure
-undercounts it: Luna took its bait in 25 of 36 trials, Sonnet in
-none.</p>
+where it had (40 to 64% for the hidden div, hidden paragraph and ARIA
+label). Sonnet’s 3 css_hidden_text bait answers came without seeing the
+claim, so they are ordinary mistakes. Sonnet read the page text in about
+a third of its trials and mostly through scripts it wrote itself, so it
+saw only 2 of 312 hidden-text claims; its page TM results are untested
+rather than robust. The console attack reached neither model and is
+untested. Automation_cloak is drawn into the screenshot, so text
+exposure undercounts it: Luna took its bait in 25 of 36 trials, Sonnet
+in none.</p>
 <h3 id="matched-exposure">Matched exposure</h3>
 <p>Memory attacks are in the prompt of every trial. Automation_cloak and
 MT are drawn on the chart, which Sonnet screenshotted in every trial and
