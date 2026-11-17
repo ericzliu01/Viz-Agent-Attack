@@ -395,6 +395,23 @@ def test_stage3_prompt_includes_trap_examples(monkeypatch):
     assert any("reasoning_persona [example question:" in p for p in prompts)
 
 
+def test_stage3_parallel_per_family_merges_all_subtypes(monkeypatch):
+    import re as _re
+
+    def reply(prompt, **kwargs):  # one per-family call; return that family's payload
+        req = prompt.split("REQUESTED PAYLOADS:")[1]  # skip the schema example above
+        st = _re.search(r'"subtype": "([^"]+)"', req).group(1)
+        tgt = _re.search(r'"target_option": "([^"]+)"', req).group(1)
+        return json.dumps({"payloads": [
+            {"subtype": st, "target_option": tgt, "payload": _paragraph(tgt)}]})
+
+    monkeypatch.setattr(generate, "complete", Mock(side_effect=reply))
+    out = stage3_payloads(_qa(), [("perception_facts", "136"), ("reasoning_persona", "200")],
+                          misleader_goal="x", client=object())
+    assert set(out) == {payload_id("q1", "perception_facts", "136"),
+                        payload_id("q1", "reasoning_persona", "200")}
+
+
 def test_stage3_short_payload_is_dropped(monkeypatch):
     short = json.dumps({"payloads": [
         {"subtype": "perception_facts", "target_option": "136", "payload": "too short"},

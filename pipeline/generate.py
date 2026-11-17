@@ -28,6 +28,7 @@ The prompts are loaded from the human-authored stage docs in
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -820,8 +821,9 @@ def stage3_payloads(qa, specs, misleader_goal, client=None, *, cache_dir=None) -
     for st, tgt in specs:
         by_subtype.setdefault(str(st), []).append(str(tgt))
 
-    out = {}
-    for subtype, targets in by_subtype.items():
+    def _run_subtype(subtype, targets):
+        """Generate one family's payloads (its ~2 targets), with per-family retries."""
+        local = {}
         remaining = [(subtype, t) for t in targets]
         for attempt in range(MAX_RETRIES + 1):
             if not remaining:
@@ -835,14 +837,38 @@ def stage3_payloads(qa, specs, misleader_goal, client=None, *, cache_dir=None) -
             for st, target in remaining:
                 payload = produced.get((st, target), "")
                 if MIN_PAYLOAD_CHARS <= len(payload) <= MAX_PAYLOAD_CHARS:
-                    out[payload_id(question_id, st, target)] = payload
+                    local[payload_id(question_id, st, target)] = payload
                 else:
                     still.append((st, target))
             remaining = still
+        return local
+
+    # The per-family calls are independent and text-only (no Chromium), so run them
+    # concurrently. complete() is network-bound and caches each family to its own
+    # file, so parallel calls are safe; this recovers the throughput the per-family
+    # batching would otherwise cost. Bounded to respect Bedrock rate limits.
+    out = {}
+    workers = min(_stage3_workers(), len(by_subtype))
+    if workers <= 1:
+        for subtype, targets in by_subtype.items():
+            out.update(_run_subtype(subtype, targets))
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run_subtype, st, tg) for st, tg in by_subtype.items()]
+            for future in concurrent.futures.as_completed(futures):
+                out.update(future.result())
 
     if not out:
         raise GenerationDropped("stage3_payloads: no payload met the length bounds")
     return out
+
+
+def _stage3_workers() -> int:
+    """Max concurrent per-family stage3 calls (env-tunable for Bedrock rate limits)."""
+    try:
+        return max(1, int(os.getenv("VIZTRAP_STAGE3_WORKERS", "6")))
+    except ValueError:
+        return 6
 
 
 def _parse_payloads(text):
