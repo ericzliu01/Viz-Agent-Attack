@@ -137,6 +137,7 @@ class GenerationTests(unittest.TestCase):
                           {**base, "kind": "memory_control", "action_success": False}])
         self.assertIn("| action_marker_dom_injection | attack | 1/1 (100%) | 0 | 1/1 (100%) |", text)
         self.assertIn("| action_marker_dom_injection | memory_control | 0/1 (0%)", text)
+        self.assertIn("Base rate: reference answers equal to the attack's bait letter - ", text)
 
     def test_explicit_retrieval_and_no_action_mode(self):
         with tempfile.TemporaryDirectory() as d:
