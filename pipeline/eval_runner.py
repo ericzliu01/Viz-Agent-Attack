@@ -234,18 +234,32 @@ def run_eval(instances_root, out_dir, *, model=None, client=None, agent_fn=None,
 
     clean_by_base, attacks = discover_pipeline_instances(instances_root)
     if select is not None:
-        # Restrict to a chosen set of attack/MT instance_ids (e.g. a stratified sample);
-        # each selected attack's TT baseline is still auto-included via base_id below so
-        # the SAME selection evaluates identically across models.
-        select = set(select)
-        attacks = [a for a in attacks if a["instance_id"] in select]
-    planned = list(attacks)
+        # Restrict to a chosen set of attack/MT instance_ids (e.g. a stratified sample).
+        # An ORDERED list is honored as the run order, so a round-robin-across-strata
+        # selection runs balanced -- any prefix (an interrupted run / interim read) is
+        # representative, not skewed to whichever stratum happened to come first. The
+        # SAME selection evaluates identically across models.
+        if isinstance(select, (list, tuple)):
+            order = {iid: i for i, iid in enumerate(select)}
+            attacks = sorted((a for a in attacks if a["instance_id"] in order),
+                             key=lambda a: order[a["instance_id"]])
+        else:
+            sel = set(select)
+            attacks = [a for a in attacks if a["instance_id"] in sel]
+
+    # Interleave each base's single TT baseline right before that base's first attack,
+    # so baselines land early (ASR eligibility is available even for a partial run)
+    # while the attack order stays balanced.
+    planned = []
     seen_bases = set()
     for attack in attacks:
-        baseline = clean_by_base.get(attack["base_id"])
-        if baseline is not None and attack["base_id"] not in seen_bases:
-            planned.append(baseline)
-            seen_bases.add(attack["base_id"])
+        base_id = attack["base_id"]
+        if base_id not in seen_bases:
+            baseline = clean_by_base.get(base_id)
+            if baseline is not None:
+                planned.append(baseline)
+            seen_bases.add(base_id)
+        planned.append(attack)
 
     done = _completed_trials(csv_path)
     _write_run_config(out_dir, model=model, seed=seed, repetitions=repetitions,
