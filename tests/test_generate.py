@@ -448,6 +448,24 @@ def test_stage3_parallel_per_family_merges_all_subtypes(monkeypatch):
                         payload_id("q1", "reasoning_persona", "200")}
 
 
+def test_multi_chart_cell_packs_two_charts_with_trap(monkeypatch):
+    from pipeline.traps import payload_id
+    bar = _clean_instance("bar", _clean_bar_spec())
+    line = _clean_instance("line", _clean_line_spec())
+    goal = Goal(target_option="b", goal="g")
+    mt_bar = generate._mt_instance(bar, goal, "highlight_decoy", _clean_bar_spec(), "d")
+    cfg = generate.Config(jobs=[], charts_per_instance=2,
+                          sampling=[("perception_facts", "css_hidden", "same")])
+    payloads = {payload_id("q1", "perception_facts", "b"): "x" * 300}
+    cells = list(generate._multi_chart_cell(
+        cfg, bar, goal, "a", {"bar": bar, "line": line}, {"bar": [mt_bar]}, payloads))
+    by_cell = {c.cell: c for c in cells}
+    assert len(by_cell["TT"].charts) == 2        # both clean charts on one page
+    assert len(by_cell["MT"].charts) == 2        # both misleading charts
+    assert {c.cell for c in cells} >= {"TT", "MT", "TM", "MM"}
+    assert by_cell["TT"].chart_type == "bar+line"
+
+
 def test_stage3_short_payload_is_dropped(monkeypatch):
     short = json.dumps({"payloads": [
         {"subtype": "perception_facts", "target_option": "136", "payload": "too short"},

@@ -107,6 +107,10 @@ class Config:
     #: chart per QA -- traps are text-in-a-channel and chart-agnostic, so this gives
     #: full channel/family coverage without the chart x channel instance blow-up.
     trap_chart_limit: int = 0
+    #: Charts per page/instance. 1 (default) = one chart per instance (low-level). >1
+    #: packs that many chart types onto ONE page (high-level): TT shows all clean charts,
+    #: MT shows all misleading charts, and the trap is injected on the multi-chart page.
+    charts_per_instance: int = 1
 
 
 # ---------------------------------------------------------------------------
@@ -1092,15 +1096,18 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
                 mt_instances.extend(stage2(tt, goal, client=config.client,
                                            judge=judge, cache_dir=cache_dir))
 
-        # Emit the clean and misleading instances themselves.
-        yield from tt_instances
-        yield from mt_instances
-
         # Group by chart type for the trap combine.
         tt_by_type = {ci.chart_type: ci for ci in tt_instances}
         mt_by_type = {}
         for mi in mt_instances:
             mt_by_type.setdefault(mi.chart_type, []).append(mi)
+
+        # One-chart-per-instance (low-level): emit the single-chart TT/MT. For a
+        # multi-chart page (high-level) the packed instances below are the baselines
+        # instead, so the single-chart ones are not emitted.
+        if config.charts_per_instance <= 1:
+            yield from tt_instances
+            yield from mt_instances
 
         qa0 = tt_instances[0]
         correct = qa0.options[qa0.correct_index]
@@ -1114,6 +1121,13 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
             payloads = stage3_payloads(qa0, sorted(payload_specs), goal.goal,
                                        client=config.client, cache_dir=cache_dir)
         except GenerationDropped:
+            continue
+
+        # Multi-chart (high-level): pack N chart types onto one page. TT = all clean
+        # charts, MT = all misleading charts (one misleader per chart), trap on the page.
+        if config.charts_per_instance > 1:
+            yield from _multi_chart_cell(config, qa0, goal, correct, tt_by_type,
+                                         mt_by_type, payloads)
             continue
 
         # Which chart types carry the trap cross. Traps are chart-agnostic, so a
@@ -1139,6 +1153,62 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
                             continue
                         seen.add(variant.instance_id)
                         yield variant
+
+
+def _multi_chart_cell(config, qa0, goal, correct, tt_by_type, mt_by_type, payloads):
+    """Yield the packed multi-chart instances for one QA (high-level).
+
+    Packs ``config.charts_per_instance`` chart types onto one page: a TT with all the
+    clean charts, an MT with each chart's misleading version (one misleader per chart),
+    then the trap cross (TM/MM) placed on that multi-chart page. Chart types with a
+    surviving misleader are preferred so MT/MM distort every chart.
+    """
+    n = config.charts_per_instance
+    chosen = sorted(tt_by_type, key=lambda t: (t not in mt_by_type, t))[:n]
+    if len(chosen) < n:
+        return
+    mbase = f"{qa0.question_id}:multi"
+    proto = tt_by_type[chosen[0]]
+    combo = "+".join(chosen)
+
+    tt_multi = replace(proto, instance_id=f"{mbase}:TT", base_id=mbase, cell="TT",
+                       chart_type=combo, direction="none",
+                       charts=[charts.canonical_schema(tt_by_type[t].charts[0]) for t in chosen],
+                       misleader=None, trap=None)
+    yield tt_multi
+
+    mt_charts, cmeta, any_mis = [], [], False
+    for t in chosen:
+        mts = mt_by_type.get(t) or []
+        if mts:
+            any_mis = True
+            mt_charts.append(charts.canonical_schema(mts[0].charts[0]))
+            cmeta.append({"chart_type": t, "misleader_id": mts[0].misleader["misleader_id"]})
+        else:
+            mt_charts.append(charts.canonical_schema(tt_by_type[t].charts[0]))
+            cmeta.append({"chart_type": t, "misleader_id": None})
+    mt_multi = None
+    if any_mis:
+        mt_multi = replace(proto, instance_id=f"{mbase}:MT", base_id=mbase, cell="MT",
+                           chart_type=combo, direction="none", charts=mt_charts,
+                           misleader={"charts": cmeta, "goal": goal.goal,
+                                      "wrong_option": goal.target_option,
+                                      "misleader_id": "+".join(c["misleader_id"] or "none"
+                                                               for c in cmeta)})
+        yield mt_multi
+
+    seen = set()
+    for subtype, channel, direction in config.sampling:
+        target = _target_for(goal, direction, qa0.options, correct)
+        payload = payloads.get(payload_id(qa0.question_id, subtype, target))
+        if payload is None:
+            continue
+        for variant in stage3_variants(tt_multi, mt_multi, subtype, channel,
+                                       direction, payload, target):
+            if variant.instance_id in seen:
+                continue
+            seen.add(variant.instance_id)
+            yield variant
 
 
 def _target_for(goal, direction, options, correct):
