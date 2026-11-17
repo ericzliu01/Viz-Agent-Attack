@@ -76,6 +76,20 @@ def test_empty_response_is_not_cached(tmp_path):
     assert list(tmp_path.glob("*.json")) == []
 
 
+def test_truncated_response_is_not_cached(tmp_path):
+    # Non-empty text but stop_reason="max_tokens": truncated, must not be cached,
+    # and a rerun must re-call the client rather than reuse the fragment.
+    client = Mock()
+    client.messages.create.return_value = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text='{"answer": "partial')],
+        stop_reason="max_tokens",
+    )
+    assert complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client) == ""
+    assert complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client) == ""
+    assert client.messages.create.call_count == 2
+    assert list(tmp_path.glob("*.json")) == []
+
+
 def test_corrupt_cache_entry_is_treated_as_miss(tmp_path):
     client = make_client("fresh")
     complete("p", system="s", model="m", cache_key="k", cache_dir=tmp_path, client=client)

@@ -263,6 +263,18 @@ def test_dual_axis_invariant():
     misleader_invariant(clean, mt, "dual_axis")
 
 
+def test_dual_axis_rejects_layer_local_data():
+    # The loophole: top-level data.values is untouched (hash matches), but a layer
+    # carries its OWN data.values -- replacing what is actually plotted. dual_axis
+    # allows the `layer` key, so only the nested-data check can catch this.
+    clean = _clean_line_spec()
+    mt = llm_like_dual_axis_spec(clean)
+    mt["layer"][0]["data"] = {"values": [{"day": "Mon", "users": 999999}]}
+    assert data_block_hash(mt) == data_block_hash(clean)  # top-level still equal
+    with pytest.raises(InvariantError):
+        misleader_invariant(clean, mt, "dual_axis")
+
+
 def test_confusing_colors_invariant_line():
     clean = _clean_line_spec()
     mt = llm_like_confusing_colors_spec(clean)

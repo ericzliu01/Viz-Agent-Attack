@@ -150,11 +150,18 @@ def complete(prompt, *, system, model, cache_key, cache_dir, images=(), client=N
         block.text for block in message.content if block.type == "text"
     ).strip()
 
-    # Never cache an empty result: a sticky empty (max_tokens/refusal) would poison
-    # every rerun. Only successful, non-empty text is persisted.
-    if text:
+    # A response cut off at max_tokens is non-empty but truncated (typically
+    # incomplete JSON). Caching it would poison every rerun with an unparseable --
+    # or, worse, partially-parseable -- entry. Treat truncation like the empty case:
+    # never cache it, and return empty so the caller's existing parse-failure path
+    # retries with a fresh (uncached) call instead of reusing the fragment.
+    truncated = getattr(message, "stop_reason", None) == "max_tokens"
+
+    # Never cache an empty or truncated result: a sticky bad entry (max_tokens or
+    # refusal) would poison every rerun. Only complete, non-empty text is persisted.
+    if text and not truncated:
         _write_cache_atomic(path, {"model": model, "cache_key": cache_key, "text": text})
-    return text
+    return "" if truncated else text
 
 
 def _first_json_object(text):

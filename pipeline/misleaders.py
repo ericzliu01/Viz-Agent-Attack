@@ -105,6 +105,34 @@ def _is_allowed(path: str, allowed) -> bool:
     return False
 
 
+def _nested_data_paths(spec) -> list:
+    """Normalized paths of every ``data`` key that appears BELOW the spec root.
+
+    ``data_block_hash`` only verifies the single top-level ``data.values`` block, so
+    any ``data`` introduced deeper in the tree (``layer[].data``, ``concat[].data``,
+    a nested ``spec.data`` ...) would carry chart data that escapes the hash. A
+    misleader that allows structural keys (e.g. ``dual_axis`` allows ``layer``) could
+    otherwise replace what is plotted with layer-local data and still pass the
+    invariant. This collects those below-root ``data`` keys so the invariant can
+    reject them; the root ``data`` key (path ``"data"``) is excluded.
+    """
+    found = []
+
+    def walk(node, prefix):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                path = prefix + (key,)
+                if key == "data" and prefix != ():
+                    found.append(_norm_path(path))
+                walk(value, path)
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, prefix + (index,))
+
+    walk(spec, ())
+    return found
+
+
 # ---------------------------------------------------------------------------
 # Small spec helpers shared by applies/effect predicates.
 # ---------------------------------------------------------------------------
@@ -301,6 +329,16 @@ def misleader_invariant(clean_spec, mt_spec, misleader_id) -> None:
     if data_block_hash(clean_spec) != data_block_hash(mt_spec):
         raise InvariantError(
             f"{misleader_id}: data-block hash changed (data.values was edited)"
+        )
+
+    # (1b) No chart data may hide below the root. The hash above only covers the
+    # top-level data.values; a layer-local / nested ``data`` block would plot data
+    # that escapes it (the dual-axis layer-replacement loophole). All plotted data
+    # must come from the single verified top-level block.
+    nested = _nested_data_paths(mt_spec)
+    if nested:
+        raise InvariantError(
+            f"{misleader_id}: data defined below the root (escapes the data hash): {nested}"
         )
 
     # (2) Only allowed paths differ.
