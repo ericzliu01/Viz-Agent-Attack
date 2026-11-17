@@ -262,6 +262,18 @@ def test_stage1_keeps_every_rendering_chart_type(tmp_path, monkeypatch):
     assert {i.chart_type for i in insts} == {"bar", "line", "scatter", "stacked_bar"}
 
 
+def test_stage1_variant_yields_distinct_qa(tmp_path, monkeypatch):
+    csv = _write(tmp_path, "t.csv", FANOUT_CSV)
+    mock = _patch_complete(monkeypatch, _stage1_reply())
+    i0 = stage1(csv, "filter", examples={}, client=object(), variant=0)
+    i1 = stage1(csv, "filter", examples={}, client=object(), variant=1)
+    # Same task type + reply, but the variant folds into question_id so they don't collide,
+    # and the variant prompt note is sent.
+    assert i0[0].question_id != i1[0].question_id
+    assert i0[0].task_type == i1[0].task_type == "filter"   # base label preserved
+    assert any("variant 1" in c.args[0] for c in mock.call_args_list)
+
+
 def test_stage1_wires_chart_few_shots_and_images(tmp_path, monkeypatch):
     csv = _write(tmp_path, "t.csv", FANOUT_CSV)
     mock = _patch_complete(monkeypatch, _stage1_reply())

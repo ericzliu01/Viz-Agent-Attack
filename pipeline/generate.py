@@ -197,7 +197,7 @@ def _read_df(csv):
 # Stage 1.
 # ---------------------------------------------------------------------------
 def stage1_qa(csv, task_type, examples, library="vega-lite", client=None,
-              *, cache_dir=None) -> dict:
+              *, cache_dir=None, variant=0) -> dict:
     """Stage 1.1: generate ONE SQL-verified QA (no charts).
 
     One LLM call writes the question, four options, the correct answer, a read-only
@@ -205,15 +205,24 @@ def stage1_qa(csv, task_type, examples, library="vega-lite", client=None,
     The SQL is executed and the QA is retried (≤2) then dropped unless the scalar
     matches the stated answer. Returns the verified QA dict (``answer``/``options``/
     ``sql`` normalized); raises :class:`GenerationDropped` if none verifies.
+
+    ``variant`` (>0) requests a QA meaningfully distinct from the default for this
+    ``(csv, task_type)`` -- used to draw several QAs from one task type (e.g. the three
+    high-level patterns -> five QAs per dataset). It folds into the cache key and adds
+    a prompt note, so each variant is generated and cached independently.
     """
     from pipeline.sql_check import UnsafeSQL, UnsolvableTask, check_answer
 
     df = _read_df(csv)
     prompt_base = _stage1_qa_prompt(df, task_type, examples)
+    if variant:
+        prompt_base += (f"\n\nGenerate a question meaningfully DIFFERENT from other "
+                        f"variants of this task type (variant {variant}): a different "
+                        f"angle, fields, or subset than the obvious default.")
     for attempt in range(MAX_RETRIES + 1):
         prompt = prompt_base if attempt == 0 else prompt_base + _RETRY_NOTE
         text = complete(prompt, system=_S1_SYS, model=MODELS["stage1"],
-                        cache_key=_ck(csv, task_type, "s1qa", attempt),
+                        cache_key=_ck(csv, task_type, "s1qa", variant, attempt),
                         cache_dir=_cache_dir(cache_dir), client=client)
         try:
             obj = parse_json_block(text)
@@ -266,22 +275,27 @@ def stage1_charts(df, qa, library="vega-lite", client=None, *, cache_dir=None) -
 
 
 def stage1(csv, task_type, examples, library="vega-lite", client=None,
-           *, cache_dir=None) -> list:
+           *, cache_dir=None, variant=0) -> list:
     """Generate one verified QA (stage 1.1) + its four charts (stage 1.2) and fan out.
 
     :func:`stage1_qa` writes and SQL-verifies the QA; :func:`stage1_charts` authors the
     four chart specs for it. Each chart type that renders non-blank becomes one TT
     :class:`~pipeline.specs.InstanceSpec` sharing the QA. Raises
     :class:`GenerationDropped` if the QA never verifies or no chart type renders.
+
+    ``variant`` (>0) draws an additional distinct QA from this ``(csv, task_type)`` and
+    is folded into ``question_id`` so variants never collide; ``task_type`` on the
+    instances stays the base label so breakdowns group by task type.
     """
     df = _read_df(csv)
     qa = stage1_qa(csv, task_type, examples, library=library, client=client,
-                   cache_dir=cache_dir)
+                   cache_dir=cache_dir, variant=variant)
 
     question = qa["question"]
     options = qa["options"]
     correct_index = options.index(qa["answer"])
-    question_id = _question_id(csv, task_type, question)
+    id_task = task_type if not variant else f"{task_type}#v{variant}"
+    question_id = _question_id(csv, id_task, question)
     qa["question_id"] = question_id
 
     offered = stage1_charts(df, qa, library=library, client=client, cache_dir=cache_dir)
@@ -1057,11 +1071,13 @@ def generate_all(config: Config) -> Iterator[InstanceSpec]:
     cache_dir = _cache_dir(config.cache_dir)
     judge = config.judge  # None => the non-gating judge is skipped entirely (keep all)
 
-    for csv, task_type in config.jobs:
+    for job in config.jobs:
+        csv, task_type = job[0], job[1]
+        variant = job[2] if len(job) > 2 else 0   # (csv, task_type[, variant])
         try:
             tt_instances = stage1(csv, task_type, config.examples,
                                   library=config.library, client=config.client,
-                                  cache_dir=cache_dir)
+                                  cache_dir=cache_dir, variant=variant)
         except GenerationDropped:
             continue
 
