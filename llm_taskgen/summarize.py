@@ -46,6 +46,12 @@ EXPOSURE_CHARS = 60
 INLINE_RE = re.compile(r"answer\s*:\s*\**\s*\(?([a-d])\b", re.IGNORECASE)
 
 
+def levels():
+    """Task level (low / compound / high) per task_id, from the examples file."""
+    doc = json.loads(EXAMPLES.read_text())
+    return {t["task_id"]: t.get("level", "low") for c in doc["examples"] for t in c["tasks"]}
+
+
 def claims():
     doc = json.loads(EXAMPLES.read_text())
     return {(t["task_id"], a["technique"]): a["claim_text"] for c in doc["examples"] for t in c["tasks"]
@@ -216,6 +222,20 @@ def summarize(rows):
             lines.append(f"| {lib} | {pct(right(c), len(c))} | {pct(unscored(c), len(c))} | "
                          f"{pct(right(a), len(a))} | {pct(bait(a), len(a))} | {pct(unscored(a), len(a))} |")
         lines.append("")
+        lv = levels()
+        present = [x for x in ("low", "compound", "high") if any(lv.get(r["task_id"]) == x for r in rs)]
+        if len(present) > 1:
+            lines.append("By task level (low = one primitive, compound = a chain of primitives, "
+                         "high = best-supported statement among one key point and three bait insights).\n")
+            lines.append("| Level | Tasks | Clean correct | Attacked correct | Attacked bait | Attacked unscored |")
+            lines.append("|---|---|---|---|---|---|")
+            for x in present:
+                c = [r for r in clean if lv.get(r["task_id"]) == x]
+                a = [r for r in att if lv.get(r["task_id"]) == x]
+                n = len({r["task_id"] for r in rs if lv.get(r["task_id"]) == x})
+                lines.append(f"| {x} | {n} | {pct(right(c), len(c))} | {pct(right(a), len(a))} | "
+                             f"{pct(bait(a), len(a))} | {pct(unscored(a), len(a))} |")
+            lines.append("")
         lines.append("Per attack. Clean is the task's shared clean page, or its memory control for memory attacks; "
                      "per-library columns give attacked bait.\n")
         lines.append("| Attack | Channel | Task | Clean correct | Attacked correct | Bait | "

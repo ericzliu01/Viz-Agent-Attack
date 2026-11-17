@@ -169,7 +169,8 @@ def tm_bait(task):
     """The single TM bait rule (plan section 5, rule 3):
     1. an option tagged runner_up (ranking tasks), else
     2. for numeric options, the wrong option nearest the truth (ties: earlier letter), else
-    3. the option tagged sign_flip (the asked relation reversed)."""
+    3. the option tagged sign_flip (the asked relation reversed), else
+    4. the option tagged flipped_direction (high-level statement tasks: the key point reversed)."""
     opts = task["options"]
     wrong = [o for o in opts if o["misreading"] is not None]
     tagged = [o for o in wrong if o["misreading"] == "runner_up"]
@@ -178,10 +179,11 @@ def tm_bait(task):
     truth = next(o for o in opts if o["misreading"] is None)
     if all(isinstance(o["value"], numbers.Real) and not isinstance(o["value"], bool) for o in opts):
         return min(wrong, key=lambda o: (abs(o["value"] - truth["value"]), o["letter"])), "nearest_numeric"
-    flips = [o for o in wrong if o["misreading"] == "sign_flip"]
-    if not flips:
-        raise GateError(f"{task.get('task_id')}: no TM bait rule applies")
-    return flips[0], "sign_flip"
+    for tag in ("sign_flip", "flipped_direction"):
+        flips = [o for o in wrong if o["misreading"] == tag]
+        if flips:
+            return flips[0], tag
+    raise GateError(f"{task.get('task_id')}: no TM bait rule applies")
 
 
 def fill_tm(task):

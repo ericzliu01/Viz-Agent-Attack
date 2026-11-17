@@ -60,7 +60,7 @@ def write_trial_metadata(trials, results_dir, prefix="lx_"):
         technique = t["attack_id"].split("__")[0][len(prefix):] if t["attack_id"].startswith(prefix) else None
         old[f"{t['library']}|{t['attack_id']}"] = {
             "library": t["library"], "attack_id": t["attack_id"], "task_id": (t.get("dataset") or "")[len(prefix):],
-            "chart_type": t.get("chart_type"), "dataset": t.get("dataset"),
+            "chart_type": t.get("chart_type"), "dataset": t.get("dataset"), "level": t.get("level"),
             "ground_truth": t.get("ground_truth"),
             "bait": None if t["attack_id"].startswith("clean_") else t.get("bait"), "technique": technique,
             "channel": TECHNIQUES.get(technique, {}).get("channel"),

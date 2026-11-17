@@ -542,7 +542,11 @@ def build(examples_path, pages_dir, libraries=None, prefix=PREFIX):
                 ds = prefix + task["task_id"]
                 common = {"library": lib, "chart_type": ct, "dataset": ds, "task_id": task["task_id"],
                           "task_category": task["primitive"], "tier": task["tier"],
-                          "ground_truth": task["answer_letter"], "answer_type": "mcq"}
+                          "ground_truth": task["answer_letter"], "answer_type": "mcq",
+                          "level": task.get("level", "low"),
+                          "primitive_chain": task.get("primitive_chain", [task["primitive"]])}
+                if task.get("pattern"):
+                    common["pattern"] = task["pattern"]
                 clean_html = draw(clean_view, spec["title"], spec["subtitle"])
                 cid = f"clean_{ct}__{ds}"
                 (out / f"{cid}.html").write_text(clean_html)

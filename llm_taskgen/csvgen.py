@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from llm_taskgen import highlevel as hl
 from llm_taskgen import profile as prof_mod
 from llm_taskgen.core import (FRAMING_SOURCES, LETTERS, MEMORY_SOURCES, MT_SOURCES, RAG_SOURCES,
                               REQUIRED_CHANNELS, TM_SOURCES, GateError, Lettering, check_channels_exercised,
@@ -392,6 +393,7 @@ def _grouped_bar(prof, df, L, tm, xc, gc, M):
             pass
     if len(out) < 2:
         raise Skip("fewer than two tasks")
+    spec["_ctx"] = {"phrase": M.phrase, "kind": M.kind, "measure": M}  # for llm_taskgen.highlevel; removed before output
     return spec, out
 
 
@@ -507,6 +509,7 @@ def _stacked(prof, df, L, tm, kind, xc, sc):
         mt=[mt_attack("close_colors", opts, "total_instead_of_segment", "segments drawn in near-identical blues")]))
     if len(out) < 2:
         raise Skip("fewer than two tasks")
+    spec["_ctx"] = {}  # for llm_taskgen.highlevel; removed before output
     return spec, out
 
 
@@ -721,6 +724,7 @@ def _line(prof, df, L, tm, yc, cc, style):
         break
     if len(out) < 2:
         raise Skip("fewer than two tasks")
+    spec["_ctx"] = {"line_phrase": phrase}  # for llm_taskgen.highlevel; removed before output
     return spec, out
 
 
@@ -850,6 +854,7 @@ def _scatter(prof, df, L, tm, xc, yc, sz, cc):
         break
     if len(out) < 2:
         raise Skip("fewer than two tasks")
+    spec["_ctx"] = {}  # for llm_taskgen.highlevel; removed before output
     return spec, out
 
 
@@ -987,6 +992,7 @@ def _heatmap(prof, df, L, tm, kind, xc, yc, M):
         break
     if len(out) < 2:
         raise Skip("fewer than two tasks")
+    spec["_ctx"] = {"phrase": M.phrase, "kind": M.kind, "xlabel": xlabel}  # for llm_taskgen.highlevel; removed before output
     return spec, out
 
 
@@ -1033,7 +1039,7 @@ def _first_chart(candidates, L, tm):
     raise Skip(f"none of {tried} column combinations passed the gates{err}")
 
 
-def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
+def build(paths, tm_mode="rotate", chart_types=None, seed=SEED, levels=hl.LEVELS):
     """Letters and the TM rotation are seeded per dataset, so a CSV's tasks do not change
     when other files are added to the folder. A file that cannot be read is reported, not fatal."""
     charts, report = [], []
@@ -1051,6 +1057,10 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
         slugs.add(prof["slug"])
         L = Lettering(f"{seed}:{prof['slug']}")
         tm = TMPlan(tm_mode)
+        # compound/high tasks draw letters and TM carriers from their own seeded streams,
+        # so adding them leaves every low-level task exactly as before
+        L_hi = Lettering(f"{seed}:{prof['slug']}:higher")
+        tm_hi = TMPlan(tm_mode)
         prof["_used"] = set()
         entry = {"csv": str(path), "slug": prof["slug"], "rows": prof["rows"],
                  "columns": prof_mod.summary(prof), "warnings": prof["warnings"], "charts": {}}
@@ -1060,6 +1070,16 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
             except Skip as e:
                 entry["charts"][ct] = f"skipped: {e}"
                 continue
+            ctx = spec.pop("_ctx")
+            more, dropped = hl.extend(prof, df, spec, ctx, L_hi, tm_hi, levels)
+            if "low" not in levels:
+                tasks = [t for t in tasks if t["level"] in levels]
+            tasks = tasks + more
+            if dropped:
+                entry.setdefault("dropped", {})[ct] = dropped
+            if not tasks:
+                entry["charts"][ct] = "skipped: no task at the requested levels"
+                continue
             spec["source_csv"] = Path(path).name
             enc = spec["encodings"]
             prof["_used"].add(frozenset(enc.values()))
@@ -1067,7 +1087,9 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED):
             entry["charts"][ct] = [t["task_id"] for t in tasks]
         report.append(entry)
     letters = [t["answer_letter"] for c in charts for t in c["tasks"]]
+    level_counts = {lv: sum(t["level"] == lv for c in charts for t in c["tasks"]) for lv in hl.LEVELS}
     return {"schema_version": "csvgen-2026-11-17", "seed": seed, "tm_mode": tm_mode,
+            "levels": list(levels), "level_counts": level_counts,
             "truth_letter_counts": {x: letters.count(x) for x in LETTERS},
             "datasets": report, "examples": charts}
 
@@ -1092,6 +1114,8 @@ def main():
                     help="TM carriers per task: rotate (one content + one memory, default), all, none")
     ap.add_argument("--charts", default=",".join(BUILDERS), help="chart types to try")
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--levels", default=",".join(hl.LEVELS),
+                    help="task levels to write: low, compound, high (default all three)")
     ap.add_argument("--debug", action="store_true", help="re-raise unexpected errors inside chart candidates")
     args = ap.parse_args()
     global DEBUG
@@ -1099,7 +1123,10 @@ def main():
     paths = find_csvs(args.inputs)
     if not paths:
         ap.error("no CSV or TSV files found")
-    doc = build(paths, args.tm, [c.strip() for c in args.charts.split(",") if c.strip()], args.seed)
+    levels = tuple(x.strip() for x in args.levels.split(",") if x.strip())
+    if not levels or set(levels) - set(hl.LEVELS):
+        ap.error(f"--levels must be a comma list of {', '.join(hl.LEVELS)}")
+    doc = build(paths, args.tm, [c.strip() for c in args.charts.split(",") if c.strip()], args.seed, levels)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1, default=to_py) + "\n")
@@ -1112,8 +1139,12 @@ def main():
             print(f"  warning: {w}")
         for ct, v in d["charts"].items():
             print(f"  {ct:12s} {v if isinstance(v, str) else ', '.join(v)}")
+        for ct, why in d.get("dropped", {}).items():
+            for w in why:
+                print(f"  dropped ({ct}) {w}")
     n = sum(len(c["tasks"]) for c in doc["examples"])
-    print(f"{len(doc['examples'])} charts, {n} tasks, truth letters {doc['truth_letter_counts']} -> {out}")
+    print(f"{len(doc['examples'])} charts, {n} tasks {doc['level_counts']}, "
+          f"truth letters {doc['truth_letter_counts']} -> {out}")
 
 
 if __name__ == "__main__":
