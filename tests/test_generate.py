@@ -368,6 +368,18 @@ def test_stage3_payload_is_substantive_paragraph(monkeypatch):
     assert MIN_PAYLOAD_CHARS <= len(next(iter(out.values()))) <= MAX_PAYLOAD_CHARS
 
 
+def test_stage3_prompt_includes_trap_examples(monkeypatch):
+    mock = _patch_complete(monkeypatch, _stage3_reply())
+    stage3_payloads(_qa(), [("perception_facts", "136"), ("reasoning_persona", "200")],
+                    misleader_goal="collapse", client=object())
+    # The first call requests every subtype (retries re-request only the unsatisfied ones).
+    prompt = mock.call_args_list[0].args[0]
+    assert "TRAP EXAMPLES" in prompt
+    # One worked example per requested subtype is fed in.
+    assert "perception_facts [example question:" in prompt
+    assert "reasoning_persona [example question:" in prompt
+
+
 def test_stage3_short_payload_is_dropped(monkeypatch):
     short = json.dumps({"payloads": [
         {"subtype": "perception_facts", "target_option": "136", "payload": "too short"},

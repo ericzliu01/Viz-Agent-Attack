@@ -59,6 +59,7 @@ MAX_RETRIES = 2  # a stage retries up to this many extra times, then drops.
 
 _STAGES_DIR = Path(__file__).parent / "stages"
 _CHARTS_DIR = Path(__file__).parent / "examples" / "charts"
+_TRAPS_DIR = Path(__file__).parent / "examples" / "traps"
 _DEFAULT_CACHE_DIR = Path(
     os.getenv("VIZTRAP_CACHE_DIR", Path.home() / ".cache" / "viztrap-llm")
 )
@@ -384,6 +385,52 @@ def _chart_example_images(per_type: int = 1) -> list:
             except OSError:
                 pass
     return images
+
+
+# ---------------------------------------------------------------------------
+# Trap few-shots (pipeline/examples/traps). One worked payload per family; feeds
+# stage 3 the persuasion style of each requested subtype.
+# ---------------------------------------------------------------------------
+_TRAP_EXAMPLES = None
+
+
+def _trap_examples() -> dict:
+    """Map each subtype to its worked example entry (first wins), loaded once."""
+    global _TRAP_EXAMPLES
+    if _TRAP_EXAMPLES is None:
+        try:
+            entries = json.loads((_TRAPS_DIR / "examples.json").read_text())
+        except (OSError, json.JSONDecodeError):
+            entries = []
+        _TRAP_EXAMPLES = {}
+        for entry in entries:
+            subtype = entry.get("subtype")
+            if subtype and subtype not in _TRAP_EXAMPLES:
+                _TRAP_EXAMPLES[subtype] = entry
+    return _TRAP_EXAMPLES
+
+
+def _format_trap_examples(subtypes) -> str:
+    """Few-shot block: one worked payload per requested subtype (in request order)."""
+    examples = _trap_examples()
+    ordered = []
+    for subtype in subtypes:
+        if subtype in examples and subtype not in ordered:
+            ordered.append(subtype)
+    if not ordered:
+        return ""
+    lines = [
+        "TRAP EXAMPLES (one worked payload per family, each from a DIFFERENT question "
+        "-- match the persuasion technique and structure of the matching subtype, but "
+        "write a NEW payload for THIS question and target; never copy an example):"
+    ]
+    for subtype in ordered:
+        entry = examples[subtype]
+        lines.append(
+            f"{subtype} [example question: {entry.get('question', '')!r}, "
+            f"target: {entry.get('target_option', '')!r}]:\n  {entry.get('payload', '')}"
+        )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -722,6 +769,7 @@ def _parse_payloads(text):
 
 def _stage3_prompt(question, options, misleader_goal, requests) -> str:
     asks = [{"subtype": st, "target_option": tgt} for st, tgt in requests]
+    trap_shots = _format_trap_examples([st for st, _ in requests])
     return (
         f"{_load_prompt('stage3-traps.md')}\n\n"
         f"QUESTION: {question}\n"
@@ -729,7 +777,8 @@ def _stage3_prompt(question, options, misleader_goal, requests) -> str:
         f"MISLEADING GOAL: {misleader_goal}\n"
         f"LENGTH BOUNDS: between {MIN_PAYLOAD_CHARS} and {MAX_PAYLOAD_CHARS} "
         "characters each.\n"
-        f"REQUESTED PAYLOADS: {json.dumps(asks)}"
+        f"REQUESTED PAYLOADS: {json.dumps(asks)}\n"
+        f"{trap_shots}"
     )
 
 
