@@ -60,7 +60,7 @@ bar_spec = {
 }
 
 
-def test_page_channels_is_the_exact_seven_tuple():
+def test_page_channels_is_the_exact_tuple():
     assert PAGE_CHANNELS == (
         "source_layer",
         "css_hidden",
@@ -69,6 +69,7 @@ def test_page_channels_is_the_exact_seven_tuple():
         "svg_layer",
         "runtime",
         "syntactic_masking",
+        "visible_paragraph",
     )
 
 
@@ -114,12 +115,13 @@ def test_strip_is_noop_on_clean_page():
 
 
 def test_visible_vs_hidden_classification():
+    visible = {"syntactic_masking", "visible_paragraph"}
     assert is_visible_channel("css_hidden") is False
     assert is_visible_channel("off_viewport") is False
     assert is_visible_channel("syntactic_masking") is True
+    assert is_visible_channel("visible_paragraph") is True
     for channel in PAGE_CHANNELS:
-        if channel != "syntactic_masking":
-            assert is_visible_channel(channel) is False
+        assert is_visible_channel(channel) is (channel in visible)
 
 
 def test_unknown_channel_rejected():

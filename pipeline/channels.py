@@ -27,7 +27,7 @@ import html as html_lib
 import json
 import re
 
-# The seven channels, in canonical order.
+# The page channels, in canonical order.
 PAGE_CHANNELS = (
     "source_layer",
     "css_hidden",
@@ -36,10 +36,13 @@ PAGE_CHANNELS = (
     "svg_layer",
     "runtime",
     "syntactic_masking",
+    "visible_paragraph",
 )
 
-# Only this channel renders text a sighted reader sees; the other six are hidden.
-_VISIBLE_CHANNELS = frozenset({"syntactic_masking"})
+# Channels whose text a sighted reader can see; the rest are hidden. ``visible_paragraph``
+# is a plain, fully-legible paragraph on the page (the clearest visible channel);
+# ``syntactic_masking`` is visible but disguised as Markdown/LaTeX.
+_VISIBLE_CHANNELS = frozenset({"syntactic_masking", "visible_paragraph"})
 
 # A placement-test probe per channel: a substring the injected node is guaranteed
 # to contain at its deterministic hook.
@@ -51,6 +54,7 @@ EXPECTED_HOOK = {
     "svg_layer": "<script data-inj",
     "runtime": "console.log",
     "syntactic_masking": "data-inj-syn",
+    "visible_paragraph": "data-inj-vispara",
 }
 
 # Every injection lands inside this sentinel-delimited block, inserted once right
@@ -78,7 +82,7 @@ class Injection:
 def is_visible_channel(channel: str) -> bool:
     """Whether ``channel`` renders text a sighted reader can see.
 
-    Only ``syntactic_masking`` is visible; the other six are hidden.
+    ``visible_paragraph`` and ``syntactic_masking`` are visible; the rest are hidden.
     """
     if channel not in PAGE_CHANNELS:
         raise ValueError(f"Unknown channel: {channel!r}")
@@ -185,6 +189,13 @@ def _node_for(channel: str, payload: str) -> str:
             '<span data-inj="1" data-inj-syn="1">'
             f"**{esc}** `{esc}` \\({esc}\\)"
             "</span>"
+        )
+
+    if channel == "visible_paragraph":
+        # A plain, fully-legible paragraph a sighted reader sees on the page.
+        return (
+            '<p data-inj="1" data-inj-vispara="1">'
+            f"{_text(payload)}</p>"
         )
 
     raise ValueError(f"Unknown channel: {channel!r}")
