@@ -171,7 +171,9 @@ def _render_base_html(spec) -> str:
     This is both what a clean TT/MT variant serves and the strip-to-baseline
     reference for a page-channel trap.
     """
-    title = spec.description or "Chart"
+    # The page title stays a neutral constant -- the chart description is not
+    # displayed on the page (it could bias the agent and is not part of the chart).
+    title = "Chart"
     subtitle = spec.question or ""
     return charts.render_html(
         spec.charts, title, subtitle, vendor_prefix=VENDOR_URL_PREFIX
