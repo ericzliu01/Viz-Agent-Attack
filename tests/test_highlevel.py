@@ -48,9 +48,10 @@ class LevelTests(unittest.TestCase):
         self.assertEqual([c["chart"] for c in low["examples"]], [c["chart"] for c in self.doc["examples"]])
 
     def test_levels_filter(self):
-        only = csvgen.build([self.csv], levels=("high",))
-        self.assertTrue(only["examples"])
-        self.assertEqual({t["level"] for c in only["examples"] for t in c["tasks"]}, {"high"})
+        for want in (("high",), ("low",), ("low", "high"), ("compound",)):
+            only = csvgen.build([self.csv], levels=want)
+            self.assertTrue(only["examples"])
+            self.assertEqual({t["level"] for c in only["examples"] for t in c["tasks"]}, set(want), want)
 
     def test_chains_are_literature_primitives(self):
         for chart, t in self.tasks.values():
@@ -74,7 +75,7 @@ class LevelTests(unittest.TestCase):
             self.assertEqual([k for k, (h, _) in res.items() if h], [t["answer_letter"]], t["task_id"])
             self.assertTrue(all(c for _, c in res.values()), t["task_id"])
             tags = {o["misreading"] for o in t["options"]} - {None}
-            self.assertLessEqual(tags, {"flipped_direction", "wrong_ranking", "overgeneralization", "partial_omission"})
+            self.assertLessEqual(tags, {"flipped_direction", "wrong_ranking", "overgeneralization", "false_exception"})
         self.assertGreater(n, 0)
 
     def test_high_attacks_target_a_bait_insight(self):

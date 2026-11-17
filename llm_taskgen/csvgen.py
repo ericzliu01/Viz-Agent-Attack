@@ -1072,9 +1072,7 @@ def build(paths, tm_mode="rotate", chart_types=None, seed=SEED, levels=hl.LEVELS
                 continue
             ctx = spec.pop("_ctx")
             more, dropped = hl.extend(prof, df, spec, ctx, L_hi, tm_hi, levels)
-            if "low" not in levels:
-                tasks = [t for t in tasks if t["level"] in levels]
-            tasks = tasks + more
+            tasks = [t for t in tasks if t["level"] in levels] + more
             if dropped:
                 entry.setdefault("dropped", {})[ct] = dropped
             if not tasks:

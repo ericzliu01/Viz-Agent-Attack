@@ -15,7 +15,8 @@ low-level tasks, their letters and their TM rotation do not change:
             recipe of primitives (plan 3.1, default labelling: PDF pattern +
             primitive recipe; no new task categories). The bait insights are
             the plan's types (3.3): flipped_direction, wrong_ranking,
-            overgeneralization, partial_omission.
+            overgeneralization, plus false_exception (ours: a false "but not for B"
+            claim; the plan's omission type needs free-text answers).
 
 Every option of a high-level task carries a structured claim (a conjunction of
 atoms such as "series a above series b at every x"). evaluate() decides each
@@ -295,7 +296,10 @@ def grouped_bar(prof, df, spec, ctx, L, tm):
                                   [{**base, "type": "above", "a": sH, "threshold": t, "quant": "every"}]))
         return opts if len(opts) == 4 else None
 
-    opts = statements(rows)
+    opts = statements(rows) if not prof.get("long_format") else None
+    if prof.get("long_format"):
+        ctx["_dropped"].append(f"{cg._tid(prof, 'bar_compare')}: long-format file, so group differences in "
+                               "record counts reflect the file layout, not the data")
     if opts:
         H = next(g for g in gl if f"for {G} {g} than" in opts[0]["text"])
         Lo = next(g for g in gl if g != H)
@@ -463,10 +467,10 @@ def line(prof, df, spec, ctx, L, tm):
             tr = lambda w: {**base, "type": "trend", "a": A, "dir": w}
             end = lambda hi: ({**base, "type": "at_end", "a": A, "b": B} if hi else {**base, "type": "at_end", "a": B, "b": A})
             W = _cap(what)
-            opts = [_stmt(f"{W} for {n1} {word} from {y0} to {y1} and ended {rel} {n2}", None, [tr(word), end(end_hi)]),
-                    _stmt(f"{W} for {n1} {anti} from {y0} to {y1} and ended {rel} {n2}", "flipped_direction",
+            opts = [_stmt(f"{W} for {n1} {word} from {y0} to {y1} and ended {rel} the same series for {n2}", None, [tr(word), end(end_hi)]),
+                    _stmt(f"{W} for {n1} {anti} from {y0} to {y1} and ended {rel} the same series for {n2}", "flipped_direction",
                           [tr(anti), end(end_hi)]),
-                    _stmt(f"{W} for {n1} {word} from {y0} to {y1} and ended {arel} {n2}", "wrong_ranking",
+                    _stmt(f"{W} for {n1} {word} from {y0} to {y1} and ended {arel} the same series for {n2}", "wrong_ranking",
                           [tr(word), end(not end_hi)])]
             hi_, lo_ = (A, B) if end_hi else (B, A)
             every_year = {**base, "type": "order", "a": hi_, "b": lo_, "quant": "every"}
@@ -597,7 +601,7 @@ def scatter(prof, df, spec, ctx, L, tm):
         weaker = min(cl, key=lambda c: abs(_corr(sp, c)))
         stronger = next(c for c in cl if c != weaker)
         opts.append(_stmt(f"{Yl} tends to {word} as {Xl} increases for {C} {stronger}, but not for {C} {weaker}",
-                          "partial_omission", [corr(stronger, word), corr(weaker, "none")]))
+                          "false_exception", [corr(stronger, word), corr(weaker, "none")]))
         if m[hi] - m[lo] >= 0.1 * span:
             opts.append(_stmt(f"Points with {C} {lo} have higher {Yl} on average than points with {C} {hi}",
                               "wrong_ranking", [{**base, "type": "mean_higher", "hi": lo, "lo": hi}]))
