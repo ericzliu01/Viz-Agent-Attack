@@ -41,6 +41,7 @@ from pipeline import charts
 from pipeline.llm import MODELS, LLMFormatError, complete, parse_json_block
 from pipeline.misleaders import (
     InvariantError,
+    MISLEADERS,
     misleader_invariant,
     misleaders_for,
 )
@@ -530,11 +531,33 @@ def _clean_png_map(clean_instances, clean_pngs):
     return {ci.chart_type: png for ci, png in zip(clean_instances, clean_pngs)}
 
 
+def _allowed_keys_block(misleader_ids) -> str:
+    """Spell out, per requested misleader id, the exact JSON paths it may touch.
+
+    The invariant (``misleader_invariant``) rejects any MT spec that differs from
+    the clean spec outside these paths, so the model must be told them explicitly:
+    a vague "change only the relevant keys" lets it add plausible-but-gratuitous
+    edits (e.g. ``encoding.y.axis`` or ``mark`` for an axis-scale misleader) that
+    the invariant then drops.
+    """
+    lines = [
+        f"- {mid}: {sorted(MISLEADERS[mid].allowed_changed_keys)}"
+        for mid in misleader_ids if mid in MISLEADERS
+    ]
+    return (
+        "ALLOWED CHANGED KEYS (per misleader id) -- these are the ONLY JSON paths "
+        "you may add, modify, or remove. Start from the CLEAN SPEC verbatim and "
+        "change nothing outside the listed paths for that id (no cosmetic edits to "
+        "titles, axes, marks, or anything else):\n" + "\n".join(lines)
+    )
+
+
 def _stage2_prompt(clean_instance, shared_goal, misleader_ids) -> str:
     return (
         f"{_load_prompt('stage2-misleader.md')}\n\n"
         f"CHART TYPE: {clean_instance.chart_type}\n"
         f"REQUESTED MISLEADER IDS: {misleader_ids}\n"
+        f"{_allowed_keys_block(misleader_ids)}\n"
         f"QUESTION: {clean_instance.question}\n"
         f"OPTIONS: {clean_instance.options}\n"
         f"SHARED GOAL: {shared_goal.goal}\n"
@@ -552,9 +575,11 @@ def _stage2_all_prompt(clean_instances, shared_goal) -> str:
         for ci in clean_instances
     }
     ci0 = clean_instances[0]
+    all_ids = sorted({mid for v in per_type.values() for mid in v["misleader_ids"]})
     return (
         f"{_load_prompt('stage2-misleader.md')}\n\n"
         "BATCHED MODE: emit misleaders for ALL chart types below.\n"
+        f"{_allowed_keys_block(all_ids)}\n"
         f"QUESTION: {ci0.question}\n"
         f"OPTIONS: {ci0.options}\n"
         f"SHARED GOAL: {shared_goal.goal}\n"
