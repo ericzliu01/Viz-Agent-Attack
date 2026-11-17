@@ -126,7 +126,7 @@ def test_parse_json_block_raises_on_none():
 
 
 def test_models_config_defaults():
-    assert MODELS["stage1"] == "anthropic.claude-sonnet-5-5"
-    assert MODELS["stage2"] == "anthropic.claude-sonnet-5-5"
-    assert MODELS["stage3"] == "anthropic.claude-sonnet-5-5"
-    assert MODELS["judge"] == "anthropic.claude-haiku-5-5"
+    assert MODELS["stage1"] == "us.anthropic.claude-sonnet-5-5"
+    assert MODELS["stage2"] == "us.anthropic.claude-sonnet-5-5"
+    assert MODELS["stage3"] == "us.anthropic.claude-sonnet-5-5"
+    assert MODELS["judge"] == "us.anthropic.claude-haiku-5-5"

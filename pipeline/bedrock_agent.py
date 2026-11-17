@@ -5,7 +5,7 @@ instead of Ollama's ``/api/chat``.
 This is a LOCAL PROVING PROXY for the agent-under-test, NOT the real target. The
 real benchmark target is ``qwen3-vl:8b`` served by Ollama on the MSI host; this
 module lets the whole evaluation loop run end to end on a laptop (no Ollama, no
-MSI) by substituting a cheap hosted Claude (default ``anthropic.claude-haiku-5-5``)
+MSI) by substituting a cheap hosted Claude (default ``us.anthropic.claude-haiku-5-5``)
 for that target. Results from this proxy prove the plumbing; they are not the
 benchmark's reported agent behaviour.
 
@@ -25,7 +25,9 @@ from browser_agent import (AgentResult, BrowserTools, SYSTEM_PROMPT, TOOLS,
                            capture_console)
 
 #: Agent-under-test proxy model. Overridable by env; default kept cheap on purpose.
-AGENT_MODEL = os.getenv("VIZTRAP_AGENT_MODEL", "anthropic.claude-haiku-5-5")
+#: Inference-profile ID (``us.`` prefix) -- 5-series models are INFERENCE_PROFILE-only
+#: on Bedrock and the bare foundation-model ID 404s on direct runtime invocation.
+AGENT_MODEL = os.getenv("VIZTRAP_AGENT_MODEL", "us.anthropic.claude-haiku-5-5")
 
 #: Browser tools exposed to the proxy agent -- the read-only inspection subset that
 #: the ReAct loop needs to read a chart. (The browser can also act, but the proving

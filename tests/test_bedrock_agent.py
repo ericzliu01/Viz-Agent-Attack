@@ -141,7 +141,7 @@ class BedrockAdapterTests(unittest.TestCase):
         self.assertEqual((result.answer, result.stop_reason), ("", "empty_response"))
 
     def test_agent_model_default_is_a_cheap_haiku_proxy(self):
-        self.assertEqual(AGENT_MODEL, "anthropic.claude-haiku-5-5")
+        self.assertEqual(AGENT_MODEL, "us.anthropic.claude-haiku-5-5")
 
 
 if __name__ == "__main__":

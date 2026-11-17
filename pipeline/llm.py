@@ -28,11 +28,14 @@ DEFAULT_REGION = "us-west-2"
 MAX_TOKENS = 16384
 
 #: Per-stage Bedrock model IDs, each overridable by env. Callers pass MODELS[stage].
+#: The 5-series models are INFERENCE_PROFILE-only on Bedrock, so these are the
+#: cross-region inference-profile IDs (``us.`` prefix); the bare foundation-model
+#: IDs (``anthropic.claude-sonnet-5-5``) 404 on direct runtime invocation.
 MODELS = {
-    "stage1": os.getenv("VIZTRAP_STAGE1_MODEL", "anthropic.claude-sonnet-5-5"),
-    "stage2": os.getenv("VIZTRAP_STAGE2_MODEL", "anthropic.claude-sonnet-5-5"),
-    "stage3": os.getenv("VIZTRAP_STAGE3_MODEL", "anthropic.claude-sonnet-5-5"),
-    "judge": os.getenv("VIZTRAP_JUDGE_MODEL", "anthropic.claude-haiku-5-5"),
+    "stage1": os.getenv("VIZTRAP_STAGE1_MODEL", "us.anthropic.claude-sonnet-5-5"),
+    "stage2": os.getenv("VIZTRAP_STAGE2_MODEL", "us.anthropic.claude-sonnet-5-5"),
+    "stage3": os.getenv("VIZTRAP_STAGE3_MODEL", "us.anthropic.claude-sonnet-5-5"),
+    "judge": os.getenv("VIZTRAP_JUDGE_MODEL", "us.anthropic.claude-haiku-5-5"),
 }
 
 
