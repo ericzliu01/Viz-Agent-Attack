@@ -136,6 +136,31 @@ def _tool_result_block(tool_use_id, content, images, is_error=False):
     return block
 
 
+def _create_with_retry(client, *, model, system, messages, tools, max_tokens,
+                       attempts=4, base_delay=2.0):
+    """messages.create with exponential backoff + jitter on transient exceptions.
+
+    Retries on any client exception (throttling, dropped connections) -- the
+    unambiguous transient signal -- so concurrency-induced ``request_error`` trials
+    resolve to real answers. An empty but successful response is left as-is (that is
+    a valid terminal the caller records as ``empty_response``); such cases are
+    re-run by the low-concurrency retry pass instead. Raises the last exception if
+    every attempt raised.
+    """
+    import time, random
+    last_exc = None
+    for i in range(attempts):
+        try:
+            return client.messages.create(
+                model=model, system=system, messages=messages,
+                tools=tools, max_tokens=max_tokens)
+        except Exception as exc:  # noqa: BLE001 -- transient; retry with backoff
+            last_exc = exc
+            if i < attempts - 1:
+                time.sleep(base_delay * (2 ** i) + random.uniform(0, 1))
+    raise last_exc
+
+
 def run_bedrock_agent(page, question, model=None, *, workspace_dir=None,
                       memory_backend=None, max_steps=15, client=None,
                       system_prompt=None, console_logs=None, max_tokens=MAX_TOKENS):
@@ -167,8 +192,8 @@ def run_bedrock_agent(page, question, model=None, *, workspace_dir=None,
     for step in range(1, max_steps + 1):
         result.steps = step
         try:
-            response = client.messages.create(
-                model=model, system=system, messages=messages,
+            response = _create_with_retry(
+                client, model=model, system=system, messages=messages,
                 tools=tools, max_tokens=max_tokens)
         except Exception as exc:  # noqa: BLE001 -- surface any client error as a stop
             result.stop_reason, result.error = "request_error", str(exc)

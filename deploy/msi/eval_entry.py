@@ -51,6 +51,11 @@ def parse_args(argv=None):
     p.add_argument("--repetitions", type=int,
                    default=int(_env_default("REPETITIONS", "1")),
                    help="Repetitions per instance (env: REPETITIONS).")
+    p.add_argument("--select", default=_env_default("SELECT_FILE"),
+                   help="Optional JSON file with an ordered list of instance_ids to "
+                        "evaluate (env: SELECT_FILE). Use the SAME file the Bedrock "
+                        "runs used (e.g. <corpus>/eval_selection.json) so Qwen scores "
+                        "the identical balanced selection. Omit to run the full corpus.")
     return p.parse_args(argv)
 
 
@@ -79,11 +84,21 @@ def main(argv=None):
 
     agent_fn = _ollama_agent_fn(args.ollama_url, seed=args.seed)
 
+    select = None
+    if args.select:
+        import json as _json
+        sel_path = Path(args.select).resolve()
+        if not sel_path.is_file():
+            sys.exit(f"ERROR: --select file does not exist: {sel_path}")
+        select = _json.loads(sel_path.read_text())
+        print(f"[eval_entry] select      : {sel_path} ({len(select)} instance_ids)")
+
     run_config = {
         "target": "ollama",
         "ollama_url": args.ollama_url,
         "model": args.model,
         "corpus_dir": str(corpus),
+        "select_file": str(Path(args.select).resolve()) if args.select else None,
         "hostname": socket.gethostname(),
         "slurm_job_id": os.environ.get("SLURM_JOB_ID", ""),
         "slurm_node": os.environ.get("SLURMD_NODENAME", ""),
@@ -110,6 +125,7 @@ def main(argv=None):
         repetitions=args.repetitions,
         seed=args.seed,
         run_config=run_config,
+        select=select,
     )
     elapsed = time.monotonic() - start
 

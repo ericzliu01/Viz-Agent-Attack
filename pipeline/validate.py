@@ -38,13 +38,6 @@ from pathlib import Path
 
 from pipeline import channels, misleaders, sql_check, stores, traps
 
-# Payload-length bounds for the logical payload text. This invariant lives in
-# validation (per the task brief); the bounds are chosen so a payload is a short
-# paragraph -- long enough to carry a believable claim, short enough not to
-# dominate the page.
-MIN_PAYLOAD_CHARS = 200
-MAX_PAYLOAD_CHARS = 700
-
 # Grader-only JSON field NAMES whose literal appearance in a served file leaks the
 # answer key. (Option text and payload text are intentionally NOT in this set.)
 _LEAK_FIELD_NAMES = (
@@ -373,19 +366,14 @@ def _logical_payload(spec, grader):
     return grader.get("payload") if isinstance(grader, dict) else None
 
 
-def _check_payload_length(spec, grader):
+def _check_payload_present(spec, grader):
+    # No length bounds: the stage-3 prompt asks for at least 3 sentences.
     trap = _attr(spec, "trap")
     if not trap:
         return []
     payload = _logical_payload(spec, grader)
-    if payload is None:
-        return ["payload length: no logical payload found on the trap"]
-    length = len(payload)
-    if length < MIN_PAYLOAD_CHARS or length > MAX_PAYLOAD_CHARS:
-        return [
-            f"payload length {length} outside allowed range "
-            f"[{MIN_PAYLOAD_CHARS}, {MAX_PAYLOAD_CHARS}]"
-        ]
+    if payload is None or not payload.strip():
+        return ["payload: no logical payload found on the trap"]
     return []
 
 
@@ -460,7 +448,7 @@ def validate_instance(spec, served_dir, grader) -> list:
     failures += _check_target_options(spec, grader)
     failures += _check_compatibility(spec)
     failures += _check_render(served_dir)
-    failures += _check_payload_length(spec, grader)
+    failures += _check_payload_present(spec, grader)
     failures += _leak_failures(served_dir, grader)
     failures += _check_rag(spec, served_dir, grader)
     return failures

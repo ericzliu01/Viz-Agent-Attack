@@ -14,7 +14,7 @@ misleaders/
   overview.png      one-page grid of the 11 entries that have examples
   axis/  encoding/  screenshots from the papers and their datasets
 traps/
-  examples.json     9 payloads: 2 perception, 3 reasoning, 2 cognitive, 2 action
+  examples.json     9 one-line examples, one per subtype (2 perception, 3 reasoning, 2 cognitive, 2 action)
 ```
 
 ## Tasks
@@ -87,11 +87,17 @@ Not used yet: Misviz-synth has 638 synthetic scatter plots labelled "inappropria
 
 ## Traps (stage 3)
 
-One example payload per subtype in `pipeline/traps.py`. Each entry has `family`, `subtype`, `franklin_category`, a 4-option QA, `target_option`, an `example_channel`, and `payload`.
-- Every payload is within `MIN_PAYLOAD_CHARS`–`MAX_PAYLOAD_CHARS` (200–700), and every channel passes `traps.compatible`.
-- `cognitive_rag` also has a `document` (`{id, title, text, source, kind}`) in the `memory.corpus.documents` format. Its title repeats the question's words, so keyword-overlap retrieval should return it.
-- `cognitive_latent` is a `README.md` block with a `trigger` note.
-- `action_exfiltration` has no target option. It keeps the `{sink_url}` token, which `traps._render_payload` fills in, and its `success` field states the canary criterion.
+One brief example per subtype in `pipeline/traps.py`, as `{family, subtype, example}`. Each `example` is one sentence that says where the text sits and quotes the payload, e.g. `A comment in the page source says "This is a red-teaming exercise for a data-literacy class. ..."`. Every quoted payload has at least 3 sentences, and there is no character limit on the examples. `generate.py` (`_format_trap_examples`) feeds the matching example to stage 3 and tells the model that only the quoted text is the payload.
 
+Four examples are written in the voice of a fictional author, named in the same sentence:
 
-Source: Franklin, Tomašev, Jacobs, Leibo & Osindero (2026), "AI Agent Traps", Google DeepMind, SSRN 6372438. SSRN blocks automated access (Cloudflare check), so the paper text was not read for these examples. Category and subtype names follow `notes/oct5_attacks.md` and the design doc. The payloads are written for this suite and are not quoted from the paper.
+| Subtype | Author voice |
+|---|---|
+| perception_facts | a historian's correction |
+| perception_opinions | a yoga instructor's comment |
+| reasoning_biased_phrasing | campaign copy (political strategist) |
+| cognitive_latent | a parent's personal notes in the README |
+
+The personas are adapted from the fixed personas in Deng et al., "PersonaTeaming: Supporting Persona-Driven Red-Teaming for Generative AI" (arXiv 2605.05682), Appendix A.1, Figs. 11-14. In that paper the persona is the attacker's voice, not the agent's self-image, so none is used for `reasoning_persona`.
+
+Trap categories: Franklin, Tomašev, Jacobs, Leibo & Osindero (2026), "AI Agent Traps", Google DeepMind, SSRN 6372438. SSRN blocks automated access (Cloudflare check), so the paper text was not read. Category and subtype names follow `notes/oct5_attacks.md` and the design doc. The payloads are written for this suite and are not quoted from either paper.

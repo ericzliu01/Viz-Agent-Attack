@@ -73,6 +73,28 @@ def _tool_result(tool_use_id, content, images, is_error=False):
     return block
 
 
+def _converse_with_retry(client, model, system, messages, tool_config, max_tokens,
+                         attempts=4, base_delay=2.0):
+    """converse() with exponential backoff + jitter on transient exceptions.
+
+    Retries on any client exception (throttling, dropped connections), so
+    concurrency-induced ``request_error`` trials resolve to real answers. An empty
+    but successful response is left as-is (a valid terminal recorded as
+    ``empty_response``) and re-run by the low-concurrency retry pass. Raises the
+    last exception if every attempt raised.
+    """
+    import time, random
+    last_exc = None
+    for i in range(attempts):
+        try:
+            return client.converse(model, system, messages, tool_config, max_tokens)
+        except Exception as exc:  # noqa: BLE001 -- transient; retry with backoff
+            last_exc = exc
+            if i < attempts - 1:
+                time.sleep(base_delay * (2 ** i) + random.uniform(0, 1))
+    raise last_exc
+
+
 def run_converse_agent(page, question, model=None, *, workspace_dir=None, memory_backend=None,
                        max_steps=15, client=None, system_prompt=None, console_logs=None,
                        max_tokens=MAX_TOKENS):
@@ -103,7 +125,8 @@ def run_converse_agent(page, question, model=None, *, workspace_dir=None, memory
     for step in range(1, max_steps + 1):
         result.steps = step
         try:
-            resp = client.converse(model, system, messages, tool_config, max_tokens)
+            resp = _converse_with_retry(client, model, system, messages,
+                                        tool_config, max_tokens)
         except Exception as exc:  # noqa: BLE001 -- surface any client error as a stop
             result.stop_reason, result.error = "request_error", str(exc)
             break

@@ -138,13 +138,17 @@ fi
 # ----- Run the evaluation (resumable) --------------------------------------
 echo "[eval] launching eval_entry.py"
 set +e   # capture eval exit code so cleanup still runs and we report it
+# SELECT_FILE (optional): JSON list of instance_ids to score the SAME balanced
+# selection the Bedrock runs used (e.g. $CORPUS_DIR/eval_selection.json). Empty = full corpus.
+SELECT_FILE="${SELECT_FILE:-}"
 python deploy/msi/eval_entry.py \
   --corpus   "$CORPUS_DIR" \
   --out      "$OUT_DIR" \
   --model    "$QWEN_MODEL" \
   --ollama-url "$OLLAMA_URL" \
   --seed     "$SEED" \
-  --repetitions "$REPETITIONS"
+  --repetitions "$REPETITIONS" \
+  ${SELECT_FILE:+--select "$SELECT_FILE"}
 EVAL_RC=$?
 set -e
 
