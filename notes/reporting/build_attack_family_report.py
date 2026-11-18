@@ -10,6 +10,10 @@ HERE = Path(__file__).resolve().parent
 FAM = T['families']
 MODELS = T['models']
 
+def img_png(name, alt):
+    b = base64.b64encode((HERE / 'img' / (name + '.png')).read_bytes()).decode()
+    return f'<img src="data:image/png;base64,{b}" alt="{E(alt)}">'
+
 def img(name, alt):
     b = base64.b64encode((HERE / 'img' / (name + '.jpg')).read_bytes()).decode()
     return f'<img src="data:image/jpeg;base64,{b}" alt="{E(alt)}">'
@@ -166,7 +170,7 @@ table.hm td{white-space:nowrap}.n{color:var(--mute);font-size:.8em}td.un{color:v
 .fw text{fill:var(--ink);text-anchor:middle}.fw .h{font-size:16px;font-weight:700}.fw .s{font-size:13px}.fw .s2{font-size:11.5px;fill:var(--mute)}
 .fw .ln{stroke:var(--mute);stroke-width:1.6;fill:none}.fw .ah{fill:var(--mute)}.fw .atk circle{fill:var(--bad)}.fw .atk text{fill:#fff;font-weight:700;font-size:13px}
 .sc .g{stroke:var(--line)}.sc .t{fill:var(--mute);font-size:11px}.sc .ax{fill:var(--ink);font-size:12px}.sc .lab{fill:var(--ink);font-size:12px}
-details{margin:8px 0}summary{cursor:pointer;color:var(--acc)}
+.fig{margin:14px 0}.fig img{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}details{margin:8px 0}summary{cursor:pointer;color:var(--acc)}
 @media (max-width:820px){.ds{grid-template-columns:1fr}.ds .arrow{transform:rotate(90deg);justify-self:center}.ds .final{grid-template-columns:1fr}.teaser{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.teaser{grid-template-columns:1fr}}
 '''
@@ -203,9 +207,11 @@ body = f'''<main>
 <p><b>Analysis:</b> four of the five entry points are covered by the latest run; Action was tested only once, on the generated Netflix corpus (Nov 10), where GPT-6-luna ran the injected snippet in 13 of 356 trials and Sonnet 5.5 in none.</p>
 
 <h2 id="dataset">3. Dataset construction</h2>
-<p class="sec-terms"><b>Terms in this section:</b> a <b>scenario</b> is one source dataset; a <b>gate</b> is an automatic check a chart or task must pass to be kept.</p>
-{DATASET}
-<p><b>Analysis:</b> every stage is code rather than an LLM, so each answer and bait is computed from the plotted rows and every attacked page has a matched clean page for paired comparison.</p>
+<p class="sec-terms"><b>Terms in this section:</b> a <b>scenario</b> is one source dataset; a <b>gate</b> is an automatic check a chart or task must pass to be kept; an <b>instance</b> is one task drawn as one chart type; a <b>matched pair</b> is a clean instance and the same instance with one attack; the <b>judge</b> is a model from a different family that only reads wording.</p>
+<figure class="fig">{img_png("dataset-construction-2026-11-17", "Dataset construction and paired attack generation")}<figcaption><b>Dataset construction and paired attack generation</b> (proposed design: 8 scenarios x 20 tasks = 160 task descriptions).</figcaption></figure>
+<p class="mute"><b>Built so far:</b> 47 tasks on 17 charts from 8 scenarios (32 low-level, 10 compound, 5 high-level in multiple-choice form on one chart), 740 pages (185 per library: 47 clean + 138 attacked), with 5 Misleading Viz, 6 Perception, 1 Reasoning and 2 Memory techniques. The latest model run used all 32 low-level tasks and 4 compound tasks (144 pages per library, 4,320 trials).</p>
+<figure class="fig">{img_png("attack-generation-roles-2026-11-17", "Attack generation and scoring roles")}<figcaption><b>Attack generation and scoring: who does what.</b> In the current generator the LLM and Judge rows are still done by code (fixed templates, exact-letter grading).</figcaption></figure>
+<p><b>Analysis:</b> in the current generator every stage is code, so each answer and bait is computed from the plotted rows and every attacked page has a matched clean page for paired comparison.</p>
 
 <h2 id="type-family">4. Task type x attack family (ASR)</h2>
 <p class="sec-terms"><b>Terms in this section:</b> cells are ASR with n attacked trials; the clean column is PUA on the same tasks. Darker red is a higher ASR. Pooled means both models together.</p>
