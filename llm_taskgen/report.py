@@ -30,9 +30,10 @@ Terms:
               the last primitive of the chain, as stored in `primitive`).
 
 Usage:
-  python -m llm_taskgen.report --examples tasks/csv_tasks/tasks.json --prefix cx_ \
+  python -m llm_taskgen.report --examples tasks/csv_tasks/tasks.json \
       --out results/report_<run> results/<run>/*/results.csv
 Each results.csv must have trial_metadata.json next to it (written by llm_taskgen.run).
+Each technique must be listed in FAMILY_OF; an unmapped technique stops the run.
 """
 import argparse
 import csv
@@ -91,7 +92,7 @@ def tokens(notes):
     return total
 
 
-def load_rows(results_paths, tasks, prefix):
+def load_rows(results_paths, tasks):
     rows = []
     for rp in results_paths:
         rp = Path(rp)
@@ -103,6 +104,8 @@ def load_rows(results_paths, tasks, prefix):
                 raise SystemExit(f"{rp}: no trial_metadata entry for {key}")
             t = tasks[m["task_id"]]
             tech = m["technique"]
+            if tech and tech not in FAMILY_OF:
+                raise SystemExit(f"{rp}: technique {tech!r} has no attack family; add it to FAMILY_OF")
             if tech is None:
                 kind = "clean"
             elif m["memory_control"]:
@@ -112,6 +115,7 @@ def load_rows(results_paths, tasks, prefix):
             ans = (r["extracted_answer"] or "").strip().upper()
             page = r["attack_id"].removesuffix("__clean_baseline")
             rows.append({
+                "row_id": f"{model_name(r['model'])}|{r['library']}|{r['attack_id']}|{r['trial']}",
                 "qa_pair_id": f"{m['task_id']}|{r['library']}|{r['trial']}",
                 "condition": kind,
                 "scenario": t["dataset"],
@@ -146,7 +150,7 @@ def rate(num, den):
     return {"k": num, "n": den, "pct": (100.0 * num / den) if den else None}
 
 
-def fmt(c, signed=False):
+def fmt(c):
     if not c or not c["n"]:
         return "untested"
     return f"{c['pct']:.1f}% (n {c['n']})"
@@ -200,9 +204,11 @@ def tables(rows):
         for f in FAMILIES:
             c = asr([r for r in att if r["model"] == m and r["attack_family"] == f])
             row[f] = c
+            row[f + " accuracy"] = pua([r for r in att if r["model"] == m and r["attack_family"] == f])
             if c["n"]:
                 tested.append(c["pct"])
         row["Average"] = {"pct": sum(tested) / len(tested) if tested else None, "n": len(tested), "k": None}
+        row["Attacked accuracy"] = pua([r for r in att if r["model"] == m])
         row["Pooled ASR"] = asr([r for r in att if r["model"] == m])
         pm = [(c, a) for c, a in P if a["model"] == m and c is not None]
         row["PRA"] = rate(sum(c["correct"] and a["correct"] for c, a in pm), len(pm))
@@ -218,6 +224,11 @@ def tables(rows):
     T["type_model"] = {tt: {m: {"PUA": pua([r for r in clean if r["task_type"] == tt and r["model"] == m]),
                                 "ASR": asr([r for r in att if r["task_type"] == tt and r["model"] == m])}
                             for m in models} for tt in types}
+    levels = sorted({r["level"] for r in rows})
+    T["levels"] = levels
+    T["level_model"] = {lv: {m: {"PUA": pua([r for r in clean if r["level"] == lv and r["model"] == m]),
+                                 "ASR": asr([r for r in att if r["level"] == lv and r["model"] == m])}
+                             for m in models} for lv in levels}
     T["library_model"] = {lb: {m: {"PUA": pua([r for r in clean if r["library"] == lb and r["model"] == m]),
                                    "ASR": asr([r for r in att if r["library"] == lb and r["model"] == m])}
                                for m in models} for lb in libs}
@@ -247,8 +258,13 @@ def markdown(T):
           "|---|---|" + "---|" * (len(FAMILIES) + 2)]
     for m, row in T["model_family"].items():
         avg = row["Average"]
+        avg_s = f"{avg['pct']:.1f}% (over {avg['n']} families)" if avg["pct"] is not None else "untested"
         L.append(f"| {m} | {fmt(row['PUA'])} | " + " | ".join(fmt(row[f]) for f in FAMILIES)
-                 + f" | {avg['pct']:.1f}% (over {avg['n']} families) | {fmt(row['PRA'])} |")
+                 + f" | {avg_s} | {fmt(row['PRA'])} |")
+    L += ["", "## Performance percentage (accuracy) by family", "",
+          "| Model | Clean | " + " | ".join(FAMILIES) + " |", "|---|---|" + "---|" * len(FAMILIES)]
+    for m, row in T["model_family"].items():
+        L.append(f"| {m} | {fmt(row['PUA'])} | " + " | ".join(fmt(row[f + ' accuracy']) for f in FAMILIES) + " |")
     L += ["", "## Chart type x model", "", "| Chart type | " + " | ".join(f"{m} PUA | {m} ASR" for m in T["models"]) + " |",
           "|---|" + "---|---|" * len(T["models"])]
     for ct, d in T["chart_model"].items():
@@ -264,11 +280,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("results", nargs="+")
     ap.add_argument("--examples", default="tasks/csv_tasks/tasks.json")
-    ap.add_argument("--prefix", default="cx_")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     tasks = load_tasks(a.examples)
-    rows = load_rows(a.results, tasks, a.prefix)
+    rows = load_rows(a.results, tasks)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     cols = list(rows[0])

@@ -51,7 +51,7 @@ def test_family_tables_and_pairs(tmp_path):
              correct="true", latency_ms="1000", notes=notes, trial="0"),
     ]
     rp = _write_run(tmp_path, rows, meta)
-    rs = report.load_rows([rp], report.load_tasks(_tasks(tmp_path)), "cx_")
+    rs = report.load_rows([rp], report.load_tasks(_tasks(tmp_path)))
     T = report.tables(rs)
     mf = T["model_family"]["m1"]
     assert mf["PUA"]["pct"] == 100.0
@@ -62,3 +62,31 @@ def test_family_tables_and_pairs(tmp_path):
     assert mf["PRA"]["k"] == 1 and mf["PRA"]["n"] == 2  # memory pair right on both, dom pair not
     assert rs[0]["tokens"] == 15
     assert T["type_family"]["pooled"]["Find Extremum"]["Perception"]["pct"] == 100.0
+
+
+def test_unscored_never_bait_and_unmapped_technique_stops(tmp_path):
+    base = {"chart_type": "grouped_bar", "dataset": "cx_toy", "ground_truth": "A", "library": "d3",
+            "task_id": "toy_bar_extremum"}
+    meta = {"d3|cx_dom_injection__cx_toy": dict(base, attack_id="a", bait="D", channel="TM",
+                                                memory_control=False, technique="dom_injection")}
+    rows = [dict(library="d3", attack_id="cx_dom_injection__cx_toy", model="m2", extracted_answer="",
+                 correct="needs_review", latency_ms="5", notes="", trial="0")]
+    rp = _write_run(tmp_path, rows, meta)
+    rs = report.load_rows([rp], report.load_tasks(_tasks(tmp_path)))
+    assert rs[0]["bait_hit"] is False and rs[0]["scored"] is False and rs[0]["tokens"] is None
+    T = report.tables(rs)
+    assert T["model_family"]["m2"]["Perception"]["k"] == 0
+    assert T["model_family"]["m2"]["Perception accuracy"]["k"] == 0
+    report.markdown(T)  # no clean rows and one family only: must not crash
+
+    meta2 = {"d3|cx_new__cx_toy": dict(base, attack_id="n", bait="D", channel="TM",
+                                       memory_control=False, technique="not_a_technique")}
+    d2 = tmp_path / "b"
+    d2.mkdir()
+    rp2 = _write_run(d2, [dict(rows[0], attack_id="cx_new__cx_toy")], meta2)
+    try:
+        report.load_rows([rp2], report.load_tasks(_tasks(tmp_path)))
+    except SystemExit as e:
+        assert "no attack family" in str(e)
+    else:
+        raise AssertionError("unmapped technique was accepted")
