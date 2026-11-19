@@ -75,7 +75,7 @@ def main():
 
     os.makedirs(a.out, exist_ok=True)
     cols = ["model", "item", "chart", "cond", "task", "idx", "status", "correct", "strict", "parsed",
-            "point_rate", "alt_one_based", "stop", "out_tokens", "detail"]
+            "point_rate", "alt_one_based", "multi_number", "stop", "out_tokens", "detail"]
     with open(os.path.join(a.out, "scored.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
