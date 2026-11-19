@@ -1,5 +1,9 @@
 # Adversarial Attacks on Visualization Reading Agents
 
+**[Read the comprehensive public results report](reports/README.md)** — ASR across
+models, channels, wording, tasks and rendering factors, with evaluated examples,
+raw results and reproducible analysis. [Browse all method examples](reports/comprehensive/examples.md).
+
 Tests whether a browser agent is misled by data-preserving visual attacks
 across D3.js, Plotly, Chart.js, and Vega-Lite. The agent uses a small ReAct
 loop: request tools, inspect their results, interact, then answer.
@@ -282,6 +286,36 @@ logged as `correct=needs_review` and excluded from ASR/accuracy math.
 `ASR = wrong_rate(attack trials) - wrong_rate(clean-baseline trials)`
 
 </details>
+
+## ChartGalaxy image QA experiments
+
+Image QA uses a shared plain-JSON reply, `{"ans": "...", "rationale": "..."}`,
+across models. Only `ans` is graded; no answer-submission tool is forced.
+See [evaluation protocol and scoring](docs/json-evaluation.md),
+[frozen wording study](docs/wording-study.md), and
+[CoTTA implementation notes](docs/cotta.md).
+
+```bash
+.venv-cotta/bin/python -m qa_attacks.json_study \
+  --root runs/qa_attacks/chartgalaxy \
+  --out runs/qa_attacks/chartgalaxy/json-round1
+.venv-cotta/bin/python -m qa_attacks.json_report \
+  runs/qa_attacks/chartgalaxy/json-round1
+```
+
+## ChartGalaxy covert visual prompt injection
+
+The optional [CoTTA reproduction](docs/cotta.md) adds gradient-optimized visual
+prompt injection to the ChartGalaxy QA experiments. It includes a centered
+learnable text trigger, dynamic target-image alignment, ensemble CLIP support,
+ablations, neutral controls, pixel-budget audits, and paired ASR comparisons.
+Install `requirements-cotta.txt` in a separate environment; generated runs live
+under `runs/qa_attacks/chartgalaxy/` and do not overwrite the original attacks.
+
+The [wording study](docs/wording-study.md) compares ten perception, reasoning,
+and answer-submission payloads in readable and bounded faint-text channels,
+with frozen development/validation splits, neutral controls, and repeated
+finalist calls. These wording runs are separate from gradient-optimized CoTTA.
 
 <details>
 <summary>Chart corpus</summary>
