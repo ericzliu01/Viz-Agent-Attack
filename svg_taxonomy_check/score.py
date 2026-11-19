@@ -22,7 +22,7 @@ PROMPT_K = {"scatter": 1, "line": 2, "bar": None}  # outliers the anomaly prompt
 
 RULES = {
     "retrieval": "every data point present (row count = n) and each value within tolerance after nearest matching",
-    "derive": "mean of Y within tolerance",
+    "derive": "mean of Y within tolerance (last number in the reply)",
     "range": "min and max of Y both within tolerance",
     "distribution": "first of normal/uniform/binomial named in the reply equals the generating distribution",
     "filter": "scatter: recoloured set = {Y > 0}; line: kept points = {2 <= X <= 6}; bar: kept bins = {3 <= X <= 7}",
@@ -102,13 +102,21 @@ def match_points(out_pts, in_pts):
     return greedy(norm(out_pts), norm(in_pts), 0.05)
 
 
+ORIGINAL_COLOR = "#1f77b4"  # matplotlib default colour of every input mark
+
+
 def highlighted(marks_list):
-    """Indices of marks whose colour differs from the most common colour."""
+    """Indices of marks recoloured away from the input chart's original colour.
+
+    The base is the input's original colour when any mark keeps it (a model may
+    recolour the majority, e.g. Filter Y > 0 on medium scatters); otherwise the
+    most common colour.
+    """
     from collections import Counter
     cols = Counter(m["color"] for m in marks_list)
     if len(cols) <= 1:
         return set(), cols
-    base = cols.most_common(1)[0][0]
+    base = ORIGINAL_COLOR if ORIGINAL_COLOR in cols else cols.most_common(1)[0][0]
     return {i for i, m in enumerate(marks_list) if m["color"] != base}, cols
 
 
@@ -234,9 +242,10 @@ def score(repo, chart, cond, task, idx, reply):
             res.update(parsed=False, detail="no number")
             return res
         truth = sum(Y) / len(Y)
-        err = abs(v[0] - truth)
+        pred = v[-1]  # replies that show working end with the answer
+        err = abs(pred - truth)
         res.update(correct=err <= LENIENT_FRAC * rng(Y), strict=err <= STRICT_TOL,
-                   detail=f"pred {v[0]} truth {truth:.3f}")
+                   multi_number=len(v) > 1, detail=f"pred {pred} ({len(v)} numbers) truth {truth:.3f}")
         return res
 
     if task == "range":
