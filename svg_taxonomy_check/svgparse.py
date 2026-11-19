@@ -200,6 +200,13 @@ def marks(svg_text):
             x = float(el.get("x") or 0)
             y = float(el.get("y") or 0)
             cx, cy = apply(M2, x, y)
+            # The referenced shape's own fill/stroke override what the <use> inherits.
+            ref = defs.get(href.lstrip("#"))
+            if ref is not None:
+                rs = _style_map(ref, css)
+                rc = norm_color(rs["fill"]) if "fill" in rs else (norm_color(rs["stroke"]) if "stroke" in rs else None)
+                if rc is not None:
+                    color = rc
             out.append(dict(kind="point", x=cx, y=cy, bbox=(cx, cy, cx, cy), color=color, href=href))
             return
         if tag in ("circle", "ellipse"):
