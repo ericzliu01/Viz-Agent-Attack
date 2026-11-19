@@ -259,7 +259,9 @@ def marks(svg_text):
 
 def output_points(m):
     """Point marks in a model SVG: markers plus small closed shapes."""
-    pts = [p for p in m if p["kind"] == "point"]
+    # <use> marks that reference text glyphs (matplotlib label text, e.g.
+    # #DejaVuSans-30) are characters, not data points.
+    pts = [p for p in m if p["kind"] == "point" and not re.search(r"(?i)dejavu|glyph|font", p.get("href") or "")]
     small = [p for p in m if p["kind"] == "closed" and max(p["bbox"][2] - p["bbox"][0], p["bbox"][3] - p["bbox"][1]) < 15]
     return pts + small
 
