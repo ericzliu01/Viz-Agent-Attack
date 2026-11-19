@@ -1,4 +1,5 @@
-"""Run the llm_taskgen example pages (datasets lx_*) with run_attack_suite's agent.
+"""Run the llm_taskgen example pages (datasets lx_*, or --prefix cx_ for csvgen pages)
+with run_attack_suite's agent.
 
 - The system prompt's answer line is replaced by the fixed A-D answer schema
   (final line 'ANSWER: <letter>'), since these tasks are graded with answer_type "mcq".
@@ -31,13 +32,13 @@ def patch_system_prompt():
         OLD_ANSWER_LINE, "When finished, give your\nanswer. " + TEXT_INSTRUCTION)
 
 
-def select_trials(libraries, techniques=None):
+def select_trials(libraries, techniques=None, prefix="lx_"):
     trials, seen = [], set()
     for t in r.attack_trials(libraries):
         ds = t.get("dataset") or ""
-        if not ds.startswith("lx_"):
+        if not ds.startswith(prefix):
             continue
-        technique = t["attack_id"].split("__")[0][len("lx_"):]
+        technique = t["attack_id"].split("__")[0][len(prefix):]
         if techniques is not None and technique not in techniques:
             continue
         if t["attack_id"].endswith("__clean_baseline") and t.get("memory") is None:
@@ -49,17 +50,17 @@ def select_trials(libraries, techniques=None):
     return trials
 
 
-def write_trial_metadata(trials, results_dir):
+def write_trial_metadata(trials, results_dir, prefix="lx_"):
     """Save the answer, bait and technique of every trial next to results.csv, so
     summaries score against what was run, not against pages rebuilt later."""
     path = Path(results_dir) / "trial_metadata.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     old = json.loads(path.read_text()) if path.exists() else {}
     for t in trials:
-        technique = t["attack_id"].split("__")[0][len("lx_"):] if t["attack_id"].startswith("lx_") else None
+        technique = t["attack_id"].split("__")[0][len(prefix):] if t["attack_id"].startswith(prefix) else None
         old[f"{t['library']}|{t['attack_id']}"] = {
-            "library": t["library"], "attack_id": t["attack_id"], "task_id": (t.get("dataset") or "")[len("lx_"):],
-            "chart_type": t.get("chart_type"), "dataset": t.get("dataset"),
+            "library": t["library"], "attack_id": t["attack_id"], "task_id": (t.get("dataset") or "")[len(prefix):],
+            "chart_type": t.get("chart_type"), "dataset": t.get("dataset"), "level": t.get("level"),
             "ground_truth": t.get("ground_truth"),
             "bait": None if t["attack_id"].startswith("clean_") else t.get("bait"), "technique": technique,
             "channel": TECHNIQUES.get(technique, {}).get("channel"),
@@ -74,13 +75,14 @@ def main():
     r.add_agent_arguments(parser)
     parser.add_argument("--techniques", help="Comma-separated technique ids (default: all)")
     parser.add_argument("--limit", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--prefix", default="lx_", help="page id prefix built by llm_taskgen.pages (cx_ for csvgen)")
     args = parser.parse_args()
     r.validate_arguments(parser, args)
     techniques = {x.strip() for x in args.techniques.split(",")} if args.techniques else None
     patch_system_prompt()
-    trials = select_trials(args.libraries, techniques)
+    trials = select_trials(args.libraries, techniques, args.prefix)
     print(f"{len(trials)} trials per model and trial index", flush=True)
-    write_trial_metadata(trials, r.RESULTS_DIR)
+    write_trial_metadata(trials, r.RESULTS_DIR, args.prefix)
     r.run_trials(trials, args)
 
 

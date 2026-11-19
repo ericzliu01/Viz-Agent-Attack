@@ -14,14 +14,14 @@ function render(values, V) {
         hovertemplate: L[E.x] + ": %{x}<br>" + L[E.y] + ": %{y}<br>" + L[E.size] + ": %{customdata}<extra>%{fullData.name}</extra>" });
     }
     layout.xaxis.range = V.x_domain; layout.yaxis.range = V.y_domain;
-    layout.xaxis.dtick = 5; layout.yaxis.dtick = V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20; layout.xaxis.tick0 = 0; layout.yaxis.tick0 = 0;
+    layout.xaxis.dtick = V.x_step; layout.yaxis.dtick = V.y_step; layout.xaxis.tick0 = 0; layout.yaxis.tick0 = 0;
   } else if (ct === "grouped_bar") {
     const xs = cats(values, V, E.x);
     for (const g of cats(values, V, E.group)) {
       const rs = xs.map(x => values.find(r => r[E.x] === x && r[E.group] === g));
       traces.push({ type: "bar", name: g, x: xs, y: rs.map(r => r[E.y]), marker: { color: V.palette[g] } });
     }
-    layout.barmode = "group"; layout.yaxis.range = V.y_domain; layout.yaxis.dtick = 10; layout.legend.title.text = L[E.group];
+    layout.barmode = "group"; layout.yaxis.range = V.y_domain; layout.yaxis.dtick = V.y_step; layout.legend.title.text = L[E.group];
     // Decoy outline as shapes, so the legend swatches keep no border.
     const gs = cats(values, V, E.group), bw = 0.8 / gs.length;
     layout.shapes = values.filter(r => isHighlighted(V, r)).map(r => {
@@ -37,7 +37,7 @@ function render(values, V) {
         yaxis: dual ? "y2" : "y" });
     }
     layout.yaxis.rangemode = "tozero"; layout.yaxis.dtick = 2 * V.gridstep;
-    layout.xaxis.dtick = 2; layout.legend.title.text = L[E.color] + " / " + L[E.line_style];
+    layout.xaxis.dtick = V.x_step || 2; layout.legend.title.text = L[E.color] + " / " + L[E.line_style];
     if (V.dual) { layout.yaxis2 = { ...ax(V.dual.title), overlaying: "y", side: "right", range: V.dual.domain, showgrid: false }; layout.legend.x = 1.12; }
   } else if (ct === "stacked_bar") {
     const xs = cats(values, V, E.x);
@@ -54,7 +54,7 @@ function render(values, V) {
     layout.yaxis.autorange = "reversed"; layout.yaxis.title.text = L[E.y]; layout.margin.l = 130; layout.yaxis.title.standoff = 10; layout.xaxis.title.text = L[E.x];
     layout.xaxis.showgrid = false; layout.yaxis.showgrid = false;
     layout.annotations = [];
-    ys.forEach((y, i) => xs.forEach((x, j) => { if (z[i][j] === null) layout.annotations.push({ x, y, text: "n<10", showarrow: false, font: { color: "#898781", size: 11 } }); }));
+    ys.forEach((y, i) => xs.forEach((x, j) => { if (z[i][j] === null) layout.annotations.push({ x, y, text: V.blank_label, showarrow: false, font: { color: "#898781", size: 11 } }); }));
     if (V.highlight) {
       const j = xs.indexOf(V.highlight[E.x]), i = ys.indexOf(V.highlight[E.y]);
       layout.shapes = [{ type: "rect", x0: j - 0.5, x1: j + 0.5, y0: i - 0.5, y1: i + 0.5, line: { color: "#e8590c", width: 4 } }];

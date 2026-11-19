@@ -21,7 +21,7 @@ function htmlLegend(V) {
   // Size legend (scatter) and color gradient legend (heatmap), as plain HTML under the chart.
   const box = document.getElementById("legend-extra");
   if (V.chart_type === "scatter") {
-    const steps = []; for (let s = 0; s <= Math.floor(V.size_max); s++) steps.push(s);
+    const steps = V.size_legend;
     box.innerHTML = "<div class='lg-title'>" + V.labels[V.enc.size] + "</div>" + steps.map(s => {
       const d = diameter(s, V);
       return "<span class='lg-item'><span class='lg-dot' style='width:" + d + "px;height:" + d + "px'></span>" + s + "</span>";
@@ -30,7 +30,7 @@ function htmlLegend(V) {
     const [lo, hi] = V.heat.domain, grad = V.heat.stops.map(([v, c]) => c + " " + (100 * (v - lo) / (hi - lo)) + "%").join(",");
     const ticks = []; for (let t = lo; t <= hi; t += (hi - lo) / 5) ticks.push(t);
     box.innerHTML = "<div class='lg-title'>" + V.labels[V.enc.color] + "</div><span class='lg-grad' style='background:linear-gradient(90deg," +
-      grad + ")'>" + ticks.map(t => "<span class='lg-tick' style='left:" + (100 * (t - lo) / (hi - lo)) + "%'>" + Math.round(t) + "</span>").join("") + "</span>";
+      grad + ")'>" + ticks.map(t => "<span class='lg-tick' style='left:" + (100 * (t - lo) / (hi - lo)) + "%'>" + (Math.abs(hi - lo) >= 10 ? Math.round(t) : +t.toFixed(2)) + "</span>").join("") + "</span>";
   }
 }
 function isHighlighted(V, row) {

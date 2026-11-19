@@ -23,8 +23,8 @@ function render(values, V) {
     const x = d3.scaleLinear().domain(V.x_domain).range([0, iw]);
     const y = d3.scaleLinear().domain(V.y_domain).range([ih, 0]);
     grid(y, 8);
-    g.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).tickValues(d3.range(V.x_domain[0], V.x_domain[1] + 1, 5))).call(axisStyle);
-    g.append("g").call(d3.axisLeft(y).tickValues(d3.range(V.y_domain[0], V.y_domain[1] + 1, V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20))).call(axisStyle);
+    g.append("g").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).tickValues(d3.range(V.x_domain[0], V.x_domain[1] + V.x_step / 2, V.x_step))).call(axisStyle);
+    g.append("g").call(d3.axisLeft(y).tickValues(d3.range(V.y_domain[0], V.y_domain[1] + V.y_step / 2, V.y_step))).call(axisStyle);
     g.append("g").selectAll("circle").data(values).join("circle").attr("cx", r => x(r[E.x])).attr("cy", r => y(r[E.y]))
       .attr("r", r => diameter(r[E.size], V) / 2).attr("fill", r => V.palette[r[E.color]]).attr("fill-opacity", 0.7)
       .call(s => tip(s, r => `${r[E.color]}: ${L[E.x]} ${r[E.x]}, ${L[E.y]} ${r[E.y]}, ${L[E.size]} ${r[E.size]}`));
@@ -94,9 +94,9 @@ function render(values, V) {
     g.append("g").call(d3.axisLeft(y)).call(axisStyle);
     g.append("g").selectAll("rect").data(values.filter(r => r[E.color] !== null)).join("rect")
       .attr("x", r => x(r[E.x]) + 1).attr("y", r => y(r[E.y]) + 1).attr("width", x.bandwidth() - 2).attr("height", y.bandwidth() - 2)
-      .attr("fill", r => interp(V.heat.stops, r[E.color])).call(s => tip(s, r => `${r[E.x]}, ${r[E.y]}: ${r[E.color]}%`));
+      .attr("fill", r => interp(V.heat.stops, r[E.color])).call(s => tip(s, r => `${r[E.x]}, ${r[E.y]}: ${r[E.color]}${V.value_suffix}`));
     g.append("g").selectAll("text").data(values.filter(r => r[E.color] === null)).join("text").attr("x", r => x(r[E.x]) + x.bandwidth() / 2)
-      .attr("y", r => y(r[E.y]) + y.bandwidth() / 2 + 4).attr("text-anchor", "middle").attr("fill", "#898781").attr("font-size", 11).text("n<10");
+      .attr("y", r => y(r[E.y]) + y.bandwidth() / 2 + 4).attr("text-anchor", "middle").attr("fill", "#898781").attr("font-size", 11).text(V.blank_label);
     const hl = values.find(r => isHighlighted(V, r));
     if (hl) g.append("rect").attr("x", x(hl[E.x]) + 2).attr("y", y(hl[E.y]) + 2).attr("width", x.bandwidth() - 4).attr("height", y.bandwidth() - 4)
       .attr("fill", "none").attr("stroke", "#e8590c").attr("stroke-width", 4);

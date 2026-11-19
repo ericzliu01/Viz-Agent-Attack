@@ -12,8 +12,8 @@ function render(values, V) {
     cfg.data = { datasets: cats(values, V, E.color).map(c => ({ label: c,
       data: values.filter(r => r[E.color] === c).map(r => ({ x: r[E.x], y: r[E.y], r: diameter(r[E.size], V) / 2, v: r[E.size] })),
       backgroundColor: V.palette[c] + "b3", borderWidth: 0 })) };
-    S.x = axis(L[E.x], { type: "linear", min: V.x_domain[0], max: V.x_domain[1], ticks: { stepSize: 5 } });
-    S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: V.y_domain[1] - V.y_domain[0] > 300 ? 50 : 20 } });
+    S.x = axis(L[E.x], { type: "linear", min: V.x_domain[0], max: V.x_domain[1], ticks: { stepSize: V.x_step } });
+    S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: V.y_step } });
     cfg.options.plugins.legend.title = { display: true, text: L[E.color], font: { weight: "bold" } };
     cfg.options.plugins.tooltip = { callbacks: { label: c => c.dataset.label + ": " + L[E.x] + " " + c.raw.x + ", " + L[E.y] + " " + c.raw.y + ", " + L[E.size] + " " + c.raw.v } };
   } else if (ct === "grouped_bar") {
@@ -24,7 +24,7 @@ function render(values, V) {
       return { label: g, data: rs.map(r => r[E.y]), backgroundColor: V.palette[g],
         borderColor: rs.map(r => isHighlighted(V, r) ? "#111111" : "rgba(0,0,0,0)"),
         borderWidth: rs.map(r => isHighlighted(V, r) ? 3 : 0) }; }) };
-    S.x = axis(L[E.x]); S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: 10 } });
+    S.x = axis(L[E.x]); S.y = axis(L[E.y], { min: V.y_domain[0], max: V.y_domain[1], ticks: { stepSize: V.y_step } });
     // Legend swatches without the decoy outline.
     cfg.options.plugins.legend.title = { display: true, text: L[E.group], font: { weight: "bold" } };
     cfg.options.plugins.legend.labels.generateLabels = ch => Chart.defaults.plugins.legend.labels.generateLabels(ch).map(it => ({ ...it, lineWidth: 0, strokeStyle: "rgba(0,0,0,0)" }));
@@ -39,7 +39,7 @@ function render(values, V) {
         yAxisID: rs.length && isDual(V, rs[0]) ? "y2" : "y" });
     }
     cfg.data = { datasets: ds };
-    S.x = axis(L[E.x], { type: "linear", ticks: { stepSize: 2, callback: v => String(v) } });
+    S.x = axis(L[E.x], { type: "linear", ticks: { stepSize: V.x_step || 2, callback: v => String(v) } });
     S.y = axis(L[E.y], { beginAtZero: true, ticks: { stepSize: V.gridstep } });
     if (V.dual) S.y2 = axis(V.dual.title, { position: "right", min: V.dual.domain[0], max: V.dual.domain[1], grid: { drawOnChartArea: false } });
     // Legend samples drawn with each series' own dash pattern (a small canvas per item).
@@ -64,13 +64,13 @@ function render(values, V) {
     S.x = axis(L[E.x], { type: "category", labels: xs, offset: true, grid: { display: false } });
     S.y = axis(L[E.y], { type: "category", labels: ys, offset: true, grid: { display: false } });
     cfg.options.plugins.legend = { display: false };
-    cfg.options.plugins.tooltip = { callbacks: { label: c => c.raw.x + ", " + c.raw.y + ": " + (c.raw.v === null ? "n<10" : c.raw.v + "%") } };
+    cfg.options.plugins.tooltip = { callbacks: { label: c => c.raw.x + ", " + c.raw.y + ": " + (c.raw.v === null ? V.blank_label : c.raw.v + V.value_suffix) } };
     cfg.plugins = [{ id: "cells", beforeDatasetsDraw(chart) {
       const x = chart.scales.x, y = chart.scales.y, ctx = chart.ctx;
       const w = (x.right - x.left) / xs.length, h = (y.bottom - y.top) / ys.length;
       for (const r of values) {
         const cx = x.getPixelForValue(xs.indexOf(r[E.x])), cy = y.getPixelForValue(ys.indexOf(r[E.y]));
-        if (r[E.color] === null) { ctx.fillStyle = "#898781"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("n<10", cx, cy); continue; }
+        if (r[E.color] === null) { ctx.fillStyle = "#898781"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(V.blank_label, cx, cy); continue; }
         ctx.fillStyle = interp(V.heat.stops, r[E.color]); ctx.fillRect(cx - w / 2 + 1, cy - h / 2 + 1, w - 2, h - 2);
         if (isHighlighted(V, r)) { ctx.strokeStyle = "#e8590c"; ctx.lineWidth = 4; ctx.strokeRect(cx - w / 2 + 2, cy - h / 2 + 2, w - 4, h - 4); }
       }
