@@ -57,10 +57,18 @@ def main():
                     res = dict(correct=False, strict=False, parsed=False, detail="error: " + r["error"][:80])
                 else:
                     res = fn(a.repo, chart, cond, task, idx, r.get("reply"))
+                extra = {}
+                if mode == "svg" and task == "retrieval" and not r.get("error"):
+                    alt = S.score(a.repo, chart, cond, task, idx, SI.answer_text(r.get("reply")))
+                    extra["svg_retrieval_via_answer_text"] = int(alt["correct"])
+                if "loose_10pct" in res:
+                    extra["cluster_loose_10pct"] = int(res["loose_10pct"])
                 rows.append(dict(mode=mode, model=SHORT.get(r["model"], r["model"]), item=iid, chart=chart,
                                  cond=cond, task=task, idx=idx, correct=int(res["correct"]),
                                  strict=int(res.get("strict", False)), parsed=int(res.get("parsed", True)),
-                                 stop=r.get("stop"), detail=res.get("detail", "")))
+                                 stop=r.get("stop"), detail=res.get("detail", ""),
+                                 svg_retrieval_via_answer_text=extra.get("svg_retrieval_via_answer_text", ""),
+                                 cluster_loose_10pct=extra.get("cluster_loose_10pct", "")))
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, "scored_modes.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
@@ -104,6 +112,14 @@ def main():
         for lab in ("labeled", "unlabeled"):
             L.append(f"| {I.TASKS[task][2]} | {lab} | " +
                      " | ".join(agg(lambda r, t=task, l=lab: r["task"] == t and I.label_of(r["cond"]) == l)) + " |")
+    flips = [r for r in rows if r["svg_retrieval_via_answer_text"] != "" and r["svg_retrieval_via_answer_text"] != r["correct"]]
+    L += ["", f"SVG-text Retrieve Value items whose score changes if read through the image parser (answer_text): {len(flips)}"
+          + "".join(f"; {r['model']} {r['item']} {r['correct']}->{r['svg_retrieval_via_answer_text']}" for r in flips)]
+    for m in models:
+        cl = [r for r in rows if r["model"] == m and r["mode"] == "image" and r["task"] == "cluster"]
+        if cl:
+            L.append(f"Image Cluster, {m}: every-point rule {sum(r['correct'] for r in cl)}/{len(cl)}, "
+                     f"10%-unlisted variant {sum(r['cluster_loose_10pct'] or 0 for r in cl)}/{len(cl)}")
     unp = defaultdict(int)
     for r in rows:
         if not r["parsed"]:

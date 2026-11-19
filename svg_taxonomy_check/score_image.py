@@ -8,15 +8,15 @@ rules that ask the same question as the SVG-output rules in score.py:
                             set the SVG rule requires (anomaly: same count rule)
   sort                      n rows, non-increasing, each within 5% of the y-range
                             of the true value at that rank
-  cluster                   the listed non-outlier points are partitioned like the
-                            generating clusters, with at most 10% of them unlisted
-                            (strict: every point listed)
+  cluster                   every non-outlier point listed and partitioned like the
+                            generating clusters (as in score.py); loose_10pct also
+                            reports the variant that allows 10% of points unlisted
   correlate                 fitted line within 5 degrees of the OLS slope and
                             within 5% of the y-span at mean x, both measured
                             with axes scaled to the data range (strict: 2 deg, 2%)
 
-Matching a listed row to a data point: line and bar charts use X alone (X is
-0..n-1 on the axis); scatter uses the nearest point in X and Y scaled by each
+Matching a listed row to a data point: line and bar charts match X (0..n-1 on
+the axis) and need Y within 5% of the y-range; scatter uses the nearest point in X and Y scaled by each
 axis's data range, accepted within 0.05. A row that matches nothing makes the
 answer wrong. Replies that show working before the answer are cut to the final
 answer block (answer_text), so numbers in the working are not read as rows.
@@ -30,7 +30,8 @@ import score as S
 MATCH = 0.05
 
 
-HEADER = re.compile(r"^\s*\**\s*'?(X|Y)'?\s*(,\s*'?(Y|Cluster)'?\s*)*\**\s*$", re.I)
+HEADER = re.compile(r"""^\s*\**\s*['"]?(X|Y)['"]?\s*(,\s*['"]?(Y|Cluster)['"]?\s*)*\**\s*$""", re.I)
+YTOL = 0.05  # line/bar rows: Y must also be within 5% of the y-range of the matched bin/point
 
 
 def answer_text(reply):
@@ -40,7 +41,7 @@ def answer_text(reply):
     last CSV header line ("X,Y", "Y", "X,Y,Cluster"); otherwise the whole reply.
     A one-line "Y" answer written as "8,8.5,7.4,..." is split into one value per line.
     """
-    reply = reply or ""
+    reply = (reply or "").replace("\u2212", "-")  # Unicode minus
     blocks = re.findall(r"```[a-zA-Z]*\n(.*?)```", reply, re.S)
     text = blocks[-1] if blocks else reply
     lines = text.strip().split("\n")
@@ -57,8 +58,14 @@ def answer_text(reply):
 def rows_from(reply, k):
     """Rows of at least k numbers from the final answer block."""
     text = answer_text(reply)
+    lines = text.strip().split("\n")
+    data = [l for l in lines if re.fullmatch(r"[\s\d.,eE+\-\"'|]+", l) and re.search(r"\d", l)]
+    if data:  # pure CSV rows; prose lines with numbers (notes, working) are ignored
+        lines = data
+    if k == 1 and len(lines) == 1 and len(S.nums(lines[0])) > 2:
+        return [[v] for v in S.nums(lines[0])]
     out = []
-    for line in text.strip().split("\n"):
+    for line in lines:
         v = S.nums(line)
         if len(v) >= k:
             out.append(v[-k:] if k > 1 else v[-1:])
@@ -73,7 +80,7 @@ def match_rows(chart, rows, data):
         res = []
         for x, _y in rows:
             j = min(range(len(X)), key=lambda i: abs(X[i] - x))
-            res.append(j if abs(X[j] - x) <= 0.25 else None)
+            res.append(j if abs(X[j] - x) <= 0.25 and abs(Y[j] - _y) <= YTOL * S.rng(Y) else None)
         return res
     rx, ry = S.rng(X), S.rng(Y)
     pairs = sorted((math.hypot((x - X[j]) / rx, (y - Y[j]) / ry), i, j)
@@ -182,13 +189,16 @@ def score(repo, chart, cond, task, idx, reply):
         ok_all, lab = partition_ok(False)
         ok_listed, _ = partition_ok(True)
         # primary: listed points partitioned correctly and at most 10% of points unlisted
-        ok = ok_listed and len(missing) <= 0.1 * len(members)
-        res.update(correct=ok, strict=ok_all,
+        # primary = the SVG rule (every non-outlier point present); the 10% variant is kept for reference
+        res.update(correct=ok_all, strict=ok_all,
+                   loose_10pct=ok_listed and len(missing) <= 0.1 * len(members),
                    detail=f"clusters->ids {[sorted(map(str, c)) for c in lab.values()]}, missing {len(missing)}")
         return res
 
     if task == "correlate":
-        v = S.nums(reply)
+        text = answer_text(reply)
+        pairs = re.findall(rf"^\s*({S.NUMRE})\s*,\s*({S.NUMRE})\s*$", text, re.M)
+        v = [float(p) for p in pairs[-1]] if pairs else S.nums(text)
         if len(v) < 2:
             res.update(parsed=False, detail="fewer than 2 numbers")
             return res
