@@ -362,3 +362,15 @@ label on a wrapper around `#chart`, since vega-embed overwrites the
 container's own role and `aria-label`.
 
 </details>
+
+## IPI and CoTTA vision-model pilot
+
+The [implementation and results archive](reports/visual-qa-pilot-2026-11-20/README.md)
+contains the IPI and CoTTA adaptations, exact evaluated images, raw responses,
+provenance hashes, and the matched Haiku/Luna/AWS Qwen comparison. It reports
+attack-induced task failures conditional on correct clean responses, with
+construction failures excluded from the rendered-trial ASR.
+
+See [IPI implementation details](docs/ipi.md), [CoTTA details](docs/cotta.md),
+[the shared JSON protocol](docs/json-evaluation.md), and
+[the proposed, untested hybrid experiment](docs/ipi-cotta-hybrid.md).
