@@ -107,6 +107,16 @@ def main():
         L.append(f"| {COND[cond]} | " + " | ".join(agg(lambda r, c=cond: r["cond"] == c)) + " |")
     for lab in ("labeled", "unlabeled"):
         L.append(f"| all {lab} | " + " | ".join(agg(lambda r, l=lab: I.label_of(r["cond"]) == l)) + " |")
+    L += ["", "## By chart and size", "", "| Chart | Size | " + head[2:], "|---" * (len(cols) + 2) + "|"]
+    for chart in I.CHARTS:
+        for size in ("easy", "hard"):
+            L.append(f"| {chart} | {'small' if size == 'easy' else 'medium'} | " +
+                     " | ".join(agg(lambda r, c=chart, z=size: r["chart"] == c and I.size_of(r["cond"]) == z)) + " |")
+    L += ["", "## Scatter tasks by label (image run misses on scatter)", "", "| Task | Labels | " + head[2:], "|---" * (len(cols) + 2) + "|"]
+    for task in ("retrieval", "filter", "extreme", "cluster"):
+        for lab in ("labeled", "unlabeled"):
+            L.append(f"| {I.TASKS[task][2]} | {lab} | " + " | ".join(
+                agg(lambda r, t=task, l=lab: r["chart"] == "scatter" and r["task"] == t and I.label_of(r["cond"]) == l)) + " |")
     L += ["", "## Same-format tasks by label", "", "| Task | Labels | " + head[2:], "|---" * (len(cols) + 2) + "|"]
     for task in SAME:
         for lab in ("labeled", "unlabeled"):
