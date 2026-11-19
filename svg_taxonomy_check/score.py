@@ -23,7 +23,7 @@ PROMPT_K = {"scatter": 1, "line": 2, "bar": None}  # outliers the anomaly prompt
 RULES = {
     "retrieval": "every data point present (row count = n) and each value within tolerance after nearest matching",
     "derive": "mean of Y within tolerance (last number in the reply)",
-    "range": "min and max of Y both within tolerance",
+    "range": "min and max of Y both within tolerance (last two numbers in the reply)",
     "distribution": "first of normal/uniform/binomial named in the reply equals the generating distribution",
     "filter": "scatter: recoloured set = {Y > 0}; line: kept points = {2 <= X <= 6}; bar: kept bins = {3 <= X <= 7}",
     "extreme": "highlighted set = {argmax Y, argmin Y}",
@@ -253,7 +253,7 @@ def score(repo, chart, cond, task, idx, reply):
         if len(v) < 2:
             res.update(parsed=False, detail="fewer than 2 numbers")
             return res
-        lo, hi = min(v[0], v[1]), max(v[0], v[1])
+        lo, hi = min(v[-2], v[-1]), max(v[-2], v[-1])  # replies that show working end with "min, max"
         e = max(abs(lo - min(Y)), abs(hi - max(Y)))
         res.update(correct=e <= LENIENT_FRAC * rng(Y), strict=e <= STRICT_TOL,
                    detail=f"pred {lo},{hi} truth {min(Y):.3f},{max(Y):.3f}")
@@ -430,8 +430,13 @@ def score(repo, chart, cond, task, idx, reply):
         if m is None:
             res.update(parsed=False, detail=why)
             return res
+        def is_spine(l):
+            # matplotlib axes frame: horizontal edges at y = 34.56 / 256.32 from x = 54 to 388.8
+            (ax, ay), (bx, by) = l["vertices"]
+            return abs(ay - by) < 1e-6 and round(ay, 2) in (34.56, 256.32) and abs(abs(bx - ax) - 334.8) < 0.5
+
         cands = [l for l in m if l["kind"] == "line" and len(l["vertices"]) == 2
-                 and abs(l["vertices"][1][0] - l["vertices"][0][0]) > 20]
+                 and abs(l["vertices"][1][0] - l["vertices"][0][0]) > 20 and not is_spine(l)]
         if not cands:
             res.update(parsed=False, detail="no 2-point line")
             return res
