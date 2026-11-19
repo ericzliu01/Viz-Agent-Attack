@@ -200,9 +200,13 @@ def marks(svg_text):
             x = float(el.get("x") or 0)
             y = float(el.get("y") or 0)
             cx, cy = apply(M2, x, y)
-            # The referenced shape's own fill/stroke override what the <use> inherits.
+            # Colour intent: a fill/stroke set on the <use> itself wins; otherwise the
+            # referenced shape's own fill/stroke wins over what the <use> inherits
+            # from its groups. (Strict SVG rendering would let the referenced shape
+            # win even over the <use>'s own style; models mean the <use> colour.)
+            own = _style_map(el, css)
             ref = defs.get(href.lstrip("#"))
-            if ref is not None:
+            if ref is not None and "fill" not in own and "stroke" not in own:
                 rs = _style_map(ref, css)
                 rc = norm_color(rs["fill"]) if "fill" in rs else (norm_color(rs["stroke"]) if "stroke" in rs else None)
                 if rc is not None:
