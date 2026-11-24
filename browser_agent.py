@@ -222,6 +222,11 @@ class BrowserTools:
         if name == "dom":
             value = p.locator(arguments.get("selector", "html")).evaluate("el => el.outerHTML")
         elif name == "accessibility":
+            # The 2026-11-18 ASR audit found most Luna trials failing here with
+            # "'Locator' object has no attribute 'aria_snapshot'" -- that's a stale
+            # Playwright install below the 1.49 floor where aria_snapshot() was
+            # introduced (this repo's playwright>=1.49 pin is already correct);
+            # fix is environmental (reinstall), not a code change here.
             value = p.locator("body").aria_snapshot()
         elif name == "console":
             value = self.console_logs
