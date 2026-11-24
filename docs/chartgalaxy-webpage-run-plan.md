@@ -2,7 +2,10 @@
 
 Prepared: 2026-11-24. Study ID: `chartgalaxy-mixed-pilot-v2`.
 
-**Current status: implemented; full evaluation is gated on corpus validation and model preflight.**
+**Current status: corpus validated; Haiku and Luna passed both preflight modes.
+Qwen passed direct-image preflight but remains blocked on webpage JSON format.**
+See the [verified readiness record](chartgalaxy-mixed-readiness.md). The full
+evaluation has not started.
 The corpus builder, direct-image/browser runner, and paired report modules now exist.
 Protocol revision v2 follows the clarified five-direct-image/two-webpage split.
 The archived v1 all-browser corpus and preflight are superseded, not main results.
