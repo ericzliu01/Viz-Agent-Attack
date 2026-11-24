@@ -1,5 +1,8 @@
 """Converse-API agent loop: tool-use round, final answer, request-error handling.
-No real Bedrock or browser call -- the converse client and tool execution are faked."""
+No real Bedrock or browser call; the screenshot test uses the real tool encoder
+with a fake page and client."""
+import base64
+
 from pipeline import converse_agent as ca
 
 
@@ -30,15 +33,28 @@ def test_converse_agent_runs_tool_loop_then_answers(monkeypatch):
     assert res.steps == 2 and "dom" in res.tools_used
 
 
-def test_converse_agent_screenshot_tool_result_carries_image(monkeypatch):
-    seen = {}
-    monkeypatch.setattr(ca, "_execute_tool", lambda name, args, **k: ("shot", [b"PNG"]))
+def test_converse_agent_screenshot_tool_result_carries_image():
+    png = b"\x89PNG\r\n\x1a\nfixture"
+
+    class Page:
+        def screenshot(self):
+            return png
+
     client = FakeConverse([_tool_use("t1", "screenshot"), _final("A")])
-    res = ca.run_converse_agent(object(), "Q?", "m", client=client, console_logs=[])
+    res = ca.run_converse_agent(Page(), "Q?", "m", client=client, console_logs=[])
     # The second converse call must carry the tool result with an image block.
     tr = client.calls[1]["messages"][-1]["content"][0]["toolResult"]
-    kinds = {k for block in tr["content"] for k in block}
-    assert "image" in kinds and res.answer == "A"
+    assert tr.get("status") != "error"
+    images = [block["image"] for block in tr["content"] if "image" in block]
+    assert len(images) == 1
+    assert images[0]["format"] == "png"
+    assert base64.b64decode(images[0]["source"]["bytes"], validate=True) == png
+    assert res.answer == "A" and "screenshot" in res.tools_used
+
+
+def test_image_block_accepts_raw_bytes_for_direct_image_evaluation():
+    png = b"\x89PNG\r\n\x1a\nfixture"
+    assert base64.b64decode(ca._image_block(png)["image"]["source"]["bytes"]) == png
 
 
 def test_converse_agent_submit_answer_ends_with_structured_choice(monkeypatch):

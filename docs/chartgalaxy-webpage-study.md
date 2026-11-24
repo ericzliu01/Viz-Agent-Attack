@@ -1,8 +1,8 @@
 # ChartGalaxy images in webpages: experiment specification
 
-Status: design agreed in the experiment discussion; the complete runner and
-seven-channel corpus are not yet implemented or evaluated. This is a separate
-experiment from the archived direct image-QA results.
+Status: corpus builder, isolated runner, and paired reporting are implemented.
+Each generated bundle must pass browser validation and model preflight before
+evaluation. This is a separate experiment from the archived direct image-QA results.
 
 For implementation ownership, exact pilot settings, trial counts, worker lanes,
 artifact contracts, and launch readiness, use the
@@ -116,11 +116,13 @@ clean-correct subset when comparing models with different baseline accuracy.
 
 Available components are the four image renderers, the separate CoTTA builder,
 the eight-style registry, HTML paragraph/comment injectors, browser observation
-tools, and ChartGalaxy's answer grader. Remaining integration includes a common
+tools, and ChartGalaxy's answer grader. The integrated implementation adds a common
 seven-channel webpage corpus builder, style-aware CoTTA construction, a browser
 runner supporting all answer types under shared JSON, exposure auditing, and
-paired webpage result aggregation. No full-grid evaluation is launched by this
-specification.
+paired webpage result aggregation. See `qa_attacks/webpage_corpus.py`,
+`qa_attacks/webpage_runner.py`, and `qa_attacks/webpage_report.py`. Real-browser
+integration tests use offline model doubles. No full-grid evaluation is launched
+by this specification.
 
 Related: [wording templates](wording-study.md),
 [shared JSON protocol](json-evaluation.md), and

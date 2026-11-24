@@ -66,7 +66,10 @@ def _image_block(png):
 
 
 def _tool_result(tool_use_id, content, images, is_error=False):
-    body = [{"text": content}] + ([_image_block(i) for i in images] if images else [])
+    # BrowserTools returns base64 strings; _image_block accepts raw PNG bytes.
+    body = [{"text": content}] + [
+        _image_block(base64.b64decode(i, validate=True)) for i in images
+    ]
     block = {"toolResult": {"toolUseId": tool_use_id, "content": body}}
     if is_error:
         block["toolResult"]["status"] = "error"
