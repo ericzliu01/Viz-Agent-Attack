@@ -32,6 +32,7 @@ import concurrent.futures
 import hashlib
 import json
 import os
+import random
 import re
 import tempfile
 from dataclasses import dataclass, field, replace
@@ -236,6 +237,10 @@ def stage1_qa(csv, task_type, examples, library="vega-lite", client=None,
         sql = obj.get("sql", "")
         if answer not in options or len(set(options)) != 4:
             continue
+        # The stage1 model reliably lists the correct answer first; shuffle here
+        # (deterministically, so reruns/resume stay reproducible) or every QA in
+        # the corpus ends up with correct_index == 0 (see 2026-11-18 ASR audit).
+        random.Random(f"{csv}:{task_type}:{variant}:{attempt}").shuffle(options)
         try:
             ok = check_answer(answer, sql, df)
         except (UnsafeSQL, UnsolvableTask):
