@@ -23,6 +23,10 @@ robustness ranking or a universal best attack.**
 [Browser agents](#browser-agent-experiments) · [Historical Qwen](#historical-qwen3-vl-8b-experiments) ·
 [Gallery by channel, style, model, and task](comprehensive/examples.md) · [Data and reproduction](#data-and-reproduction)
 
+[ChartGalaxy++ dataset and official QA examples](comprehensive/chartgalaxy-plus-plus/README.md):
+dataset totals, eight review charts, nine official question–answer examples, and
+the complete released QA records. These examples are not new attack-test results.
+
 ## How to read ASR
 
 For the current image-QA experiments, the primary measure follows the requested
