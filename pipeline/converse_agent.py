@@ -155,20 +155,33 @@ def run_converse_agent(page, question, model=None, *, workspace_dir=None, memory
                 result.tools_used.append("submit_answer")
             break
 
-        tool_results = []
+        tool_results, attachments = [], []
         for tu in tool_uses:
             name, args, tuid = tu.get("name"), tu.get("input", {}), tu.get("toolUseId")
             try:
                 out, images = _execute_tool(
                     name, args, browser_tools=browser_tools, enabled_names=enabled_names,
                     memory_backend=memory_backend, workspace_dir=workspace_dir)
-                tool_results.append(_tool_result(tuid, out, images))
+                # Bedrock restricts images nested in toolResult for some model
+                # families (the cause of Luna's 100% screenshot-tool-error rate in
+                # the 2026-11-18 audit -- see qa_attacks/webpage_runner.py, which
+                # proved this same split transport works for all three victims).
+                # Use the same transport here: a text-only tool result, then a
+                # separate user message carrying the image(s), explicitly linked
+                # to the tool call it answers.
+                tool_results.append(_tool_result(tuid, out, []))
+                if images:
+                    attachments.extend([{"text": f"Screenshot returned by tool call {tuid}."},
+                                        *[_image_block(base64.b64decode(i, validate=True))
+                                          for i in images]])
                 if name not in result.tools_used:
                     result.tools_used.append(name)
             except Exception as exc:  # noqa: BLE001 -- tool errors are observations
                 tool_results.append(_tool_result(tuid, json.dumps({"error": str(exc)}), [],
                                                  is_error=True))
         messages.append({"role": "user", "content": tool_results})
+        if attachments:
+            messages.append({"role": "user", "content": attachments})
 
     result.latency_ms = int((time.monotonic() - start) * 1000)
     return result

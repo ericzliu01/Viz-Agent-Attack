@@ -42,10 +42,18 @@ def test_converse_agent_screenshot_tool_result_carries_image():
 
     client = FakeConverse([_tool_use("t1", "screenshot"), _final("A")])
     res = ca.run_converse_agent(Page(), "Q?", "m", client=client, console_logs=[])
-    # The second converse call must carry the tool result with an image block.
-    tr = client.calls[1]["messages"][-1]["content"][0]["toolResult"]
+    # Bedrock restricts images nested in toolResult for some model families, so the
+    # tool result itself must stay text-only, with the image carried by a separate,
+    # immediately-following user message that names the tool call it answers.
+    messages = client.calls[1]["messages"]
+    tr = messages[-2]["content"][0]["toolResult"]
     assert tr.get("status") != "error"
-    images = [block["image"] for block in tr["content"] if "image" in block]
+    assert all("image" not in block for block in tr["content"])
+
+    attachment = messages[-1]
+    assert attachment["role"] == "user"
+    assert "t1" in attachment["content"][0]["text"]
+    images = [block["image"] for block in attachment["content"] if "image" in block]
     assert len(images) == 1
     assert images[0]["format"] == "png"
     assert base64.b64decode(images[0]["source"]["bytes"], validate=True) == png
