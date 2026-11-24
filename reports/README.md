@@ -21,7 +21,7 @@ robustness ranking or a universal best attack.**
 [Wording](#wording-style-and-response-protocol) ·
 [Channels](#image-and-text-injection-channels) · [IPI factors](#ipi-font-placement-color-and-strategy) ·
 [Browser agents](#browser-agent-experiments) · [Historical Qwen](#historical-qwen3-vl-8b-experiments) ·
-[Example gallery](comprehensive/examples.md) · [Data and reproduction](#data-and-reproduction)
+[Gallery by channel, style, model, and task](comprehensive/examples.md) · [Data and reproduction](#data-and-reproduction)
 
 ## How to read ASR
 
@@ -152,7 +152,7 @@ visible fine noise. The bound does not establish human imperceptibility.
 | ![Clean: C](comprehensive/../visual-qa-pilot-2026-11-20/images/bd2ae03322bf33f30db0d6d7497b17e45a2559a5394fc5db672d4713bf8baf9a.png) | ![Trigger only: target D](comprehensive/../visual-qa-pilot-2026-11-20/images/aac0cbddad989f048090ef022986776d2493e617e4cae4fbbaaa9e2d82272e78.png) | ![Optimized CoTTA: target D](comprehensive/../visual-qa-pilot-2026-11-20/images/d6ce9cebb43d0fdaee3cbebdd2cd579835cfdfb6aa363954dcdafda633ab8e20.png) |
 <!-- END:cotta_examples -->
 
-[Alignment examples, controls, and the 300-step image](comprehensive/examples.md#cotta-versus-trigger-only)
+[Alignment examples, controls, and the 300-step image](comprehensive/examples-archive.md#cotta-versus-trigger-only)
 
 ## Wording style and response protocol
 
@@ -192,7 +192,7 @@ suggests a reasoning procedure; “action” here concerns answer submission, no
 external action. One template per style, different lengths, and different ink
 coverage prevent attributing the difference purely to semantics.
 [Full development table](comprehensive/tables/wording-development.md) ·
-[Exact payloads and paired images for every style](comprehensive/examples.md#ten-wording-styles-readable-and-fixed-faint-renderers)
+[Exact payloads and paired images for every style](comprehensive/examples-archive.md#ten-wording-styles-readable-and-fixed-faint-renderers)
 
 ### Held-out results under the shared plain-JSON protocol
 
@@ -323,7 +323,7 @@ is therefore larger than the number of independent questions.
 ![Evaluated false-data banner](comprehensive/examples/9d368059b253670a11aa7056cafbc242af94c99593dde41cc075f28126778100.png)
 <!-- END:channel_examples -->
 
-[Footnote, overlay, low-contrast and caption examples](comprehensive/examples.md#five-imagetext-channels)
+[Footnote, overlay, low-contrast and caption examples](comprehensive/examples-archive.md#five-imagetext-channels)
 
 ## IPI: font, placement, color, and strategy
 
@@ -381,7 +381,7 @@ per-pixel constraint**. Positive offsets can also clip on white backgrounds.
 | ![combined_attack](comprehensive/../visual-qa-pilot-2026-11-20/images/847db1211053348f54aa93a7c149976b26f9be1fbee3d069b230a288359f71b3.png) | ![combined_control](comprehensive/../visual-qa-pilot-2026-11-20/images/c3cd6f9318199a41207f62faaf0122fd4684b19d97d1076de891556910cf4a17.png) |
 <!-- END:ipi_example -->
 
-[All fifteen IPI images and scrambled-glyph controls](comprehensive/examples.md#ipi-all-fifteen-evaluated-configurations)
+[All fifteen IPI images and scrambled-glyph controls](comprehensive/examples-archive.md#ipi-all-fifteen-evaluated-configurations)
 
 ## CoTTA: optimization and iteration count
 
@@ -536,7 +536,7 @@ variants. Rates should not be interpreted as hundreds of independent task sample
 ![Recorded browser clean screenshot](comprehensive/examples/cc98c212e664aee5193ac196acc6dcf9b8bdff58731351e89151447aead232da.png)
 <!-- END:browser_example -->
 
-[Browser examples for all observed channels](comprehensive/examples.md#browser-agent-chart-and-text-channels)
+[Browser examples for all observed channels](comprehensive/examples-archive.md#browser-agent-chart-and-text-channels)
 
 ## Historical Qwen3-VL 8B experiments
 
@@ -571,7 +571,7 @@ memory in the October 14 description, system-prompt memory in the October 20
 report. Those are distinct access assumptions, not interchangeable channels.
 
 [Every preserved historical table: attacks, tasks, libraries, exposure and critic outcomes](comprehensive/historical.md) ·
-[Historical method images](comprehensive/examples.md#historical-browser-methods) ·
+[Historical method images](comprehensive/examples-archive.md#historical-browser-methods) ·
 [Original October 5 summary](../notes/summary.md)
 
 ## What is supported, and what remains untested
