@@ -103,18 +103,45 @@ def check_console(model_key):
     print(f"  marker reached the model (tool traffic): {marker_in_tool_traffic}")
     print(f"  marker in the model's final answer      : {marker_in_answer}")
     ok = marker_in_tool_traffic
+    if result.stop_reason == "request_error":
+        print(f"  error: {result.error}")
     print("  PASS" if ok else "  FAIL -- console marker never reached the model")
     return ok
+
+
+def _only_screenshot_tool():
+    """Restrict the agent to just the screenshot tool for this trial: no
+    dom/evaluate (which would let the model read the swatch's hex code straight
+    from HTML/CSS source instead of actually looking at the image) and no
+    submit_answer (which would let it reply with a multiple-choice letter
+    instead of a free-text color word)."""
+    from unittest.mock import patch
+
+    def only_screenshot(*, memory_backend=None, workspace_dir=None):
+        from pipeline.bedrock_agent import TOOLS, _anthropic_tool
+        return [_anthropic_tool(spec) for spec in TOOLS
+                if spec["function"]["name"] == "screenshot"]
+
+    return (patch("pipeline.bedrock_agent.anthropic_tools", only_screenshot),
+            patch("pipeline.converse_agent.anthropic_tools", only_screenshot))
 
 
 def check_screenshot(model_key):
     """Fix 1 (Luna/Converse only, but run for both as a control): the model
     must receive and actually describe the swatch color from the image, not
-    the DOM/HTML (which never states the color)."""
+    the DOM/HTML (which never states the color). Tool set is pinned to just
+    `screenshot` so there's no DOM-reading or multiple-choice escape hatch."""
     print(f"\n=== screenshot fix -- {model_key} ({MODEL_IDS[model_key]}) ===")
     question = ("Take a screenshot. Then reply with exactly one word: the CSS "
                 "color name closest to the color of the rectangle you see.")
-    result, raw = _run_against_page(model_key, SCREENSHOT_HTML, question)
+    patches = _only_screenshot_tool()
+    for p in patches:
+        p.start()
+    try:
+        result, raw = _run_against_page(model_key, SCREENSHOT_HTML, question)
+    finally:
+        for p in patches:
+            p.stop()
     had_tool_error = '"status": "error"' in raw or '"is_error": true' in raw
     # The real delivery check: an image block actually present in the transcript,
     # not just that the screenshot tool ran without raising.
@@ -124,6 +151,8 @@ def check_screenshot(model_key):
     print(f"  image block present in message transcript: {image_sent}")
     print(f"  any tool-result error recorded            : {had_tool_error}")
     print(f"  model answer                              : {result.answer!r}")
+    if result.stop_reason == "request_error":
+        print(f"  error: {result.error}")
     ok = image_sent and not had_tool_error and color_in_answer
     print("  PASS" if ok else "  FAIL -- image not delivered/seen by the model")
     return ok
