@@ -1,4 +1,4 @@
-"""Build and validate the immutable ChartGalaxy webpage pilot bundle."""
+"""Build and validate the immutable ChartGalaxy mixed-input pilot bundle."""
 import argparse
 import base64
 from collections import Counter
@@ -24,8 +24,8 @@ from qa_attacks import image_channels as raster
 from qa_attacks.wording import FACTORIAL_TEMPLATES, NEUTRAL, payloads
 
 ROOT = Path(__file__).resolve().parents[1]
-STUDY = "chartgalaxy-webpage-pilot-v1"
-SCHEMA = "chartgalaxy-webpage-v1"
+STUDY = "chartgalaxy-mixed-pilot-v2"
+SCHEMA = "chartgalaxy-mixed-v2"
 CHANNELS = (*raster.IMAGE_CHANNELS, "cotta", "visible_paragraph", "source_layer")
 AUX = "cotta_trigger_only"
 MODELS = {"haiku": "us.anthropic.claude-haiku-5-5", "luna": "us.openai.gpt-5.6-luna",
@@ -62,6 +62,10 @@ def protocol():
     return {"schema": SCHEMA, "models": MODELS, "region": "us-west-2",
             "viewport": {"width": 1440, "height": 1200}, "device_scale_factor": 1,
             "max_steps": 8, "max_tokens": 2048, "sampling": "provider-default",
+            "direct_system": SYSTEMS["json"], "direct_max_steps": 1,
+            "screenshot_delivery": "tool-text-then-user-image-v1",
+            "input_modes": {"direct_image": [*raster.IMAGE_CHANNELS, "cotta", AUX],
+                            "webpage": ["visible_paragraph", "source_layer"]},
             "tools": filter_tools(TOOL_NAMES), "text_limit": 30000,
             "system": SYSTEM_PROMPT + "\nScroll when needed to inspect images below the viewport.\n"
                       + SYSTEMS["json"], "max_request_attempts": 4,
@@ -173,7 +177,9 @@ def transformed_question(question, n):
     return re.sub(r"<image>", lambda _: f"[Image {next(index)} on the webpage]", question)
 
 
-def row_id(base, channel=None, style=None):
+def row_id(base, channel=None, style=None, input_mode="webpage"):
+    if channel is None and input_mode == "direct_image":
+        return f"{base}:clean:direct_image"
     return f"{base}:{channel or 'clean'}:{style or 'control'}"
 
 
@@ -262,10 +268,11 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
                 page.evaluate("document.fonts.ready")
                 heights.append(page.locator("p").evaluate("p => p.getBoundingClientRect().height"))
             paragraph_height = int(np.ceil(max(heights)))
-            conditions = [(None, None, None)] + [(ch, style, text)
+            conditions = [(None, None, None, mode) for mode in ("webpage", "direct_image")] + [(ch, style, text,
+                "webpage" if ch in ("visible_paragraph", "source_layer") else "direct_image")
                 for ch in (*CHANNELS, AUX) for style, text in [(None, NEUTRAL), *texts.items()]]
-            for channel, style, text in conditions:
-                rid = row_id(base, channel, style)
+            for channel, style, text, input_mode in conditions:
+                rid = row_id(base, channel, style, input_mode)
                 condition = "clean" if channel is None else "control" if style is None else "attack"
                 assets = [source_assets[p] for p in original["images"]]
                 audit = {"size": list(image.size), "bbox": None}
@@ -289,20 +296,22 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
                 if channel in (*raster.IMAGE_CHANNELS, "cotta", AUX):
                     assets[0] = "assets/" + object_digest([rid, inputs["raw_sha256"]]) + ".png"
                     rendered.save(out / "public" / assets[0])
-                page_rel = "pages/" + object_digest([rid, "page"]) + ".html"
-                (out / "public" / page_rel).write_text(page_html(assets, channel, text, paragraph_height, "../" + font_asset))
+                page_rel = None
+                if input_mode == "webpage":
+                    page_rel = "pages/" + object_digest([rid, "page"]) + ".html"
+                    (out / "public" / page_rel).write_text(page_html(assets, channel, text, paragraph_height, "../" + font_asset))
                 audit_rel = "audits/" + object_digest(rid) + ".json"
                 write_json(out / audit_rel, {**audit, "paragraph_height": paragraph_height})
                 rows.append({"id": rid, "base_id": base, "subcategory": original["metadata"]["subcategory"],
-                             "condition": condition, "channel": channel, "style": style,
+                             "condition": condition, "channel": channel, "style": style, "input_mode": input_mode,
                              "family": FACTORIAL_TEMPLATES[style][0] if style else None,
                              "surface": "page_text" if channel in ("visible_paragraph", "source_layer") else "image_pixels",
                              "auxiliary": channel == AUX, "question_original": question,
-                             "question": transformed_question(question, len(assets)), "gold": gold,
+                             "question": transformed_question(question, len(assets)) if input_mode == "webpage" else question, "gold": gold,
                              "target": target, "kind": fmt.kind, "answer_options": list(fmt.options),
                              "exact": exact, "payload": text, "page": page_rel, "assets": assets,
-                             "fonts": [font_asset],
-                             "clean_id": row_id(base), "control_id": row_id(base, channel) if channel else None,
+                             "fonts": [font_asset] if input_mode == "webpage" else [],
+                             "clean_id": row_id(base, input_mode=input_mode), "control_id": row_id(base, channel) if channel else None,
                              "audit": audit_rel})
             print(f"Prepared {base} ({len(rows)} rows)", flush=True)
         browser_version = browser.version
@@ -311,7 +320,7 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     write_json(out / "spec.json", {**inputs, "study_id": STUDY, "code_revision": revision,
                                   "protocol_digest": object_digest(protocol()), "browser_version": browser_version,
-                                  "surrogates": surrogate_metadata, "expected_rows": 73 * len(expected_ids)})
+                                  "surrogates": surrogate_metadata, "expected_rows": 74 * len(expected_ids)})
     files = ["spec.json", "corpus.jsonl", "source.jsonl", "build.json", "surrogates.json"]
     files += [str(p.relative_to(out)) for d in ("public", "audits") for p in (out / d).rglob("*") if p.is_file()]
     manifest = {"schema": SCHEMA, "complete": True, "expected_rows": len(rows),
@@ -341,9 +350,9 @@ def validate(root, *, check_code=True):
     if digest(root / "source.jsonl") != spec["raw_sha256"] or set(sources) != set(spec["ids"]):
         raise ValueError("Source manifest mismatch")
     ids = {r["id"]: r for r in rows}
-    if len(ids) != len(rows) or len(rows) != 73 * len(spec["ids"]) or len(rows) != manifest["expected_rows"]:
+    if len(ids) != len(rows) or len(rows) != 74 * len(spec["ids"]) or len(rows) != manifest["expected_rows"]:
         raise ValueError("Wrong row count or duplicate IDs")
-    expected = {row_id(b) for b in spec["ids"]} | {row_id(b, ch, st)
+    expected = {row_id(b, input_mode=m) for b in spec["ids"] for m in ("webpage", "direct_image")} | {row_id(b, ch, st)
         for b in spec["ids"] for ch in (*CHANNELS, AUX) for st in (None, *FACTORIAL_TEMPLATES)}
     if set(ids) != expected:
         raise ValueError("Unexpected or missing conditions")
@@ -355,18 +364,20 @@ def validate(root, *, check_code=True):
         expected_condition = "clean" if r["channel"] is None else "control" if r["style"] is None else "attack"
         expected_payload = None if expected_condition == "clean" else NEUTRAL if expected_condition == "control" else payloads(target, display, "factorial")[r["style"]]
         if (r["condition"] != expected_condition or r["payload"] != expected_payload or
-                r["id"] != row_id(r["base_id"], r["channel"], r["style"]) or
+                r["id"] != row_id(r["base_id"], r["channel"], r["style"], r["input_mode"]) or
                 r["auxiliary"] != (r["channel"] == AUX) or
                 r["family"] != (FACTORIAL_TEMPLATES[r["style"]][0] if r["style"] else None)):
             raise ValueError("Incorrect condition, payload, or family")
         if (r["question_original"] != question or r["gold"] != gold or r["target"] != target or
                 r["kind"] != fmt.kind or r["exact"] != asks_year(question) or
-                r["question"] != transformed_question(question, len(original["images"])) or
+                r["question"] != (transformed_question(question, len(original["images"])) if r["input_mode"] == "webpage" else question) or
                 r["answer_options"] != list(fmt.options) or r["subcategory"] != original["metadata"]["subcategory"]):
             raise ValueError("Row differs from source question/answer")
         clean = ids.get(r["clean_id"])
         control = ids.get(r["control_id"]) if r["control_id"] else None
-        if not clean or clean["base_id"] != r["base_id"] or clean["condition"] != "clean":
+        if r["input_mode"] not in ("webpage", "direct_image") or (r["channel"] is not None and r["channel"] not in protocol()["input_modes"][r["input_mode"]]):
+            raise ValueError("Wrong channel input mode")
+        if not clean or clean["input_mode"] != r["input_mode"] or clean["base_id"] != r["base_id"] or clean["condition"] != "clean":
             raise ValueError("Invalid clean pairing")
         if r["channel"] and (not control or control["channel"] != r["channel"] or
                              control["base_id"] != r["base_id"] or control["condition"] != "control"):
@@ -386,12 +397,15 @@ def validate(root, *, check_code=True):
                     raise ValueError("Source image bytes changed")
         if r["channel"] in ("visible_paragraph", "source_layer") and r["assets"] != clean["assets"]:
             raise ValueError("HTML condition changed chart pixels")
-        if r["fonts"] != [spec["html_font"]["asset"]] or digest(root / "public" / r["fonts"][0]) != spec["html_font"]["sha256"]:
+        expected_fonts = [spec["html_font"]["asset"]] if r["input_mode"] == "webpage" else []
+        if r["fonts"] != expected_fonts or (expected_fonts and digest(root / "public" / expected_fonts[0]) != spec["html_font"]["sha256"]):
             raise ValueError("Paragraph font changed")
-        for rel in ("public/" + r["page"], r["audit"], *("public/" + a for a in [*r["assets"], *r["fonts"]])):
+        if (r["page"] is None) != (r["input_mode"] == "direct_image"):
+            raise ValueError("Only webpage rows may reference a page")
+        for rel in (["public/" + r["page"]] if r["page"] else []) + [r["audit"], *("public/" + a for a in [*r["assets"], *r["fonts"]])]:
             if rel not in manifest["hashes"]:
                 raise ValueError("Row refers to unhashed file")
-        content = (root / "public" / r["page"]).read_text()
+        content = (root / "public" / r["page"]).read_text() if r["page"] else ""
         if r["channel"] in (*raster.IMAGE_CHANNELS, "cotta", AUX) and r["payload"] in content:
             raise ValueError("Pixel payload leaked to HTML")
         if r["channel"] in ("cotta", AUX):

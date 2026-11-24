@@ -1,4 +1,4 @@
-"""Isolated webpage evaluation, browser audits, preflight, and resumable jobs."""
+"""Direct-image and isolated webpage evaluation, audits, preflight, and resumable jobs."""
 import argparse
 import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,8 +15,8 @@ import time
 import urllib.error
 
 from browser_agent import BrowserTools, TEXT_LIMIT, capture_console
-from pipeline.converse_agent import BedrockConverseClient, _to_converse_tools, _tool_result
-from qa_attacks.evaluate import matches, plain_json_answer, reply_text
+from pipeline.converse_agent import BedrockConverseClient, _to_converse_tools, _tool_result, _image_block
+from qa_attacks.evaluate import build_content, matches, plain_json_answer, reply_text
 from qa_attacks.webpage_corpus import (MODELS, STUDY, TOOL_NAMES, checked_path, digest,
                                       object_digest, protocol, read_rows, validate, write_json)
 
@@ -140,11 +140,11 @@ def clean_error(exc):
     return text
 
 
-def request(client, model, messages, tools, attempts, *, sleep=time.sleep):
+def request(client, model, messages, tools, attempts, *, sleep=time.sleep, input_mode="webpage"):
     for index in range(4):
         started = time.monotonic()
         try:
-            result = client.converse(model, protocol()["system"], messages, tools, protocol()["max_tokens"])
+            result = client.converse(model, protocol()["direct_system" if input_mode == "direct_image" else "system"], messages, tools, protocol()["max_tokens"])
             attempts.append({"attempt": index + 1, "seconds": time.monotonic() - started,
                              "usage": result.get("usage", {}), "status": "success"})
             return result
@@ -189,7 +189,7 @@ def evaluate_trial(browser, corpus, row, model, trace_dir, client):
                 if resp.get("stopReason") != "tool_use" or not calls:
                     final, stop = reply_text(resp), resp.get("stopReason", "empty_response")
                     break
-                results = []
+                results, attachments = [], []
                 for call in calls:
                     name, args, tid = call.get("name"), call.get("input", {}), call.get("toolUseId")
                     obs = {"step": steps, "tool": name, "arguments": args, "text_payload_returned": False,
@@ -197,7 +197,13 @@ def evaluate_trial(browser, corpus, row, model, trace_dir, client):
                     try:
                         geometry = image_regions(page, bbox) if name == "screenshot" else None
                         output, images = browser_tools.execute(name, args)
-                        results.append(_tool_result(tid, output, images))
+                        # Bedrock restricts images nested in toolResult for some families.
+                        # Use the same transport for every victim: text tool result,
+                        # then a user image message explicitly linked to that tool ID.
+                        results.append(_tool_result(tid, output, []))
+                        if images:
+                            attachments.extend([{"text": f"Screenshot returned by tool call {tid}."},
+                                *[_image_block(base64.b64decode(i, validate=True)) for i in images]])
                         obs["text_payload_returned"] = bool(row["payload"] and row["payload"] in output)
                         obs["returned_text"] = output
                         if images:
@@ -216,6 +222,8 @@ def evaluate_trial(browser, corpus, row, model, trace_dir, client):
                             error = tool_error
                     observations.append(obs)
                 messages.append({"role": "user", "content": results})
+                if attachments:
+                    messages.append({"role": "user", "content": attachments})
                 if error:
                     stop = "tool_error"
                     break
@@ -226,7 +234,7 @@ def evaluate_trial(browser, corpus, row, model, trace_dir, client):
     ans, rationale, format_error = plain_json_answer(final, row["kind"], row["answer_options"])
     pred = ans if not error and not format_error else None
     rec = {"row_id": row["id"], "base_id": row["base_id"], "model_id": model,
-           "response": final, "ans": ans, "rationale": rationale, "format_error": format_error,
+           "input_mode": "webpage", "response": final, "ans": ans, "rationale": rationale, "format_error": format_error,
            "correct": matches(pred, row["gold"], row["kind"], row["exact"]),
            "target_hit": matches(pred, row["target"], row["kind"], row["exact"]),
            "completed": error is None, "error": error, "stop_reason": stop, "steps": steps,
@@ -236,6 +244,46 @@ def evaluate_trial(browser, corpus, row, model, trace_dir, client):
            "failed_request_usage_unknown": any(a["status"] == "error" for a in attempts)}
     write_json(trace_dir / "trace.json", {"messages": messages, "responses": responses,
                                           "observations": observations, "blocked_requests": blocked})
+    rec["trace"] = str(trace_dir / "trace.json")
+    return rec
+
+
+def evaluate_direct_trial(corpus, row, model, trace_dir, client):
+    """Send the original ordered images once, without a page or browser tools."""
+    trace_dir = Path(trace_dir)
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    paths = [checked_path(Path(corpus) / "public", a) for a in row["assets"]]
+    messages = [{"role": "user", "content": build_content(row["question"], paths, _image_block)}]
+    attempts, responses, observations = [], [], []
+    started, final, error, stop = time.monotonic(), "", None, "request_error"
+    bbox = json.loads((Path(corpus) / row["audit"]).read_text()).get("bbox")
+    try:
+        resp = request(client, model, messages, None, attempts, input_mode="direct_image")
+        responses.append(resp)
+        final, stop = reply_text(resp), resp.get("stopReason", "empty_response")
+        # Successful provider response confirms acceptance, not visual recognition.
+        for index, path in enumerate(paths):
+            name = f"input-{index + 1}.png"
+            (trace_dir / name).write_bytes(path.read_bytes())
+            observations.append({"step": 1, "tool": None, "input_image": name,
+                "image_index": index + 1, "sha256": digest(path), "text_payload_returned": False,
+                "image_exposure": {"recognition": "unknown", "payload_region":
+                    {"bbox": bbox, "visible_fraction": 1} if index == 0 and bbox else None}})
+    except Exception as exc:
+        error = clean_error(exc)
+    ans, rationale, format_error = plain_json_answer(final, row["kind"], row["answer_options"])
+    pred = ans if not error and not format_error else None
+    rec = {"row_id": row["id"], "base_id": row["base_id"], "model_id": model,
+        "input_mode": "direct_image", "response": final, "ans": ans, "rationale": rationale,
+        "format_error": format_error, "correct": matches(pred, row["gold"], row["kind"], row["exact"]),
+        "target_hit": matches(pred, row["target"], row["kind"], row["exact"]),
+        "completed": error is None, "error": error, "stop_reason": stop, "steps": 1,
+        "seconds": time.monotonic() - started, "observations": observations,
+        "request_attempts": attempts, "usage": {k: sum(a.get("usage", {}).get(k, 0)
+            for a in attempts if a.get("usage")) for k in ("inputTokens", "outputTokens", "totalTokens")},
+        "failed_request_usage_unknown": any(a["status"] == "error" for a in attempts)}
+    write_json(trace_dir / "trace.json", {"messages": messages, "responses": responses,
+                                        "observations": observations})
     rec["trace"] = str(trace_dir / "trace.json")
     return rec
 
@@ -255,6 +303,20 @@ def audit_corpus(corpus, *, browser_executable=None):
         if browser.version != spec["browser_version"]:
             raise ValueError("Browser differs from corpus builder")
         for row in rows:
+            if row["input_mode"] == "direct_image":
+                # Structural validation checked original/crop bytes and pixel budgets.
+                # Decode every delivered asset; no HTML wrapper is generated or rendered.
+                from PIL import Image
+                dimensions = []
+                for asset in row["assets"]:
+                    with Image.open(checked_path(corpus / "public", asset)) as img:
+                        img.load()
+                        dimensions.append(list(img.size))
+                name = object_digest(row["id"]) + ".png"
+                (output / name).write_bytes((corpus / "public" / row["assets"][0]).read_bytes())
+                records.append({"row_id": row["id"], "input_mode": "direct_image", "preview": name,
+                                "dimensions": dimensions})
+                continue
             with trial_page(browser, corpus, row) as (page, logs, blocked):
                 dims = image_regions(page, None)["images"]
                 if any(r["width"] != r["naturalWidth"] or r["height"] != r["naturalHeight"] for r in dims):
@@ -278,7 +340,7 @@ def audit_corpus(corpus, *, browser_executable=None):
                     raise ValueError("Source comment changed screenshot pixels")
                 name = object_digest(row["id"]) + ".png"
                 (output / name).write_bytes(shot)
-                records.append({"row_id": row["id"], "screenshot": name, "sha256": sha, "dimensions": dims})
+                records.append({"row_id": row["id"], "input_mode": "webpage", "screenshot": name, "sha256": sha, "dimensions": dims})
             if len(records) % 73 == 0:
                 print(f"Validated {len(records)}/{len(rows)} pages", flush=True)
         version = browser.version
@@ -382,14 +444,18 @@ def run(corpus, out, model, *, repeat=1, workers=2, run_id=STUDY, shard_index=0,
             key = object_digest(row["id"])
             old = previous.get(row["id"])
             attempt = old.get("trial_attempt", 1) + 1 if old else 1
-            with sync_playwright() as pw:
-                browser = launch(pw, browser_executable)
-                try:
-                    if browser.version != config["browser_version"] or importlib.metadata.version("playwright") != config["playwright"]:
-                        raise ValueError("Worker browser/Playwright differs from frozen protocol")
-                    rec = evaluate_trial(browser, corpus, row, MODELS[model], out / "traces" / key / str(attempt), client_factory())
-                finally:
-                    browser.close()
+            trace_dir = out / "traces" / key / str(attempt)
+            if row["input_mode"] == "direct_image":
+                rec = evaluate_direct_trial(corpus, row, MODELS[model], trace_dir, client_factory())
+            else:
+                with sync_playwright() as pw:
+                    browser = launch(pw, browser_executable)
+                    try:
+                        if browser.version != config["browser_version"] or importlib.metadata.version("playwright") != config["playwright"]:
+                            raise ValueError("Worker browser/Playwright differs from frozen protocol")
+                        rec = evaluate_trial(browser, corpus, row, MODELS[model], trace_dir, client_factory())
+                    finally:
+                        browser.close()
             rec.update({k: config[k] for k in ("run_id", "repeat", "model_id", "corpus_digest", "protocol_digest")})
             rec.update(trial_attempt=attempt, worker={"platform": platform.platform(), "browser": config["browser_version"],
                                                      "playwright": config["playwright"]})
@@ -423,7 +489,8 @@ def preflight(corpus, out, models, browser_executable=None):
         raise ValueError("Select distinct known model aliases")
     manifest, rows, _ = verified_bundle(corpus)
     clean = sorted((r for r in rows if r["condition"] == "clean"), key=lambda r: r["base_id"])
-    chosen = [next(r for r in clean if r["kind"] == kind)["id"] for kind in ("choice", "numeric", "yesno")]
+    chosen = [next(r for r in clean if r["kind"] == kind and r["input_mode"] == mode)["id"]
+              for mode in ("direct_image", "webpage") for kind in ("choice", "numeric", "yesno")]
     summary_path = Path(out) / "summary.json"
     summary = {"corpus_digest": manifest["corpus_digest"], "selected_ids": chosen, "models": {}}
     if summary_path.exists():
@@ -434,12 +501,18 @@ def preflight(corpus, out, models, browser_executable=None):
     for model in models:
         recs = run(corpus, Path(out) / model, model, workers=1, selected_ids=chosen, preflight=True,
                    run_id=STUDY + "-preflight", browser_executable=browser_executable)
-        # Require real image delivery as well as valid final JSON; correctness is not a gate.
-        passed = len(recs) == 3 and all(r["completed"] and not r["format_error"] and any(
-            o.get("screenshot") for o in r["observations"]) for r in recs)
-        summary["models"][model] = {"passed": passed, "trials": len(recs),
+        # Require image acceptance/delivery and valid final JSON in both modes; correctness is not a gate.
+        modes = {}
+        for mode in ("direct_image", "webpage"):
+            subset = [r for r in recs if r["input_mode"] == mode]
+            modes[mode] = {"passed": len(subset) == 3 and all(r["completed"] and not r["format_error"] and any(
+                o.get("screenshot") or o.get("input_image") for o in r["observations"]) for r in subset),
+                "trials": len(subset)}
+        passed = all(m["passed"] for m in modes.values())
+        summary["models"][model] = {"passed": passed, "input_modes": modes, "trials": len(recs),
                                     "errors": [r["error"] or r["format_error"] for r in recs if r["error"] or r["format_error"]],
-                                    "outcomes": [{"row_id": r["row_id"], "completed": r["completed"],
+                                    "outcomes": [{"row_id": r["row_id"], "input_mode": r["input_mode"], "completed": r["completed"],
+                                        "direct_images_accepted": any(o.get("input_image") for o in r["observations"]),
                                         "format_error": r["format_error"], "correct": r["correct"],
                                         "screenshot_delivered": any(o.get("screenshot") for o in r["observations"]),
                                         "stop_reason": r["stop_reason"], "error": r["error"]} for r in recs]}

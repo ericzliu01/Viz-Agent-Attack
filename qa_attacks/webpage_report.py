@@ -70,7 +70,8 @@ def report(corpus, jobs, out):
             key = (rec["run_id"], rec["repeat"], rec["model_id"], rec["row_id"])
             if key in merged:
                 raise ValueError("Duplicate merge key")
-            if rec["row_id"] not in config["row_ids"] or bool(rec["error"]) == rec["completed"]:
+            if (rec["row_id"] not in config["row_ids"] or bool(rec["error"]) == rec["completed"] or
+                    rec.get("input_mode") != rows[rec["row_id"]]["input_mode"]):
                 raise ValueError("Unknown row or inconsistent outcome classification")
             graded = regrade(rec, rows[rec["row_id"]])
             graded["job_directory"] = str(job_path.parent.resolve())
@@ -90,7 +91,7 @@ def report(corpus, jobs, out):
     coverage, groups, common = [], [], {}
     for repeat in repeats:
         common[repeat] = sorted(set.intersection(*[
-            {rows[r["row_id"]]["base_id"] for r in lanes[(repeat, model)].values()
+            {r["row_id"] for r in lanes[(repeat, model)].values()
              if rows[r["row_id"]]["condition"] == "clean" and r["correct"]} for model in MODELS.values()]))
         for model in MODELS.values():
             recs = lanes[(repeat, model)]
@@ -98,13 +99,14 @@ def report(corpus, jobs, out):
                              "completed": sum(r["completed"] for r in recs.values()),
                              "errors": sum(not r["completed"] for r in recs.values()), "missing": len(rows) - len(recs)})
             attacks = [r for r in rows.values() if r["condition"] == "attack"]
-            dimensions = [("overall_main", {"main": [r for r in attacks if not r["auxiliary"]]}),
+            dimensions = [("input_mode", {mode: [r for r in attacks if not r["auxiliary"] and r["input_mode"] == mode]
+                                          for mode in ("direct_image", "webpage")}),
                           ("auxiliary", {"trigger_only": [r for r in attacks if r["auxiliary"]]})]
             for dimension in ("channel", "style", "family", "subcategory"):
                 bins = defaultdict(list)
                 for row in attacks:
                     if not row["auxiliary"] or dimension == "channel":
-                        bins[row[dimension]].append(row)
+                        bins[f"{row['input_mode']}/{row[dimension]}" if dimension != "channel" else row[dimension]].append(row)
                 dimensions.append((dimension, bins))
             bins = defaultdict(list)
             for row in attacks:
@@ -114,24 +116,24 @@ def report(corpus, jobs, out):
                 for label, expected in bins.items():
                     groups.append({"repeat": repeat, "model": model, "dimension": dimension, "label": label,
                                    **metrics(expected, recs, rows),
-                                   "common_clean_correct": metrics([r for r in expected if r["base_id"] in common[repeat]], recs, rows)})
+                                   "common_clean_correct": metrics([r for r in expected if r["clean_id"] in common[repeat]], recs, rows)})
     result = {"corpus_digest": manifest["corpus_digest"], "coverage": coverage, "groups": groups,
               "common_clean_correct_ids": common, "partial": any(c["missing"] or c["errors"] for c in coverage),
-              "notes": ["Webpage pilot; do not pool with historical direct image-QA.",
+              "notes": ["Mixed-input pilot: separate direct-image and webpage baselines and rates; do not pool historical runs.",
                         "24 previously examined questions; variants of a chart are dependent.",
                         "Shared neutral controls do not match every style's ink/CoTTA geometry.",
                         "Exposure-conditioned results are descriptive; image presence does not prove recognition."]}
     out.mkdir(parents=True, exist_ok=True)
     write_json(out / "report.json", result)
     (out / "regraded.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for _, r in sorted(merged.items())))
-    lines = ["# ChartGalaxy webpage pilot", "", "Status: " + ("partial" if result["partial"] else "complete coverage"), "",
+    lines = ["# ChartGalaxy mixed-input pilot", "", "Status: " + ("partial" if result["partial"] else "complete coverage"), "",
              "| Model | Repeat | Expected | Completed | Errors | Missing |", "|---|---:|---:|---:|---:|---:|"]
     lines += [f"| {c['model']} | {c['repeat']} | {c['expected']} | {c['completed']} | {c['errors']} | {c['missing']} |" for c in coverage]
     lines += ["", "| Model | Group | ASR | Targeted ASR | Valid JSON |", "|---|---|---:|---:|---:|"]
     def display(value):
         return "N/A (0 eligible)" if value["percent"] is None else f"{value['percent']:.1f}% ({value['n']}/{value['denominator']})"
     for g in groups:
-        if g["dimension"] in ("overall_main", "channel"):
+        if g["dimension"] in ("input_mode", "channel"):
             lines.append(f"| {g['model']} | {g['label']} | {display(g['asr'])} | {display(g['targeted_asr'])} | {display(g['valid_json_rate'])} |")
     lines += ["", *result["notes"], "", "Full breakdowns and denominators: `report.json`. Examples: `examples.html`."]
     (out / "report.md").write_text("\n".join(lines) + "\n")
@@ -149,14 +151,15 @@ def report(corpus, jobs, out):
                 parts.append(f"<p>{label}: missing</p>")
                 continue
             for i, obs in enumerate(record["observations"]):
-                if not obs.get("screenshot"):
+                asset = obs.get("screenshot") or obs.get("input_image")
+                if not asset:
                     continue
-                source = checked_path(record["job_directory"], record["trace"]).parent / obs["screenshot"]
+                source = checked_path(checked_path(record["job_directory"], record["trace"]).parent, asset)
                 dest = out / "assets" / (object_digest([key, label, i]) + ".png")
                 dest.parent.mkdir(exist_ok=True)
                 shutil.copyfile(source, dest)
                 parts.append(f'<h4>{label}, step {obs["step"]}</h4><img style="max-width:100%" src="assets/{dest.name}">')
-        details = {k: row[k] for k in ("question", "gold", "target", "payload", "channel", "style")}
+        details = {k: row[k] for k in ("question", "gold", "target", "payload", "channel", "style", "input_mode")}
         details.update(model=rec["model_id"], answer=rec["ans"], observations=rec["observations"])
         cards.append("<article><pre>" + html.escape(json.dumps(details, indent=2, ensure_ascii=False)) + "</pre>" + "".join(parts) + "</article>")
     (out / "examples.html").write_text('<!doctype html><meta charset="utf-8"><title>Webpage examples</title>'

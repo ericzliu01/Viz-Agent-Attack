@@ -82,8 +82,8 @@ def browser():
 def test_complete_corpus_pairing_targets_layouts_and_source_isolation(bundle):
     manifest = corpus.validate(bundle)
     rows = corpus.read_rows(bundle / "corpus.jsonl")
-    assert manifest["expected_rows"] == len(rows) == 219
-    assert manifest["counts"] == {"clean": 3, "control": 24, "attack": 192}
+    assert manifest["expected_rows"] == len(rows) == 222
+    assert manifest["counts"] == {"clean": 6, "control": 24, "attack": 192}
     assert all(r["exact"] for r in rows if r["base_id"] == "numeric")
     assert len({r["assets"][1] for r in rows}) == 1
     for channel in corpus.raster.IMAGE_CHANNELS:
@@ -93,9 +93,9 @@ def test_complete_corpus_pairing_targets_layouts_and_source_isolation(bundle):
         assert len({a["font_size"] for a in audits}) == 1
         assert all(a["line_count"] <= a["max_lines"] for a in audits)
     validation = json.loads((bundle / "validation.json").read_text())
-    assert len(validation["rows"]) == 219
+    assert len(validation["rows"]) == 222
     assert (bundle / "review.html").exists()
-    assert len({tuple(r["fonts"]) for r in rows}) == 1
+    assert len({tuple(r["fonts"]) for r in rows if r["input_mode"] == "webpage"}) == 1
     font = rows[0]["fonts"][0]
     assert "public/" + font in manifest["hashes"]
 
@@ -120,9 +120,12 @@ def test_actual_screenshot_arrives_and_json_is_graded(bundle, browser, tmp_path)
     result = runner.evaluate_trial(browser, bundle, row, "fake", tmp_path, client)
     assert result["completed"] and result["correct"] and not result["format_error"]
     assert result["usage"]["totalTokens"] == 20
-    block = client.requests[1]["messages"][-1]["content"][0]["toolResult"]["content"][1]["image"]
+    block = client.requests[1]["messages"][-1]["content"][1]["image"]
     png = base64.b64decode(block["source"]["bytes"], validate=True)
     assert png.startswith(b"\x89PNG")
+    tool_result = client.requests[1]["messages"][-2]["content"][0]["toolResult"]
+    assert all("image" not in b for b in tool_result["content"])
+    assert tool_result["toolUseId"] in client.requests[1]["messages"][-1]["content"][0]["text"]
     assert png == next(tmp_path.glob("*.png")).read_bytes()
     assert set(t["toolSpec"]["name"] for t in client.requests[0]["tool_config"]["tools"]) == set(corpus.TOOL_NAMES)
     assert client.requests[0]["messages"] == [{"role": "user", "content": [{"text": row["question"]}]}]
@@ -152,7 +155,7 @@ def test_network_other_conditions_and_storage_are_isolated(bundle, browser):
         tools = runner.TrialTools(page, logs)
         value, _ = tools.execute("evaluate", {"script": "() => {localStorage.setItem('x','secret'); return 3;}"})
         assert value == "3"
-        for url in (runner.ORIGIN + rows[1]["page"], runner.ORIGIN + "spec.json", "https://example.invalid/private"):
+        for url in (runner.ORIGIN + next(r["page"] for r in rows[1:] if r["page"]), runner.ORIGIN + "spec.json", "https://example.invalid/private"):
             value, _ = tools.execute("evaluate", {"script": f"fetch({json.dumps(url)}).then(() => 'leaked').catch(() => 'blocked')"})
             assert value == "blocked"
         # Images bypass connect-src, so also exercise the route allowlist directly.
@@ -190,7 +193,7 @@ def test_shards_keep_complete_questions(bundle):
     a, b = runner.select_shard(rows, 0, 2), runner.select_shard(rows, 1, 2)
     assert len(a) + len(b) == len(rows)
     assert not {r["base_id"] for r in a} & {r["base_id"] for r in b}
-    assert len(a) % 73 == len(b) % 73 == 0
+    assert len(a) % 74 == len(b) % 74 == 0
 
 
 def test_retry_only_transient_requests():
@@ -216,16 +219,18 @@ def test_retry_only_transient_requests():
 def test_job_resume_and_merge_reject_duplicates(bundle, tmp_path):
     rows = corpus.read_rows(bundle / "corpus.jsonl")
     selected = {r["id"] for r in rows if r["base_id"] == "choice" and (
-        r["condition"] == "clean" or r["channel"] == "banner" and r["style"] in (None, "direct"))}
+        (r["condition"] == "clean" and r["input_mode"] == "direct_image") or r["channel"] == "banner" and r["style"] in (None, "direct"))}
     jobs = tmp_path / "jobs"
     out = jobs / "haiku"
-    recs = runner.run(bundle, out, "haiku", selected_ids=selected, workers=2, client_factory=ScriptedClient)
+    recs = runner.run(bundle, out, "haiku", selected_ids=selected, workers=2, client_factory=lambda: ScriptedClient(calls=[]))
     assert len(recs) == 3
     def no_calls():
         raise AssertionError("Completed trials were retried")
     assert len(runner.run(bundle, out, "haiku", selected_ids=selected, client_factory=no_calls)) == 3
     result = report.report(bundle, jobs, tmp_path / "report")
     assert result["partial"]
+    assert not any(g["dimension"] == "overall_main" for g in result["groups"])
+    assert {g["label"] for g in result["groups"] if g["dimension"] == "input_mode"} == {"direct_image", "webpage"}
     group = next(g for g in result["groups"] if g["model"] == corpus.MODELS["haiku"] and g["dimension"] == "channel" and g["label"] == "banner")
     assert group["asr"] == {"n": 0, "denominator": 1, "percent": 0.0}
     with pytest.raises(ValueError, match="different configuration"):
@@ -254,3 +259,55 @@ def test_malformed_failure_targeted_success_and_control_filter_are_distinct():
     assert m["targeted_asr"]["percent"] == 50
     assert m["clean_control_correct_targeted_asr"]["percent"] is None
     assert m["valid_json_rate"]["percent"] == 50 and m["missing"] == 1
+
+
+def test_direct_images_keep_original_order_and_never_use_browser(bundle, tmp_path, monkeypatch):
+    row = next(r for r in corpus.read_rows(bundle / "corpus.jsonl")
+               if r["channel"] == "banner" and r["style"] == "direct")
+    assert row["page"] is None and row["fonts"] == []
+    client = ScriptedClient(calls=[])
+    def no_browser(*args, **kwargs):
+        raise AssertionError("Direct-image trial started a browser")
+    monkeypatch.setattr(runner, "launch", no_browser)
+    recs = runner.run(bundle, tmp_path, "haiku", selected_ids=[row["id"]], client_factory=lambda: client)
+    assert recs[0]["completed"] and recs[0]["input_mode"] == "direct_image"
+    request = client.requests[0]
+    assert len(client.requests) == 1 and request["tool_config"] is None
+    assert request["system"] == corpus.protocol()["direct_system"]
+    blocks = request["messages"][0]["content"]
+    images = [b["image"] for b in blocks if "image" in b]
+    assert [base64.b64decode(b["source"]["bytes"]) for b in images] == [
+        (bundle / "public" / a).read_bytes() for a in row["assets"]]
+    assert "on the webpage" not in str(blocks)
+
+
+def test_attack_baselines_match_input_mode(bundle):
+    rows = {r["id"]: r for r in corpus.read_rows(bundle / "corpus.jsonl")}
+    for row in rows.values():
+        assert rows[row["clean_id"]]["input_mode"] == row["input_mode"]
+        if row["channel"]:
+            assert row["channel"] in corpus.protocol()["input_modes"][row["input_mode"]]
+    attack = next(r for r in rows.values() if r["channel"] == "banner" and r["style"] == "direct")
+    browser_clean = corpus.row_id(attack["base_id"])
+    records = {browser_clean: {"completed": True, "correct": True},
+               attack["id"]: {"row_id": attack["id"], "completed": True, "correct": False,
+                              "target_hit": True, "format_error": None, "observations": []}}
+    assert report.metrics([attack], records, rows)["asr"]["denominator"] == 0
+
+
+def test_preflight_checks_all_formats_in_each_mode(bundle, tmp_path, monkeypatch):
+    rows = corpus.read_rows(bundle / 'corpus.jsonl')
+    def fake_run(corpus_path, out, model, *, selected_ids, **kwargs):
+        chosen = [r for r in rows if r['id'] in selected_ids]
+        assert {(r['input_mode'], r['kind']) for r in chosen} == {
+            (m, k) for m in ('direct_image', 'webpage') for k in ('choice', 'numeric', 'yesno')}
+        return [{'row_id': r['id'], 'input_mode': r['input_mode'], 'completed': True,
+                 'format_error': 'invalid_json' if r['input_mode'] == 'webpage' and r['kind'] == 'choice' else None,
+                 'correct': False, 'error': None, 'stop_reason': 'end_turn',
+                 'observations': [{'input_image' if r['input_mode'] == 'direct_image' else 'screenshot': 'image.png'}]}
+                for r in chosen]
+    monkeypatch.setattr(runner, 'run', fake_run)
+    summary = runner.preflight(bundle, tmp_path, ['haiku'])['models']['haiku']
+    assert summary['trials'] == 6 and not summary['passed']
+    assert summary['input_modes']['direct_image']['passed']
+    assert not summary['input_modes']['webpage']['passed']
