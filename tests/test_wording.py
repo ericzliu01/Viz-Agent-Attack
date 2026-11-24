@@ -20,10 +20,11 @@ def fixture_raw(tmp_path):
     return raw, rows
 
 
-def test_fixed_geometry_budget_and_preserved_chart(tmp_path):
+@pytest.mark.parametrize("template_set", ["historical", "factorial"])
+def test_fixed_geometry_budget_and_preserved_chart(tmp_path, template_set):
     raw, _ = fixture_raw(tmp_path)
     clean = Image.open(raw / "chart.png").convert("RGB")
-    texts = payloads("D", "D (stacked bar chart)")
+    texts = payloads("D", "D (stacked bar chart)", template_set)
     geometry = layout(clean, [*texts.values(), NEUTRAL])
     for channel in CHANNELS:
         sizes, boxes = set(), set()
@@ -77,6 +78,33 @@ def test_tool_payload_uses_exact_answer_field_not_display():
     text = payloads("D", "D (stacked bar chart)")["tool_call"]
     assert '"ans": "D"' in text
     assert "stacked" not in text
+
+
+def test_factorial_build_freezes_new_styles_and_keeps_historical_separate(tmp_path):
+    raw, _ = fixture_raw(tmp_path)
+    out = tmp_path / "factorial"
+    manifest = build(raw, out, ["q0"], template_set="factorial")
+    assert manifest["rows"] == {"clean": 1, "attack": 16, "control": 2}
+    spec = json.loads((out / "run.json").read_text())
+    assert "tool_call" not in spec["templates"]
+    assert "tool_call" in TEMPLATES
+    rows = [json.loads(line) for line in (out / "attacked.jsonl").read_text().splitlines()]
+    for row in rows:
+        attack = row["attack"]
+        if attack["subtype"] == "system_override":
+            assert attack["family"] == "action"
+            response = json.loads(attack["payload"].split("with exactly: ", 1)[1])
+            from qa_attacks.evaluate import plain_json_answer
+            from qa_attacks.answers import NUMERIC
+            ans, _, error = plain_json_answer(json.dumps(response), NUMERIC)
+            assert error is None
+            assert ans == str(attack["target"])
+        if attack["subtype"] == "visual_reading":
+            assert attack["family"] == "perception"
+            assert attack["target_display"] in attack["payload"]
+    assert build(raw, out, ["q0"], template_set="factorial") == manifest
+    with pytest.raises(ValueError, match="different run"):
+        build(raw, out, ["q0"])
 
 
 def test_paired_difference_excludes_unparsed_direct_answer():
