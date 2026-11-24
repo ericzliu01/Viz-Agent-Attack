@@ -37,8 +37,32 @@ def test_discover_finds_clean_baseline_and_attacks():
 def _stub_provider():
     @contextlib.contextmanager
     def provider(html_path):
-        yield Mock()
+        yield Mock(), []
     return provider
+
+
+def test_run_eval_passes_provider_console_logs_to_agent(tmp_path):
+    """The page_provider's console log (captured before navigation) must reach
+    agent_fn, not be dropped -- this is the 2026-11-18 audit's console-timing bug."""
+    seen_logs = []
+
+    @contextlib.contextmanager
+    def provider_with_logs(html_path):
+        yield Mock(), [{"type": "log", "text": "startup marker"}]
+
+    def fake_agent(page, question, model, *, workspace_dir=None, memory_backend=None,
+                   client=None, console_logs=None, **kwargs):
+        seen_logs.append(console_logs)
+        return AgentResult(answer="D", stop_reason="final", steps=1,
+                           latency_ms=1, tools_used=[],
+                           messages=[{"role": "user", "content": question}])
+
+    run_eval(EXAMPLES, tmp_path, model="test-model",
+             agent_fn=fake_agent, page_provider=provider_with_logs)
+
+    assert seen_logs and all(
+        logs == [{"type": "log", "text": "startup marker"}] for logs in seen_logs
+    )
 
 
 def test_run_eval_pairs_attack_with_tt_and_writes_csv(tmp_path):

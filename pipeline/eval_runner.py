@@ -122,16 +122,19 @@ def discover_pipeline_instances(instances_root):
 
 @contextlib.contextmanager
 def _default_page_provider(html_path):
-    """Serve ``chart.html`` and yield a Playwright page navigated to it."""
+    """Serve ``chart.html`` and yield a Playwright page navigated to it, plus its
+    console log (captured from before navigation, so startup console.log/pageerror
+    output -- including TM console-channel payloads -- isn't missed)."""
     from playwright.sync_api import sync_playwright
-    from browser_agent import VIEWPORT
+    from browser_agent import VIEWPORT, capture_console
 
     with serve_chart(html_path) as url, sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         try:
             page = browser.new_page(viewport=VIEWPORT)
+            logs = capture_console(page)
             page.goto(url, wait_until="networkidle")
-            yield page
+            yield page, logs
         finally:
             browser.close()
 
@@ -151,10 +154,10 @@ def _run_one(instance, *, model, client, agent_fn, page_provider, out_dir,
         workspace_dir = None
         if instance["workspace_dir"]:
             workspace_dir = str(copy_workspace(instance["workspace_dir"], Path(tmp) / "workspace"))
-        with page_provider(instance["html_path"]) as page:
+        with page_provider(instance["html_path"]) as (page, console_logs):
             result = agent_fn(page, _mcq_question(instance["question"], instance["options"]), model,
                               workspace_dir=workspace_dir, memory_backend=backend,
-                              client=client)
+                              client=client, console_logs=console_logs)
 
     status, predicted = grade(result.answer, instance["correct_option"], answer_type="choice")
     trace_dir = Path(out_dir) / "traces" / uuid4().hex
@@ -191,9 +194,9 @@ def _ollama_agent_fn(base_url="http://localhost:11434", *, seed=0, temperature=0
     from browser_agent import run_agent
 
     def agent_fn(page, question, model, *, workspace_dir=None, memory_backend=None,
-                 client=None):
+                 client=None, console_logs=None):
         return run_agent(page, question, model, base_url=base_url, timeout=timeout,
-                         temperature=temperature, seed=seed,
+                         temperature=temperature, seed=seed, console_logs=console_logs,
                          memory_backend=memory_backend, workspace_dir=workspace_dir)
 
     return agent_fn
