@@ -271,6 +271,33 @@ def test_stage1_variant_yields_distinct_qa(tmp_path, monkeypatch):
     assert any("variant 1" in c.args[0] for c in mock.call_args_list)
 
 
+def test_stage1_correct_answer_is_not_always_first_option(tmp_path, monkeypatch):
+    """2026-11-18 ASR audit: the stage1 model reliably lists the correct answer
+    first, so every generated QA had correct_index == 0. Across distinct
+    (csv, task_type) seeds with that same answer-first reply, the shuffle
+    must spread the correct option across more than one position."""
+    _patch_complete(monkeypatch, _stage1_reply())  # always answer-first: ["136", ...]
+    task_types = ["filter", "find_extremum", "sort", "determine_range",
+                  "characterize_distribution", "find_anomalies", "correlate",
+                  "retrieve_value", "compute_derived_value"]
+    indices = set()
+    for i, task_type in enumerate(task_types):
+        csv = _write(tmp_path, f"t{i}.csv", FANOUT_CSV)
+        insts = stage1(csv, task_type, examples={}, client=object())
+        indices.add(insts[0].correct_index)
+        assert insts[0].options[insts[0].correct_index] == "136"  # still correct
+    assert indices != {0}, "correct answer landed at index 0 for every seed"
+
+
+def test_stage1_qa_option_shuffle_is_deterministic(tmp_path, monkeypatch):
+    csv = _write(tmp_path, "t.csv", FANOUT_CSV)
+    _patch_complete(monkeypatch, _stage1_reply())
+    insts_a = stage1(csv, "filter", examples={}, client=object())
+    insts_b = stage1(csv, "filter", examples={}, client=object())
+    assert insts_a[0].options == insts_b[0].options
+    assert insts_a[0].correct_index == insts_b[0].correct_index
+
+
 def test_stage1_wires_chart_few_shots_and_images(tmp_path, monkeypatch):
     csv = _write(tmp_path, "t.csv", FANOUT_CSV)
     mock = _patch_complete(monkeypatch, _stage1_reply())
