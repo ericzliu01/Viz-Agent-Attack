@@ -43,7 +43,7 @@ def trial_page(browser, corpus, row):
     page.set_default_timeout(5000)
     page.set_default_navigation_timeout(10000)
     logs = capture_console(page)
-    allowed = {ORIGIN + rel: checked_path(root, rel) for rel in [row["page"], *row["assets"]]}
+    allowed = {ORIGIN + rel: checked_path(root, rel) for rel in [row["page"], *row["assets"], *row["fonts"]]}
     page_url = ORIGIN + row["page"]
 
     def route_request(route):
@@ -60,11 +60,12 @@ def trial_page(browser, corpus, row):
             loaded = True
         headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         if req.url == page_url:
-            headers["Content-Security-Policy"] = ("default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; "
+            headers["Content-Security-Policy"] = ("default-src 'none'; img-src 'self'; font-src 'self'; style-src 'unsafe-inline'; "
                 "script-src 'none'; connect-src 'none'; frame-src 'none'; worker-src 'none'; "
                 "object-src 'none'; base-uri 'none'; form-action 'none'")
-        route.fulfill(body=allowed[req.url].read_bytes(), headers=headers,
-                      content_type="text/html; charset=utf-8" if req.url == page_url else "image/png")
+        content_type = "text/html; charset=utf-8" if req.url == page_url else (
+            "font/otf" if req.url.endswith(".otf") else "font/ttf" if req.url.endswith(".ttf") else "image/png")
+        route.fulfill(body=allowed[req.url].read_bytes(), headers=headers, content_type=content_type)
 
     context.route("**/*", route_request)
     context.route_web_socket("**/*", lambda ws: ws.close())
@@ -72,6 +73,9 @@ def trial_page(browser, corpus, row):
     try:
         page.goto(page_url, wait_until="load")
         page.locator("img").evaluate_all("imgs => Promise.all(imgs.map(i => i.decode()))")
+        page.evaluate("document.fonts.ready")
+        if row["channel"] == "visible_paragraph" and not page.evaluate("document.fonts.check('18px TrialParagraph')"):
+            raise ValueError("Bundled paragraph font failed to load")
         if page.locator("img").count() != len(row["assets"]):
             raise ValueError("Missing page images")
         yield page, logs, blocked

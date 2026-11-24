@@ -95,6 +95,9 @@ def test_complete_corpus_pairing_targets_layouts_and_source_isolation(bundle):
     validation = json.loads((bundle / "validation.json").read_text())
     assert len(validation["rows"]) == 219
     assert (bundle / "review.html").exists()
+    assert len({tuple(r["fonts"]) for r in rows}) == 1
+    font = rows[0]["fonts"][0]
+    assert "public/" + font in manifest["hashes"]
 
 
 def test_changed_asset_rejected(bundle, tmp_path):

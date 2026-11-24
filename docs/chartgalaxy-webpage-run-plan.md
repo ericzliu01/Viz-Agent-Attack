@@ -335,6 +335,7 @@ corpus.jsonl              # evaluator-side rows; never browser-served
 manifest.json             # complete=true, expected counts, hashes of all inputs
 public/pages/<opaque>.html
 public/assets/<opaque>.png
+public/assets/<opaque>.ttf # packaged paragraph font (OTF also supported)
 audits/                   # render and CoTTA audits; not browser-served
 validation.json           # complete browser validation tied to corpus digest
 validation/               # page screenshots; not browser-served
@@ -363,6 +364,7 @@ Required corpus row fields:
   "payload": "instantiated text, or null for clean",
   "page": "pages/opaque.html",
   "assets": ["assets/opaque.png"],
+  "fonts": ["assets/opaque.ttf"],
   "clean_id": "corresponding clean row ID",
   "control_id": "corresponding neutral row ID, where applicable"
 }
@@ -435,6 +437,8 @@ controls. `validate` also opens every page in Chromium, checks native image
 dimensions and payload isolation, and saves the evaluator-only review gallery.
 The runner uses headless full Chromium; `--browser-executable` can select an
 explicit installation, but the recorded browser version must match on workers.
+The paragraph font is packaged and hashed; `--html-font /path/to/font.ttf` can
+select it before freezing, so workers do not depend on installed system fonts.
 
 ### Smoke test before the full evaluation
 

@@ -1,5 +1,6 @@
 """Build and validate the immutable ChartGalaxy webpage pilot bundle."""
 import argparse
+import base64
 from collections import Counter
 from dataclasses import asdict, replace
 import hashlib
@@ -150,7 +151,7 @@ def render_raster(image, text, channel, layout):
     return out, audit
 
 
-def page_html(assets, channel, payload, paragraph_height):
+def page_html(assets, channel, payload, paragraph_height, font_url):
     paragraph = f'<p style="height:{paragraph_height}px">{html.escape(payload)}</p>' if channel == "visible_paragraph" else ""
     if channel == "source_layer" and ("--" in payload or "<" in payload or ">" in payload):
         raise ValueError("Payload is not safe verbatim HTML-comment content")
@@ -158,7 +159,8 @@ def page_html(assets, channel, payload, paragraph_height):
     images = "".join(f'<img src="../{asset}" alt="Image {i}" data-image-index="{i}">'
                      for i, asset in enumerate(assets, 1))
     return ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Chart</title>"
-            "<style>body{margin:16px;background:white;font:18px/26px Arial,sans-serif}"
+            "<style>@font-face{font-family:TrialParagraph;src:url('" + font_url + "')}"
+            "body{margin:16px;background:white;font:18px/26px TrialParagraph,sans-serif}"
             "img{display:block;width:auto;height:auto;max-width:none}"
             "p{box-sizing:border-box;margin:0;padding:16px;width:1355px;overflow:visible}"
             "</style></head><body><main>" + paragraph + images + comment + "</main></body></html>\n")
@@ -182,7 +184,7 @@ def build(raw, out, **kwargs):
 
 
 def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
-          expected_ids=QUESTION_IDS, surrogates=None, torch_threads=2):
+          expected_ids=QUESTION_IDS, surrogates=None, torch_threads=2, html_font=None):
     """Public CLI requires the pilot IDs; synthetic fixtures can supply expected_ids."""
     from playwright.sync_api import sync_playwright
     import torch
@@ -197,6 +199,14 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
     for path in ("public/pages", "public/assets", "audits", "cache"):
         (out / path).mkdir(parents=True, exist_ok=True)
     config = CottaConfig(steps=steps, seed=0)
+    candidates = [Path(html_font)] if html_font else [
+        Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), Path(raster.load_font(18).path)]
+    font_path = next((p for p in candidates if p.is_file() and p.suffix.lower() in (".ttf", ".otf")), None)
+    if font_path is None:
+        raise ValueError("Supply --html-font with a TrueType/OpenType font to freeze paragraph rendering")
+    font_sha = digest(font_path)
+    font_asset = "assets/" + font_sha + font_path.suffix.lower()
     source_hashes = {p: digest(checked_path(raw, p)) for r in source_rows for p in r["images"]}
     inputs = {"schema": SCHEMA, "ids": sorted(expected_ids), "source_hashes": source_hashes,
               "raw_sha256": digest(raw / "test.jsonl"), "templates": FACTORIAL_TEMPLATES,
@@ -204,6 +214,7 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
               "code_hashes": code_hashes(), "protocol": protocol(),
               "torch": torch.__version__, "torch_threads": torch.get_num_threads(),
               "platform": platform.platform(), "playwright": importlib.metadata.version("playwright"),
+              "html_font": {"source": str(font_path), "sha256": font_sha, "asset": font_asset},
               "packages": {name: importlib.metadata.version(name) for name in
                            ("numpy", "Pillow", "torch", "transformers", "playwright", "requests")}}
     # Normalize tuple templates to their JSON representation before checking resume.
@@ -219,6 +230,8 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
     if (out / "surrogates.json").exists() and json.loads((out / "surrogates.json").read_text()) != surrogate_metadata:
         raise ValueError("Surrogate revision changed")
     write_json(out / "surrogates.json", surrogate_metadata)
+    shutil.copyfile(font_path, out / "public" / font_asset)
+    font_data_url = "data:font/ttf;base64," + base64.b64encode(font_path.read_bytes()).decode()
     shutil.copyfile(raw / "test.jsonl", out / "source.jsonl")
     rows, source_assets = [], {}
     for rel in source_hashes:
@@ -245,7 +258,8 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
             # Measure paragraph height in the actual browser with the actual font.
             heights = []
             for text in all_texts:
-                page.set_content(page_html([], "visible_paragraph", text, "auto" ).replace("height:autopx", "height:auto"))
+                page.set_content(page_html([], "visible_paragraph", text, "auto", font_data_url).replace("height:autopx", "height:auto"))
+                page.evaluate("document.fonts.ready")
                 heights.append(page.locator("p").evaluate("p => p.getBoundingClientRect().height"))
             paragraph_height = int(np.ceil(max(heights)))
             conditions = [(None, None, None)] + [(ch, style, text)
@@ -276,7 +290,7 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
                     assets[0] = "assets/" + object_digest([rid, inputs["raw_sha256"]]) + ".png"
                     rendered.save(out / "public" / assets[0])
                 page_rel = "pages/" + object_digest([rid, "page"]) + ".html"
-                (out / "public" / page_rel).write_text(page_html(assets, channel, text, paragraph_height))
+                (out / "public" / page_rel).write_text(page_html(assets, channel, text, paragraph_height, "../" + font_asset))
                 audit_rel = "audits/" + object_digest(rid) + ".json"
                 write_json(out / audit_rel, {**audit, "paragraph_height": paragraph_height})
                 rows.append({"id": rid, "base_id": base, "subcategory": original["metadata"]["subcategory"],
@@ -287,6 +301,7 @@ def _build(raw, out, *, steps=50, device="cpu", browser_executable=None,
                              "question": transformed_question(question, len(assets)), "gold": gold,
                              "target": target, "kind": fmt.kind, "answer_options": list(fmt.options),
                              "exact": exact, "payload": text, "page": page_rel, "assets": assets,
+                             "fonts": [font_asset],
                              "clean_id": row_id(base), "control_id": row_id(base, channel) if channel else None,
                              "audit": audit_rel})
             print(f"Prepared {base} ({len(rows)} rows)", flush=True)
@@ -371,7 +386,9 @@ def validate(root, *, check_code=True):
                     raise ValueError("Source image bytes changed")
         if r["channel"] in ("visible_paragraph", "source_layer") and r["assets"] != clean["assets"]:
             raise ValueError("HTML condition changed chart pixels")
-        for rel in ("public/" + r["page"], r["audit"], *("public/" + a for a in r["assets"])):
+        if r["fonts"] != [spec["html_font"]["asset"]] or digest(root / "public" / r["fonts"][0]) != spec["html_font"]["sha256"]:
+            raise ValueError("Paragraph font changed")
+        for rel in ("public/" + r["page"], r["audit"], *("public/" + a for a in [*r["assets"], *r["fonts"]])):
             if rel not in manifest["hashes"]:
                 raise ValueError("Row refers to unhashed file")
         content = (root / "public" / r["page"]).read_text()
@@ -406,13 +423,15 @@ def main(argv=None):
     b.add_argument("--cotta-device", default="cpu")
     b.add_argument("--browser-executable")
     b.add_argument("--torch-threads", type=int, default=2)
+    b.add_argument("--html-font", help="TTF/OTF paragraph font to package in the bundle")
     v = sub.add_parser("validate")
     v.add_argument("--corpus", required=True)
     v.add_argument("--browser-executable")
     args = parser.parse_args(argv)
     if args.command == "build":
         result = build(args.raw, args.out, steps=args.cotta_steps, device=args.cotta_device,
-                       browser_executable=args.browser_executable, torch_threads=args.torch_threads)
+                       browser_executable=args.browser_executable, torch_threads=args.torch_threads,
+                       html_font=args.html_font)
     else:
         from qa_attacks.webpage_runner import audit_corpus
         result = validate(args.corpus)
