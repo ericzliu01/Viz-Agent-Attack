@@ -17,7 +17,8 @@ from browser_agent import AgentResult
 from pipeline.eval_runner import run_eval
 
 
-def stub_agent(page, question, model, *, workspace_dir=None, memory_backend=None, client=None):
+def stub_agent(page, question, model, *, workspace_dir=None, memory_backend=None,
+               client=None, console_logs=None):
     """Touch the rendered page (proving Chromium drew it), then return a fixed answer."""
     try:
         _ = page.title()  # confirms the browser loaded the served page
